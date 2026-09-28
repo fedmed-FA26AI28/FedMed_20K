@@ -12,6 +12,7 @@ Usage:
 """
 
 import argparse
+import json
 import sys
 import time
 from pathlib import Path
@@ -28,6 +29,9 @@ from flwr.common import NDArrays, Scalar
 from models.cnn import CNN, get_parameters, set_parameters
 from datasets.medmnist_code import get_bloodmnist_datasets
 from datasets.partition import load_partition, get_client_dataloader
+
+
+from monitoring.resource import get_resource_usage, get_device_type
 
 
 # ──────────────────────────────────────────────────────────────
@@ -59,6 +63,9 @@ def _local_train(
     best_loss = float("inf")
     patience_counter = 0
     epoch_times = []
+    epoch_losses = []
+    epoch_accuracies = []
+    epoch_lrs = []
     total_samples = 0
 
     for epoch in range(epochs):
@@ -96,14 +103,18 @@ def _local_train(
         epoch_loss = running_loss / total
         epoch_acc = correct / total
         epoch_time = time.time() - epoch_start
+        current_lr = optimizer.param_groups[0]["lr"]
+
         epoch_times.append(epoch_time)
+        epoch_losses.append(epoch_loss)
+        epoch_accuracies.append(epoch_acc)
+        epoch_lrs.append(current_lr)
         total_samples = total
 
-        current_lr = optimizer.param_groups[0]["lr"]
         print(
             f"  [Client] Epoch [{epoch+1}/{epochs}] "
             f"LR={current_lr:.6f} | Loss={epoch_loss:.4f} Acc={epoch_acc:.4f} "
-            f"| {epoch_time:.1f}s"
+            f"| {epoch_time:.2f}s"
         )
 
         # LR scheduling on train loss
@@ -130,7 +141,12 @@ def _local_train(
         "train_loss": epoch_loss,
         "train_accuracy": epoch_acc,
         "epoch_times": epoch_times,
+        "epoch_losses": epoch_losses,
+        "epoch_accuracies": epoch_accuracies,
+        "epoch_lrs": epoch_lrs,
         "epoch_time_avg": float(np.mean(epoch_times)),
+        "epoch_time_min": float(np.min(epoch_times)),
+        "epoch_time_max": float(np.max(epoch_times)),
         "num_samples": total_samples,
         "epochs_run": len(epoch_times),
     }
@@ -151,12 +167,19 @@ class FedMedAIClient(fl.client.NumPyClient):
         num_classes: int = 8,
         local_epochs: int = 5,
         learning_rate: float = 0.001,
+        device_type: str = None,
+        save_local_metrics: bool = True,
     ):
         self.client_id = client_id
         self.train_loader = train_loader
         self.test_loader = test_loader
         self.local_epochs = local_epochs
         self.learning_rate = learning_rate
+        self.device_type = device_type or get_device_type(client_id)
+        self.save_local_metrics = save_local_metrics
+
+        self.round_history = []
+        self.epoch_history = []
 
         self.device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu"
@@ -167,7 +190,7 @@ class FedMedAIClient(fl.client.NumPyClient):
         )
 
         print(
-            f"[Client {self.client_id}] Initialized on {self.device} | "
+            f"[Client {self.client_id}] Initialized on {self.device} ({self.device_type}) | "
             f"train_samples={len(train_loader.dataset)}"
         )
 
@@ -181,6 +204,7 @@ class FedMedAIClient(fl.client.NumPyClient):
         set_parameters(self.model, parameters)
 
         # Read config from server
+        server_round = int(config.get("server_round", len(self.round_history) + 1))
         local_epochs = int(config.get("local_epochs", self.local_epochs))
         proximal_mu = float(config.get("proximal_mu", 0.0))
         lr_override = config.get("learning_rate")
@@ -208,6 +232,9 @@ class FedMedAIClient(fl.client.NumPyClient):
         )
         training_time = time.time() - train_start
 
+        # Sample hardware resources
+        res = get_resource_usage()
+
         # Compute weight size in KB
         updated_params = get_parameters(self.model)
         weight_size_bytes = sum(p.nbytes for p in updated_params)
@@ -215,23 +242,92 @@ class FedMedAIClient(fl.client.NumPyClient):
 
         # Build metrics dict (only Scalar types: bool, bytes, float, int, str)
         metrics = {
-            "client_id": self.client_id,
+            "client_id": int(self.client_id),
+            "device_type": str(self.device_type),
+            "server_round": int(server_round),
+            "num_samples": int(train_metrics["num_samples"]),
+            "local_epochs": int(local_epochs),
+            "learning_rate": float(self.optimizer.param_groups[0]["lr"]),
             "train_loss": float(train_metrics["train_loss"]),
             "train_accuracy": float(train_metrics["train_accuracy"]),
             "training_time": float(training_time),
             "epoch_time_avg": float(train_metrics["epoch_time_avg"]),
-            "epochs_run": train_metrics["epochs_run"],
-            "local_steps": train_metrics["epochs_run"],
+            "epoch_time_min": float(train_metrics["epoch_time_min"]),
+            "epoch_time_max": float(train_metrics["epoch_time_max"]),
+            "epoch_times": json.dumps([round(t, 4) for t in train_metrics["epoch_times"]]),
+            "epoch_losses": json.dumps([round(l, 4) for l in train_metrics["epoch_losses"]]),
+            "epoch_accuracies": json.dumps([round(a, 4) for a in train_metrics["epoch_accuracies"]]),
+            "epoch_lrs": json.dumps([round(lr, 6) for lr in train_metrics["epoch_lrs"]]),
+            "epochs_run": int(train_metrics["epochs_run"]),
+            "local_steps": int(train_metrics["epochs_run"]),
             "weight_size_kb": float(weight_size_kb),
+            "cpu_percent": float(res["cpu_percent"]),
+            "ram_percent": float(res["ram_percent"]),
+            "ram_used_mb": float(res["ram_used_mb"]),
+            "gpu_memory_mb": float(res["gpu_memory_allocated_mb"]),
         }
 
+        # Track history locally
+        self.round_history.append(metrics)
+        cum_t = 0.0
+        for ep_idx, ep_time in enumerate(train_metrics["epoch_times"]):
+            cum_t += ep_time
+            self.epoch_history.append({
+                "round": server_round,
+                "client_id": self.client_id,
+                "device_type": self.device_type,
+                "epoch": ep_idx + 1,
+                "epoch_time_seconds": round(ep_time, 4),
+                "cumulative_epoch_time_seconds": round(cum_t, 4),
+                "train_loss": round(train_metrics["epoch_losses"][ep_idx], 6),
+                "train_accuracy": round(train_metrics["epoch_accuracies"][ep_idx], 6),
+                "learning_rate": train_metrics["epoch_lrs"][ep_idx],
+            })
+
+        if self.save_local_metrics:
+            self._save_client_csvs()
+
         print(
-            f"[Client {self.client_id}] fit done | "
+            f"[Client {self.client_id}] fit done | Round {server_round} | "
             f"loss={metrics['train_loss']:.4f} acc={metrics['train_accuracy']:.4f} "
-            f"| {training_time:.1f}s | weights={weight_size_kb:.1f}KB"
+            f"| round_time={training_time:.2f}s | avg_epoch={metrics['epoch_time_avg']:.2f}s "
+            f"| weights={weight_size_kb:.1f}KB"
         )
 
         return updated_params, train_metrics["num_samples"], metrics
+
+    def _save_client_csvs(self):
+        """Export local client CSV metrics for on-device inspection."""
+        try:
+            client_dir = Path("results") / "clients" / f"client_{self.client_id}"
+            client_dir.mkdir(parents=True, exist_ok=True)
+
+            # Round metrics
+            r_path = client_dir / f"client_{self.client_id}_round_metrics.csv"
+            r_cols = [
+                "server_round", "client_id", "device_type", "num_samples", "local_epochs",
+                "learning_rate", "training_time", "epoch_time_avg", "epoch_time_min",
+                "epoch_time_max", "train_loss", "train_accuracy", "weight_size_kb",
+                "cpu_percent", "ram_percent", "ram_used_mb", "gpu_memory_mb"
+            ]
+            import csv
+            with open(r_path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=r_cols, extrasaction="ignore")
+                writer.writeheader()
+                writer.writerows(self.round_history)
+
+            # Epoch metrics
+            ep_path = client_dir / f"client_{self.client_id}_epoch_metrics.csv"
+            ep_cols = [
+                "round", "client_id", "device_type", "epoch", "epoch_time_seconds",
+                "cumulative_epoch_time_seconds", "train_loss", "train_accuracy", "learning_rate"
+            ]
+            with open(ep_path, "w", newline="", encoding="utf-8") as f:
+                writer = csv.DictWriter(f, fieldnames=ep_cols, extrasaction="ignore")
+                writer.writeheader()
+                writer.writerows(self.epoch_history)
+        except Exception as e:
+            print(f"[Client {self.client_id}] Warning: could not write local CSV: {e}")
 
     def evaluate(self, parameters: NDArrays, config: dict):
         """Evaluate the global model on the local test set."""
@@ -301,6 +397,20 @@ def main():
     parser.add_argument(
         "--batch_size", type=int, default=None, help="Override batch size from config"
     )
+    parser.add_argument(
+        "--device_type",
+        type=str,
+        default=None,
+        choices=["pc", "jetson_orin", "jetson_nano"],
+        help="Device class override (default: auto-detected from configs/jetson.yaml)",
+    )
+    parser.add_argument(
+        "--no_save_metrics",
+        action="store_false",
+        dest="save_metrics",
+        help="Disable saving local client metrics to CSV",
+    )
+    parser.set_defaults(save_metrics=True)
     args = parser.parse_args()
 
     # Resolve partition path
@@ -357,6 +467,8 @@ def main():
         num_classes=num_classes,
         local_epochs=args.local_epochs,
         learning_rate=args.learning_rate,
+        device_type=args.device_type,
+        save_local_metrics=args.save_metrics,
     )
 
     print(f"[Client {args.client_id}] Connecting to {args.server_address}...")

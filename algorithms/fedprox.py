@@ -11,7 +11,7 @@ the `proximal_mu` parameter sent to clients via on_fit_config_fn.
 """
 
 import time
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, Any
 from logging import WARNING, INFO
 
 import numpy as np
@@ -25,6 +25,7 @@ from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy import FedProx as FlwrFedProx
 
 from algorithms.fedavg import _weighted_average_metrics
+from monitoring.metrics import FLMetricsRecorder
 
 
 class FedProxStrategy(FlwrFedProx):
@@ -36,6 +37,7 @@ class FedProxStrategy(FlwrFedProx):
         early_stop_patience: Number of rounds without improvement before stopping.
             Set to 0 to disable server-side early stopping.
         early_stop_metric: Metric key returned by evaluate to track (default: accuracy).
+        metrics_recorder: Optional FLMetricsRecorder instance for logging and visualization.
         All other kwargs are forwarded to flwr.server.strategy.FedProx.
     """
 
@@ -45,6 +47,7 @@ class FedProxStrategy(FlwrFedProx):
         proximal_mu: float = 0.1,
         early_stop_patience: int = 10,
         early_stop_metric: str = "accuracy",
+        metrics_recorder: Optional[FLMetricsRecorder] = None,
         **kwargs,
     ):
         # Inject our custom metrics aggregation unless caller overrides
@@ -53,6 +56,11 @@ class FedProxStrategy(FlwrFedProx):
 
         # FedProx requires proximal_mu to be passed
         super().__init__(proximal_mu=proximal_mu, **kwargs)
+
+        # Metrics recorder
+        self.recorder = metrics_recorder or FLMetricsRecorder(
+            strategy_name="FedProx", proximal_mu=proximal_mu
+        )
 
         # Early stopping state
         self.early_stop_patience = early_stop_patience
@@ -73,6 +81,7 @@ class FedProxStrategy(FlwrFedProx):
     def configure_fit(self, server_round, parameters, client_manager):
         """Record round start time, then delegate to parent."""
         self._round_start = time.time()
+        self.recorder.record_round_start(server_round)
         return super().configure_fit(server_round, parameters, client_manager)
 
     def aggregate_fit(
@@ -96,6 +105,14 @@ class FedProxStrategy(FlwrFedProx):
         metrics_aggregated["num_clients_reporting"] = len(results)
         metrics_aggregated["num_failures"] = len(failures)
 
+        # Record in comprehensive metrics recorder
+        self.recorder.record_fit_results(
+            server_round=server_round,
+            round_duration=round_time,
+            results=results,
+            metrics_aggregated=metrics_aggregated,
+        )
+
         log(
             INFO,
             "[FedProx] Round %d | %.1fs | clients=%d | failures=%d | mu=%.4f",
@@ -117,6 +134,16 @@ class FedProxStrategy(FlwrFedProx):
         loss_aggregated, metrics_aggregated = super().aggregate_evaluate(
             server_round, results, failures
         )
+
+        if loss_aggregated is not None and metrics_aggregated:
+            eval_metric_val = metrics_aggregated.get(self.early_stop_metric)
+            if eval_metric_val is not None:
+                self.recorder.record_eval_results(
+                    server_round=server_round,
+                    loss=loss_aggregated,
+                    accuracy=float(eval_metric_val),
+                    is_server_eval=False,
+                )
 
         if self.early_stop_patience > 0 and metrics_aggregated:
             current = metrics_aggregated.get(self.early_stop_metric)
@@ -152,19 +179,15 @@ class FedProxStrategy(FlwrFedProx):
         return loss_aggregated, metrics_aggregated
 
     # ------------------------------------------------------------------ #
-    #  Summary helper
+    #  Summary & Artifacts
     # ------------------------------------------------------------------ #
 
-    def get_summary(self) -> Dict[str, float]:
+    def get_summary(self) -> Dict[str, Any]:
         """Return a dict summarising the entire FL run."""
-        total_time = time.time() - self._total_start
-        return {
-            "strategy": "FedProx",
-            "proximal_mu": self.proximal_mu,
-            "total_rounds": len(self._round_times),
-            "total_time_seconds": total_time,
-            "avg_round_time_seconds": float(np.mean(self._round_times))
-            if self._round_times
-            else 0.0,
-            "best_metric": self._best_metric if self._best_metric else 0.0,
-        }
+        return self.recorder.get_summary()
+
+    def save_artifacts(
+        self, save_dir: str, extra_metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Export CSVs, comparison plots, and rich fl_results.json."""
+        return self.recorder.save_all(save_dir=save_dir, extra_metadata=extra_metadata)

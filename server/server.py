@@ -32,11 +32,14 @@ from models.cnn import CNN, get_parameters
 from algorithms import get_strategy
 
 
+from monitoring.metrics import FLMetricsRecorder
+
+
 # ──────────────────────────────────────────────────────────────
 # Server-side evaluate function (centralized evaluation)
 # ──────────────────────────────────────────────────────────────
 
-def _get_evaluate_fn(num_classes: int = 8):
+def _get_evaluate_fn(num_classes: int = 8, recorder: Optional[FLMetricsRecorder] = None):
     """Return a server-side evaluation function (optional).
 
     If you want the server to also evaluate the global model on a held-out
@@ -79,6 +82,14 @@ def _get_evaluate_fn(num_classes: int = 8):
 
         avg_loss = total_loss / total
         accuracy = correct / total
+
+        if recorder is not None:
+            recorder.record_eval_results(
+                server_round=server_round,
+                loss=avg_loss,
+                accuracy=accuracy,
+                is_server_eval=True,
+            )
 
         print(
             f"\n{'='*60}\n"
@@ -213,12 +224,19 @@ def main():
     initial_model = CNN(num_classes=8)
     initial_params = ndarrays_to_parameters(get_parameters(initial_model))
 
+    # Initialize metrics recorder
+    recorder = FLMetricsRecorder(
+        strategy_name=args.strategy,
+        proximal_mu=args.proximal_mu if args.strategy == "fedprox" else None,
+    )
+
     # Build strategy kwargs
     strategy_kwargs = {
         "min_fit_clients": args.min_clients,
         "min_evaluate_clients": args.min_clients,
         "min_available_clients": args.min_clients,
         "initial_parameters": initial_params,
+        "metrics_recorder": recorder,
         "on_fit_config_fn": _make_on_fit_config_fn(
             local_epochs=args.local_epochs,
             learning_rate=args.learning_rate,
@@ -230,7 +248,7 @@ def main():
 
     # Server-side evaluation (optional)
     if args.server_eval:
-        strategy_kwargs["evaluate_fn"] = _get_evaluate_fn(num_classes=8)
+        strategy_kwargs["evaluate_fn"] = _get_evaluate_fn(num_classes=8, recorder=recorder)
 
     # Strategy-specific kwargs
     if args.strategy == "fedprox":
@@ -267,27 +285,39 @@ def main():
         print(f"  Proximal mu    : {summary.get('proximal_mu', args.proximal_mu)}")
     print(f"{'='*60}\n")
 
-    # Save results
+    # Save comprehensive results, CSVs, plots, and JSON
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     save_dir = f"results/federated/{args.strategy}/{timestamp}"
     os.makedirs(save_dir, exist_ok=True)
 
-    results = {
+    extra_metadata = {
         "strategy": args.strategy,
-        "num_rounds": args.rounds,
+        "num_rounds_requested": args.rounds,
         "min_clients": args.min_clients,
         "local_epochs": args.local_epochs,
         "learning_rate": args.learning_rate,
-        "total_time_seconds": total_time,
-        "summary": summary,
+        "server_eval_enabled": args.server_eval,
+        "server_address": f"{args.host}:{args.port}",
+        "early_stop_patience": args.early_stop_patience,
     }
     if args.strategy == "fedprox":
-        results["proximal_mu"] = args.proximal_mu
+        extra_metadata["proximal_mu"] = args.proximal_mu
 
-    results_path = os.path.join(save_dir, "fl_results.json")
-    with open(results_path, "w", encoding="utf-8") as f:
-        json.dump(results, f, indent=4, ensure_ascii=False, default=str)
-    print(f"Results saved to: {results_path}")
+    print("[Server] Generating and saving all CSV metrics, comparison plots, and rich fl_results.json...")
+    saved_artifacts = strategy.save_artifacts(save_dir=save_dir, extra_metadata=extra_metadata)
+
+    print(f"\n{'='*60}")
+    print(f"  FedMedAI FL Artifacts Saved Successfully!")
+    print(f"{'='*60}")
+    print(f"  Output Directory : {save_dir}")
+    print(f"  Summary JSON     : {saved_artifacts.get('json_path')}")
+    print(f"  CSV Metrics      :")
+    for csv_key, csv_file in saved_artifacts.get("csv_paths", {}).items():
+        print(f"    - {csv_key}: {os.path.basename(csv_file)}")
+    print(f"  Comparison Plots :")
+    for plot_file in saved_artifacts.get("plot_paths", []):
+        print(f"    - {os.path.basename(plot_file)}")
+    print(f"{'='*60}\n")
 
 
 if __name__ == "__main__":

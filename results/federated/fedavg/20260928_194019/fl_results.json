@@ -1,0 +1,171 @@
+{
+    "metadata": {
+        "strategy": "fedavg",
+        "timestamp": "20260928_194021",
+        "status": "completed",
+        "num_rounds_completed": 1,
+        "num_rounds_requested": 1,
+        "min_clients": 2,
+        "local_epochs": 2,
+        "learning_rate": 0.001,
+        "server_eval_enabled": false,
+        "server_address": "0.0.0.0:63908",
+        "early_stop_patience": 10
+    },
+    "summary": {
+        "total_wall_clock_time_seconds": 38.04,
+        "total_client_compute_time_seconds": 65.84,
+        "avg_round_time_seconds": 38.01,
+        "min_round_time_seconds": 38.01,
+        "max_round_time_seconds": 38.01,
+        "total_straggler_overhead_seconds": 0.14,
+        "straggler_overhead_percent": 0.37,
+        "final_global_accuracy": 0.360421,
+        "best_global_accuracy": 0.3604,
+        "best_global_accuracy_round": 1,
+        "final_global_loss": 1.592947,
+        "best_global_loss": 1.5929,
+        "final_train_loss_avg": 0.959246,
+        "final_train_accuracy_avg": 0.74839,
+        "total_communication_kb": 158.6,
+        "total_communication_mb": 0.15
+    },
+    "client_summaries": {
+        "0": {
+            "client_id": 0,
+            "device_type": "jetson_orin",
+            "num_samples": 5267,
+            "total_rounds_participated": 1,
+            "total_training_time_seconds": 32.8518,
+            "avg_time_per_round_seconds": 32.8518,
+            "min_time_per_round_seconds": 32.8518,
+            "max_time_per_round_seconds": 32.8518,
+            "avg_time_per_epoch_seconds": 16.4259,
+            "min_time_per_epoch_seconds": 16.1615,
+            "max_time_per_epoch_seconds": 16.6903,
+            "total_epochs_trained": 2,
+            "final_train_loss": 0.835616,
+            "final_train_accuracy": 0.756788,
+            "total_data_uploaded_kb": 79.3,
+            "avg_cpu_percent": 18.0,
+            "avg_ram_percent": 56.7,
+            "avg_gpu_memory_mb": 16.57
+        },
+        "1": {
+            "client_id": 1,
+            "device_type": "jetson_orin",
+            "num_samples": 6692,
+            "total_rounds_participated": 1,
+            "total_training_time_seconds": 32.9914,
+            "avg_time_per_round_seconds": 32.9914,
+            "min_time_per_round_seconds": 32.9914,
+            "max_time_per_round_seconds": 32.9914,
+            "avg_time_per_epoch_seconds": 16.4957,
+            "min_time_per_epoch_seconds": 16.1894,
+            "max_time_per_epoch_seconds": 16.802,
+            "total_epochs_trained": 2,
+            "final_train_loss": 1.056549,
+            "final_train_accuracy": 0.741781,
+            "total_data_uploaded_kb": 79.3,
+            "avg_cpu_percent": 18.0,
+            "avg_ram_percent": 52.4,
+            "avg_gpu_memory_mb": 16.57
+        }
+    },
+    "hardware_heterogeneity": {
+        "device_types_present": [
+            "jetson_orin"
+        ],
+        "by_device_type": {
+            "jetson_orin": {
+                "client_count": 2,
+                "avg_round_training_time_seconds": 32.9216,
+                "avg_epoch_time_seconds": 16.4608,
+                "total_device_compute_time_seconds": 65.8432
+            }
+        }
+    },
+    "rounds_history": [
+        {
+            "round": 1,
+            "round_time_seconds": 38.0119,
+            "total_elapsed_seconds": 38.044,
+            "num_clients_reporting": 2,
+            "train_loss_avg": 0.959246,
+            "train_accuracy_avg": 0.74839,
+            "eval_loss": 1.592947,
+            "eval_accuracy": 0.360421,
+            "client_train_time_avg": 32.9216,
+            "client_train_time_min": 32.8518,
+            "client_train_time_max": 32.9914,
+            "straggler_time_seconds": 0.1396,
+            "epoch_time_avg": 16.4608,
+            "total_weight_size_kb": 158.6,
+            "server_overhead_seconds": 5.0205,
+            "clients": [
+                {
+                    "client_id": 1,
+                    "device_type": "jetson_orin",
+                    "num_samples": 6692,
+                    "training_time_seconds": 32.9914,
+                    "epoch_time_avg": 16.4957,
+                    "epoch_times": [
+                        16.802,
+                        16.1894
+                    ],
+                    "train_loss": 1.056549,
+                    "train_accuracy": 0.741781,
+                    "epoch_losses": [
+                        1.4489,
+                        1.0565
+                    ],
+                    "epoch_accuracies": [
+                        0.5332,
+                        0.7418
+                    ],
+                    "weight_size_kb": 79.3,
+                    "cpu_percent": 18.0,
+                    "ram_percent": 52.4,
+                    "gpu_memory_mb": 16.57
+                },
+                {
+                    "client_id": 0,
+                    "device_type": "jetson_orin",
+                    "num_samples": 5267,
+                    "training_time_seconds": 32.8518,
+                    "epoch_time_avg": 16.4259,
+                    "epoch_times": [
+                        16.6903,
+                        16.1615
+                    ],
+                    "train_loss": 0.835616,
+                    "train_accuracy": 0.756788,
+                    "epoch_losses": [
+                        1.3469,
+                        0.8356
+                    ],
+                    "epoch_accuracies": [
+                        0.6472,
+                        0.7568
+                    ],
+                    "weight_size_kb": 79.3,
+                    "cpu_percent": 18.0,
+                    "ram_percent": 56.7,
+                    "gpu_memory_mb": 16.57
+                }
+            ]
+        }
+    ],
+    "artifacts": {
+        "client_round_metrics_csv": "client_round_metrics.csv",
+        "client_epoch_metrics_csv": "client_epoch_metrics.csv",
+        "round_metrics_csv": "round_metrics.csv",
+        "plots": [
+            "client_training_time_comparison.png",
+            "client_epoch_time_comparison.png",
+            "fl_training_curves.png",
+            "round_time_breakdown.png",
+            "fl_summary_card.png"
+        ]
+    }
+}
