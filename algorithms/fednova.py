@@ -19,7 +19,7 @@ Clients send `local_steps` in their metrics dict.
 """
 
 import time
-from typing import Dict, List, Optional, Tuple, Union
+from typing import Dict, List, Optional, Tuple, Union, Any
 from logging import WARNING, INFO
 
 import numpy as np
@@ -35,6 +35,7 @@ from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy import FedAvg as FlwrFedAvg
 
 from algorithms.fedavg import _weighted_average_metrics
+from monitoring.metrics import FLMetricsRecorder
 
 
 def _fednova_aggregate(
@@ -89,6 +90,7 @@ class FedNovaStrategy(FlwrFedAvg):
         early_stop_patience: Number of rounds without improvement before stopping.
             Set to 0 to disable.
         early_stop_metric: Metric key to track (default: accuracy).
+        metrics_recorder: Optional FLMetricsRecorder instance for logging and visualization.
         All other kwargs are forwarded to flwr.server.strategy.FedAvg.
     """
 
@@ -97,12 +99,16 @@ class FedNovaStrategy(FlwrFedAvg):
         *,
         early_stop_patience: int = 10,
         early_stop_metric: str = "accuracy",
+        metrics_recorder: Optional[FLMetricsRecorder] = None,
         **kwargs,
     ):
         if "fit_metrics_aggregation_fn" not in kwargs:
             kwargs["fit_metrics_aggregation_fn"] = _weighted_average_metrics
 
         super().__init__(**kwargs)
+
+        # Metrics recorder
+        self.recorder = metrics_recorder or FLMetricsRecorder(strategy_name="FedNova")
 
         # Early stopping state
         self.early_stop_patience = early_stop_patience
@@ -126,6 +132,7 @@ class FedNovaStrategy(FlwrFedAvg):
     def configure_fit(self, server_round, parameters, client_manager):
         """Record round start time and cache global parameters for delta computation."""
         self._round_start = time.time()
+        self.recorder.record_round_start(server_round)
         # Cache current global parameters for use in aggregate_fit
         self._current_global_params = parameters_to_ndarrays(parameters)
         return super().configure_fit(server_round, parameters, client_manager)
@@ -187,6 +194,14 @@ class FedNovaStrategy(FlwrFedAvg):
         metrics_aggregated["local_steps_min"] = float(np.min(local_steps_list))
         metrics_aggregated["local_steps_max"] = float(np.max(local_steps_list))
 
+        # Record in comprehensive metrics recorder
+        self.recorder.record_fit_results(
+            server_round=server_round,
+            round_duration=round_time,
+            results=results,
+            metrics_aggregated=metrics_aggregated,
+        )
+
         log(
             INFO,
             "[FedNova] Round %d | %.1fs | clients=%d | local_steps=[%.0f–%.0f]",
@@ -208,6 +223,16 @@ class FedNovaStrategy(FlwrFedAvg):
         loss_aggregated, metrics_aggregated = super().aggregate_evaluate(
             server_round, results, failures
         )
+
+        if loss_aggregated is not None and metrics_aggregated:
+            eval_metric_val = metrics_aggregated.get(self.early_stop_metric)
+            if eval_metric_val is not None:
+                self.recorder.record_eval_results(
+                    server_round=server_round,
+                    loss=loss_aggregated,
+                    accuracy=float(eval_metric_val),
+                    is_server_eval=False,
+                )
 
         if self.early_stop_patience > 0 and metrics_aggregated:
             current = metrics_aggregated.get(self.early_stop_metric)
@@ -243,18 +268,15 @@ class FedNovaStrategy(FlwrFedAvg):
         return loss_aggregated, metrics_aggregated
 
     # ------------------------------------------------------------------ #
-    #  Summary helper
+    #  Summary & Artifacts
     # ------------------------------------------------------------------ #
 
-    def get_summary(self) -> Dict[str, float]:
+    def get_summary(self) -> Dict[str, Any]:
         """Return a dict summarising the entire FL run."""
-        total_time = time.time() - self._total_start
-        return {
-            "strategy": "FedNova",
-            "total_rounds": len(self._round_times),
-            "total_time_seconds": total_time,
-            "avg_round_time_seconds": float(np.mean(self._round_times))
-            if self._round_times
-            else 0.0,
-            "best_metric": self._best_metric if self._best_metric else 0.0,
-        }
+        return self.recorder.get_summary()
+
+    def save_artifacts(
+        self, save_dir: str, extra_metadata: Optional[Dict[str, Any]] = None
+    ) -> Dict[str, Any]:
+        """Export CSVs, comparison plots, and rich fl_results.json."""
+        return self.recorder.save_all(save_dir=save_dir, extra_metadata=extra_metadata)

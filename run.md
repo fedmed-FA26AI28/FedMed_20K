@@ -216,6 +216,29 @@ python -m server.server --strategy fedprox --proximal_mu 0.05 --rounds 30 --min_
 python -m client.client --client_id 0 --server_address 192.168.1.50:8080 --num_clients 3 --alpha 0.3 --batch_size 32
 ```
 
+> 📁 **Kết quả đầu ra của FL Server (FL Run Artifacts):**  
+> Tự động lưu tại thư mục `results/federated/<strategy>/<timestamp>/` gồm đầy đủ định dạng số liệu, đồ thị và báo cáo:
+>
+> 1. **Các file số liệu định dạng CSV (.csv):**
+>    - `client_round_metrics.csv`: Chi tiết từng client qua từng round (round, client_id, device_type, num_samples, local_epochs, training_time_seconds, epoch_time_avg, min/max epoch time, train_loss, train_accuracy, weight_size_kb, cpu_percent, ram_percent, ram_used_mb, gpu_memory_mb).
+>    - `client_epoch_metrics.csv`: Bóc tách chi tiết đến từng epoch của từng client (round, client_id, device_type, epoch, epoch_time_seconds, cumulative_epoch_time_seconds, train_loss, train_accuracy, learning_rate).
+>    - `round_metrics.csv`: Tổng hợp cấp hệ thống cho từng round (round, round_time_seconds, total_elapsed_seconds, num_clients_reporting, train_loss_avg, train_accuracy_avg, eval_loss, eval_accuracy, client_train_time_avg, client_train_time_min, client_train_time_max, straggler_time_seconds, epoch_time_avg, total_weight_size_kb, server_overhead_seconds).
+>
+> 2. **Các biểu đồ trực quan so sánh (.png):**
+>    - `client_training_time_comparison.png`: Đồ thị so sánh thời gian huấn luyện per-round giữa các client, biểu đồ cột thời gian trung bình kèm sai số, và biểu đồ độ trễ trễ hạn (straggler latency penalty = max_time - min_time).
+>    - `client_epoch_time_comparison.png`: Biểu đồ hộp (Boxplot) phân phối thời gian tính toán mỗi epoch của từng client và biểu đồ so sánh thời gian epoch trung bình giữa các lớp phần cứng (PC vs Orin vs Nano).
+>    - `fl_training_curves.png`: Đường cong hội tụ Loss & Accuracy qua các round (Weighted Client Train vs Global Centralized Test) và biểu đồ phân tán độ chính xác của từng client.
+>    - `round_time_breakdown.png`: Biểu đồ cột xếp chồng phân rã thời gian mỗi round thành 3 thành phần: Thời gian tính toán client nhanh nhất, thời gian chờ do straggler, và overhead truyền thông mạng / tổng hợp server.
+>    - `fl_summary_card.png`: Thẻ tóm tắt trực quan (Dashboard Summary Card) tổng kết siêu tham số, hiệu năng mô hình, tài nguyên và độ chênh lệch tính toán phần cứng.
+>
+> 3. **Báo cáo định dạng JSON chi tiết (.json):**
+>    - `fl_results.json`: Chứa toàn bộ metadata, executive summary, thống kê tổng hợp của từng client, phân tích độ trễ phần cứng dị thể (hardware heterogeneity analysis), lịch sử huấn luyện round-by-round đầy đủ và đường dẫn đến các artifacts.
+>
+> 4. **Số liệu cục bộ lưu tại từng Client:**  
+>    Tự động ghi tại `results/clients/client_<id>/` gồm:
+>    - `client_<id>_round_metrics.csv`: Lịch sử thời gian và loss/acc của riêng client đó.
+>    - `client_<id>_epoch_metrics.csv`: Thời gian thực thi từng epoch cục bộ.
+
 ---
 
 ## 3. FL Run on Jetson Device with Linux (Federated Learning trên cụm thiết bị NVIDIA Jetson)
@@ -403,6 +426,8 @@ Hệ thống tự động tra cứu ID trong [`configs/jetson.yaml`](file:///D:/
 | `--batch_size` | `int` | Tự động | Ghi đè kích thước batch nếu không muốn dùng giá trị tự động từ config. |
 | `--learning_rate` | `float` | `0.001` | Tốc độ học khởi tạo. |
 | `--local_epochs` | `int` | `5` | Số epoch huấn luyện cục bộ mỗi round. |
+| `--device_type` | `str` | `None` (Tự động) | Ép buộc lớp thiết bị: `pc`, `jetson_orin`, `jetson_nano`. |
+| `--no_save_metrics` | `flag` | `False` | Tắt tự động ghi log số liệu metrics per-round & per-epoch ra CSV cục bộ tại client. |
 
 #### C. Lệnh hệ thống quản lý phần cứng Jetson
 | Lệnh hệ thống | Tùy chọn / Cú pháp | Mục đích sử dụng |
