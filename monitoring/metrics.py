@@ -144,6 +144,10 @@ class FLMetricsRecorder:
             ram_used_mb = float(m.get("ram_used_mb", 0.0))
             gpu_memory_mb = float(m.get("gpu_memory_mb", 0.0))
 
+            # Ping latency
+            raw_ping = m.get("ping_ms")
+            ping_ms = float(raw_ping) if raw_ping is not None and float(raw_ping) >= 0 else None
+
             epoch_times = parse_json_or_list(m.get("epoch_times"))
             if not epoch_times:
                 epoch_times = [round(epoch_time_avg, 4)] * local_epochs
@@ -173,6 +177,7 @@ class FLMetricsRecorder:
                 "epoch_time_max": round(epoch_time_max, 4),
                 "train_loss": round(train_loss, 6),
                 "train_accuracy": round(train_accuracy, 6),
+                "ping_ms": round(ping_ms, 2) if ping_ms is not None else None,
                 "weight_size_kb": round(weight_size_kb, 2),
                 "cpu_percent": round(cpu_percent, 2),
                 "ram_percent": round(ram_percent, 2),
@@ -249,6 +254,14 @@ class FLMetricsRecorder:
 
         total_elapsed = time.time() - self.fl_start_time
 
+        # Round-level ping stats
+        round_pings = [
+            c["ping_ms"] for c in round_clients if c.get("ping_ms") is not None
+        ]
+        ping_ms_avg = float(np.mean(round_pings)) if round_pings else None
+        ping_ms_min = float(np.min(round_pings)) if round_pings else None
+        ping_ms_max = float(np.max(round_pings)) if round_pings else None
+
         round_entry = {
             "round": server_round,
             "round_time_seconds": round(round_duration, 4),
@@ -265,6 +278,9 @@ class FLMetricsRecorder:
             "epoch_time_avg": round(epoch_time_avg, 4),
             "total_weight_size_kb": round(total_weight_kb, 2),
             "server_overhead_seconds": round(server_overhead, 4),
+            "ping_ms_avg": round(ping_ms_avg, 2) if ping_ms_avg is not None else None,
+            "ping_ms_min": round(ping_ms_min, 2) if ping_ms_min is not None else None,
+            "ping_ms_max": round(ping_ms_max, 2) if ping_ms_max is not None else None,
         }
         self.round_records.append(round_entry)
 
@@ -354,6 +370,7 @@ class FLMetricsRecorder:
             "epoch_time_max",
             "train_loss",
             "train_accuracy",
+            "ping_ms",
             "weight_size_kb",
             "cpu_percent",
             "ram_percent",
@@ -427,6 +444,9 @@ class FLMetricsRecorder:
             "epoch_time_avg",
             "total_weight_size_kb",
             "server_overhead_seconds",
+            "ping_ms_avg",
+            "ping_ms_min",
+            "ping_ms_max",
         ]
         if self.round_records:
             if pd is not None:
@@ -474,6 +494,7 @@ class FLMetricsRecorder:
             c_cpu = [c["cpu_percent"] for c in c_recs if c["cpu_percent"] > 0]
             c_ram = [c["ram_percent"] for c in c_recs if c["ram_percent"] > 0]
             c_gpu = [c["gpu_memory_mb"] for c in c_recs if c["gpu_memory_mb"] > 0]
+            c_pings = [c["ping_ms"] for c in c_recs if c.get("ping_ms") is not None]
 
             client_summaries[str(cid)] = {
                 "client_id": cid,
@@ -510,6 +531,9 @@ class FLMetricsRecorder:
                 "avg_cpu_percent": round(float(np.mean(c_cpu)), 2) if c_cpu else 0.0,
                 "avg_ram_percent": round(float(np.mean(c_ram)), 2) if c_ram else 0.0,
                 "avg_gpu_memory_mb": round(float(np.mean(c_gpu)), 2) if c_gpu else 0.0,
+                "avg_ping_ms": round(float(np.mean(c_pings)), 2) if c_pings else None,
+                "min_ping_ms": round(float(min(c_pings)), 2) if c_pings else None,
+                "max_ping_ms": round(float(max(c_pings)), 2) if c_pings else None,
             }
 
         # Hardware heterogeneity breakdown
@@ -530,6 +554,7 @@ class FLMetricsRecorder:
             unique_clients = len(set(c["client_id"] for c in dtype_c_recs))
             r_times = [c["training_time_seconds"] for c in dtype_c_recs]
             ep_times = [e["epoch_time_seconds"] for e in dtype_ep_recs]
+            dtype_pings = [c["ping_ms"] for c in dtype_c_recs if c.get("ping_ms") is not None]
 
             heterogeneity_stats["by_device_type"][dtype] = {
                 "client_count": unique_clients,
@@ -539,6 +564,7 @@ class FLMetricsRecorder:
                 "avg_epoch_time_seconds": round(float(np.mean(ep_times)), 4)
                 if ep_times
                 else 0.0,
+                "avg_ping_ms": round(float(np.mean(dtype_pings)), 2) if dtype_pings else None,
                 "total_device_compute_time_seconds": round(float(sum(r_times)), 4),
             }
 
@@ -569,6 +595,7 @@ class FLMetricsRecorder:
                     "epoch_times": c["epoch_times"],
                     "train_loss": c["train_loss"],
                     "train_accuracy": c["train_accuracy"],
+                    "ping_ms": c.get("ping_ms"),
                     "epoch_losses": c["epoch_losses"],
                     "epoch_accuracies": c["epoch_accuracies"],
                     "weight_size_kb": c["weight_size_kb"],
@@ -1290,14 +1317,34 @@ class FLMetricsRecorder:
                 f"{total_comm_kb/1024:.2f} MB ({total_comm_kb:.0f} KB)",
                 c_row_light,
             )
+
+            all_pings = [c["ping_ms"] for c in self.client_records if c.get("ping_ms") is not None]
+            if all_pings:
+                avg_p = float(np.mean(all_pings))
+                min_p = float(np.min(all_pings))
+                max_p = float(np.max(all_pings))
+                y = draw_entry(
+                    ax,
+                    y,
+                    "Client-to-Server Ping (Avg)",
+                    f"{avg_p:.2f} ms (Min: {min_p:.2f} ms, Max: {max_p:.2f} ms)",
+                    c_row_dark,
+                )
+
             y = draw_entry(
                 ax,
                 y,
                 "Output Data Formats",
                 "3 CSV tables (Client, Epoch, Round) + fl_results.json",
-                c_row_dark,
+                c_row_light if all_pings else c_row_dark,
             )
-            y = draw_entry(ax, y, "Comparison Visualizations", "5 publication-quality PNG charts", c_row_light)
+            y = draw_entry(
+                ax,
+                y,
+                "Comparison Visualizations",
+                "5 publication-quality PNG charts",
+                c_row_dark if all_pings else c_row_light,
+            )
 
             # Footer
             ax.text(

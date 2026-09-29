@@ -32,6 +32,7 @@ from datasets.partition import load_partition, get_client_dataloader
 
 
 from monitoring.resource import get_resource_usage, get_device_type
+from monitoring.network import ClientPingLogger
 
 
 # ──────────────────────────────────────────────────────────────
@@ -169,6 +170,7 @@ class FedMedAIClient(fl.client.NumPyClient):
         learning_rate: float = 0.001,
         device_type: str = None,
         save_local_metrics: bool = True,
+        server_address: str = "127.0.0.1:8080",
     ):
         self.client_id = client_id
         self.train_loader = train_loader
@@ -177,9 +179,21 @@ class FedMedAIClient(fl.client.NumPyClient):
         self.learning_rate = learning_rate
         self.device_type = device_type or get_device_type(client_id)
         self.save_local_metrics = save_local_metrics
+        self.server_address = server_address
 
         self.round_history = []
         self.epoch_history = []
+
+        # Client ping logger
+        self.client_dir = Path("results") / "clients" / f"client_{self.client_id}"
+        self.ping_logger = ClientPingLogger(
+            client_id=self.client_id,
+            server_address=self.server_address,
+            device_type=self.device_type,
+            log_dir=self.client_dir,
+            enabled=self.save_local_metrics,
+        )
+        self.ping_logger.log_ping(server_round=0, event="init")
 
         self.device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu"
@@ -211,6 +225,10 @@ class FedMedAIClient(fl.client.NumPyClient):
         if lr_override is not None:
             for pg in self.optimizer.param_groups:
                 pg["lr"] = float(lr_override)
+
+        # Measure network ping to server for this round
+        ping_res = self.ping_logger.log_ping(server_round=server_round, event="fit")
+        ping_ms = ping_res.get("ping_ms")
 
         # Prepare global params for FedProx proximal term
         global_params = None
@@ -260,6 +278,7 @@ class FedMedAIClient(fl.client.NumPyClient):
             "epoch_lrs": json.dumps([round(lr, 6) for lr in train_metrics["epoch_lrs"]]),
             "epochs_run": int(train_metrics["epochs_run"]),
             "local_steps": int(train_metrics["epochs_run"]),
+            "ping_ms": float(ping_ms) if ping_ms is not None else -1.0,
             "weight_size_kb": float(weight_size_kb),
             "cpu_percent": float(res["cpu_percent"]),
             "ram_percent": float(res["ram_percent"]),
@@ -307,7 +326,7 @@ class FedMedAIClient(fl.client.NumPyClient):
             r_cols = [
                 "server_round", "client_id", "device_type", "num_samples", "local_epochs",
                 "learning_rate", "training_time", "epoch_time_avg", "epoch_time_min",
-                "epoch_time_max", "train_loss", "train_accuracy", "weight_size_kb",
+                "epoch_time_max", "train_loss", "train_accuracy", "ping_ms", "weight_size_kb",
                 "cpu_percent", "ram_percent", "ram_used_mb", "gpu_memory_mb"
             ]
             import csv
@@ -331,6 +350,10 @@ class FedMedAIClient(fl.client.NumPyClient):
 
     def evaluate(self, parameters: NDArrays, config: dict):
         """Evaluate the global model on the local test set."""
+        eval_round = config.get("server_round")
+        if eval_round is not None:
+            self.ping_logger.log_ping(server_round=int(eval_round), event="evaluate")
+
         set_parameters(self.model, parameters)
         self.model.eval()
 
@@ -469,6 +492,7 @@ def main():
         learning_rate=args.learning_rate,
         device_type=args.device_type,
         save_local_metrics=args.save_metrics,
+        server_address=args.server_address,
     )
 
     print(f"[Client {args.client_id}] Connecting to {args.server_address}...")
