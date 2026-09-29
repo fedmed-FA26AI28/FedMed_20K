@@ -39,6 +39,7 @@ def _weighted_average_metrics(
     epoch_times = []
     training_times = []
     weight_sizes_kb = []
+    ping_times = []
 
     for n, m in metrics:
         # Weighted loss and accuracy
@@ -52,6 +53,8 @@ def _weighted_average_metrics(
             training_times.append(float(m["training_time"]))
         if "weight_size_kb" in m:
             weight_sizes_kb.append(float(m["weight_size_kb"]))
+        if "ping_ms" in m and float(m["ping_ms"]) >= 0:
+            ping_times.append(float(m["ping_ms"]))
 
     # Finalize weighted averages
     for key in ("train_loss", "train_accuracy"):
@@ -73,6 +76,11 @@ def _weighted_average_metrics(
     if weight_sizes_kb:
         aggregated["weight_size_kb_avg"] = float(np.mean(weight_sizes_kb))
         aggregated["weight_size_kb_total"] = float(np.sum(weight_sizes_kb))
+
+    if ping_times:
+        aggregated["ping_ms_avg"] = float(np.mean(ping_times))
+        aggregated["ping_ms_min"] = float(np.min(ping_times))
+        aggregated["ping_ms_max"] = float(np.max(ping_times))
 
     return aggregated
 
