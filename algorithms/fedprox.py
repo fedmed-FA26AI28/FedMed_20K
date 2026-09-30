@@ -2,12 +2,9 @@
 
 Wraps flwr.server.strategy.FedProx and adds:
 - Per-round timing and weight-size tracking.
-- Server-side early stopping based on aggregated evaluation accuracy.
+- Server-side early stopping based on evaluation accuracy or loss.
+- Automatic caching of best global model weights.
 - fit_metrics_aggregation_fn that aggregates per-client training metrics.
-
-FedProx adds a proximal term (mu * ||w - w_global||^2) to the local loss function
-to limit how far local models drift from the global model. This is controlled by
-the `proximal_mu` parameter sent to clients via on_fit_config_fn.
 """
 
 import time
@@ -32,11 +29,9 @@ class FedProxStrategy(FlwrFedProx):
     """FedProx strategy with extended metrics, early stopping, and per-round timing.
 
     Args:
-        proximal_mu: Weight of the proximal term. Higher values keep local models
-            closer to the global model. Typical range: 0.001 – 1.0.
-        early_stop_patience: Number of rounds without improvement before stopping.
-            Set to 0 to disable server-side early stopping.
-        early_stop_metric: Metric key returned by evaluate to track (default: accuracy).
+        proximal_mu: Weight of the proximal term.
+        early_stop_patience: Number of rounds without improvement before stopping (0 to disable).
+        early_stop_metric: Target metric to track ('accuracy' or 'loss').
         metrics_recorder: Optional FLMetricsRecorder instance for logging and visualization.
         All other kwargs are forwarded to flwr.server.strategy.FedProx.
     """
@@ -50,14 +45,11 @@ class FedProxStrategy(FlwrFedProx):
         metrics_recorder: Optional[FLMetricsRecorder] = None,
         **kwargs,
     ):
-        # Inject our custom metrics aggregation unless caller overrides
         if "fit_metrics_aggregation_fn" not in kwargs:
             kwargs["fit_metrics_aggregation_fn"] = _weighted_average_metrics
 
-        # FedProx requires proximal_mu to be passed
         super().__init__(proximal_mu=proximal_mu, **kwargs)
 
-        # Metrics recorder
         self.recorder = metrics_recorder or FLMetricsRecorder(
             strategy_name="FedProx", proximal_mu=proximal_mu
         )
@@ -66,20 +58,80 @@ class FedProxStrategy(FlwrFedProx):
         self.early_stop_patience = early_stop_patience
         self.early_stop_metric = early_stop_metric
         self._best_metric: Optional[float] = None
+        self._best_round: int = 0
+        self._best_parameters: Optional[Parameters] = None
         self._rounds_without_improvement: int = 0
         self.should_stop: bool = False
+        self.latest_parameters: Optional[Parameters] = None
 
         # Per-round timing
         self._round_start: float = 0.0
         self._round_times: List[float] = []
         self._total_start: float = time.time()
 
-    # ------------------------------------------------------------------ #
-    #  Timing hooks
-    # ------------------------------------------------------------------ #
+    def check_early_stopping(
+        self,
+        server_round: int,
+        metrics: Dict[str, Any],
+        loss: Optional[float] = None,
+        parameters: Optional[Parameters] = None,
+    ) -> bool:
+        """Evaluate early stopping conditions against monitored metric."""
+        if self.early_stop_patience <= 0:
+            return False
+
+        if self.early_stop_metric == "loss":
+            current = loss if loss is not None else metrics.get("loss")
+            is_better = lambda cur, best: best is None or cur < (best - 1e-5)
+        else:
+            current = metrics.get(self.early_stop_metric)
+            is_better = lambda cur, best: best is None or cur > (best + 1e-5)
+
+        if current is not None:
+            current = float(current)
+            if is_better(current, self._best_metric):
+                self._best_metric = current
+                self._best_round = server_round
+                self._rounds_without_improvement = 0
+                if parameters is not None:
+                    self._best_parameters = parameters
+                log(
+                    INFO,
+                    "[EarlyStop] Round %d: new best %s = %.4f",
+                    server_round,
+                    self.early_stop_metric,
+                    current,
+                )
+            else:
+                self._rounds_without_improvement += 1
+                log(
+                    INFO,
+                    "[EarlyStop] Round %d: no improvement for %d rounds (best=%.4f, current=%.4f)",
+                    server_round,
+                    self._rounds_without_improvement,
+                    self._best_metric if self._best_metric is not None else 0.0,
+                    current,
+                )
+                if self._rounds_without_improvement >= self.early_stop_patience:
+                    log(
+                        WARNING,
+                        "[EarlyStop] Stopping at round %d - no improvement in %d rounds.",
+                        server_round,
+                        self.early_stop_patience,
+                    )
+                    self.should_stop = True
+                    return True
+        return self.should_stop
+
+    def get_best_parameters(self) -> Optional[Parameters]:
+        """Return the best recorded model parameters or latest if none."""
+        return self._best_parameters or self.latest_parameters
 
     def configure_fit(self, server_round, parameters, client_manager):
-        """Record round start time, then delegate to parent."""
+        """Record round start time, then delegate to parent or halt if early stopped."""
+        if self.should_stop:
+            log(INFO, "[EarlyStop] Training halted: configure_fit returning 0 clients.")
+            return []
         self._round_start = time.time()
         self.recorder.record_round_start(server_round)
         return super().configure_fit(server_round, parameters, client_manager)
@@ -90,10 +142,12 @@ class FedProxStrategy(FlwrFedProx):
         results: List[Tuple[ClientProxy, FitRes]],
         failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
     ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
-        """Aggregate and append round-level timing metrics."""
+        """Aggregate client parameters and append round timing metrics."""
         parameters_aggregated, metrics_aggregated = super().aggregate_fit(
             server_round, results, failures
         )
+        if parameters_aggregated is not None:
+            self.latest_parameters = parameters_aggregated
 
         round_time = time.time() - self._round_start
         self._round_times.append(round_time)
@@ -105,7 +159,6 @@ class FedProxStrategy(FlwrFedProx):
         metrics_aggregated["num_clients_reporting"] = len(results)
         metrics_aggregated["num_failures"] = len(failures)
 
-        # Record in comprehensive metrics recorder
         self.recorder.record_fit_results(
             server_round=server_round,
             round_duration=round_time,
@@ -125,9 +178,20 @@ class FedProxStrategy(FlwrFedProx):
 
         return parameters_aggregated, metrics_aggregated
 
-    # ------------------------------------------------------------------ #
-    #  Early stopping in aggregate_evaluate
-    # ------------------------------------------------------------------ #
+    def evaluate(
+        self, server_round: int, parameters: Parameters
+    ) -> Optional[Tuple[float, Dict[str, Scalar]]]:
+        """Evaluate global model parameters using evaluate_fn and check early stopping."""
+        res = super().evaluate(server_round, parameters)
+        if res is not None:
+            loss, metrics = res
+            self.check_early_stopping(
+                server_round=server_round,
+                metrics=metrics,
+                loss=loss,
+                parameters=parameters,
+            )
+        return res
 
     def aggregate_evaluate(self, server_round, results, failures):
         """Aggregate evaluation results and check early stopping condition."""
@@ -146,48 +210,30 @@ class FedProxStrategy(FlwrFedProx):
                 )
 
         if self.early_stop_patience > 0 and metrics_aggregated:
-            current = metrics_aggregated.get(self.early_stop_metric)
-            if current is not None:
-                current = float(current)
-                if self._best_metric is None or current > self._best_metric:
-                    self._best_metric = current
-                    self._rounds_without_improvement = 0
-                    log(
-                        INFO,
-                        "[EarlyStop] Round %d: new best %s = %.4f",
-                        server_round,
-                        self.early_stop_metric,
-                        current,
-                    )
-                else:
-                    self._rounds_without_improvement += 1
-                    log(
-                        INFO,
-                        "[EarlyStop] Round %d: no improvement for %d rounds",
-                        server_round,
-                        self._rounds_without_improvement,
-                    )
-                    if self._rounds_without_improvement >= self.early_stop_patience:
-                        log(
-                            WARNING,
-                            "[EarlyStop] Stopping at round %d — no improvement in %d rounds.",
-                            server_round,
-                            self.early_stop_patience,
-                        )
-                        self.should_stop = True
+            self.check_early_stopping(
+                server_round=server_round,
+                metrics=metrics_aggregated,
+                loss=loss_aggregated,
+                parameters=self.latest_parameters,
+            )
 
         return loss_aggregated, metrics_aggregated
 
-    # ------------------------------------------------------------------ #
-    #  Summary & Artifacts
-    # ------------------------------------------------------------------ #
-
     def get_summary(self) -> Dict[str, Any]:
         """Return a dict summarising the entire FL run."""
-        return self.recorder.get_summary()
+        summary = self.recorder.get_summary()
+        summary["best_metric"] = self._best_metric
+        summary["best_round"] = self._best_round
+        summary["early_stopped"] = self.should_stop
+        return summary
 
     def save_artifacts(
         self, save_dir: str, extra_metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Export CSVs, comparison plots, and rich fl_results.json."""
+        if extra_metadata is None:
+            extra_metadata = {}
+        extra_metadata["best_metric"] = self._best_metric
+        extra_metadata["best_round"] = self._best_round
+        extra_metadata["early_stopped"] = self.should_stop
         return self.recorder.save_all(save_dir=save_dir, extra_metadata=extra_metadata)

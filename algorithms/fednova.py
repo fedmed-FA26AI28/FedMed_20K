@@ -1,21 +1,8 @@
-"""FedNova Strategy — Normalized Averaging for heterogeneous local training.
+"""FedNova Strategy - Normalized Averaging for heterogeneous client compute.
 
-FedNova (Wang et al., 2020) addresses objective inconsistency in FedAvg
-when clients perform different numbers of local steps. Instead of simple
-weighted averaging, FedNova normalizes each client's update by its
-number of local gradient steps (tau_i).
-
-Aggregation formula:
-    d_global = sum_i (p_i * d_i / tau_i) * tau_eff
-    w_new    = w_global - d_global
-
-where:
-    p_i      = n_i / N  (data ratio)
-    d_i      = w_global - w_i_local  (pseudo-gradient)
-    tau_i    = local steps of client i
-    tau_eff  = sum_i (p_i * tau_i)  (effective number of steps)
-
-Clients send `local_steps` in their metrics dict.
+FedNova adjusts the aggregation weights by the number of local steps taken
+by each client, eliminating objective inconsistency caused by heterogeneous
+local updates (e.g., fast clients taking more steps than slow clients).
 """
 
 import time
@@ -42,41 +29,52 @@ def _fednova_aggregate(
     results: List[Tuple[ClientProxy, FitRes]],
     global_parameters: List[np.ndarray],
 ) -> List[np.ndarray]:
-    """FedNova normalized aggregation.
+    """Aggregate model updates using FedNova normalized averaging.
 
-    Each client's update is normalised by its number of local steps (tau_i).
-    Clients MUST report 'local_steps' in fit_res.metrics.
-    Falls back to standard weighted averaging if local_steps is missing.
+    Each client i computes:
+        delta_i = w_i - w_global
+        d_i = delta_i / tau_i  (normalized direction, tau_i = local_steps)
+
+    Effective number of steps:
+        tau_eff = sum_i(p_i * tau_i)  where p_i = n_i / n_total
+
+    Aggregated update:
+        delta_nova = tau_eff * sum_i(p_i * d_i)
+        w_new = w_global + delta_nova
     """
     total_examples = sum(fit_res.num_examples for _, fit_res in results)
+    if total_examples == 0:
+        return global_parameters
 
-    # Collect per-client data ratios and local steps
-    p_values: List[float] = []
-    tau_values: List[float] = []
-    client_params_list: List[List[np.ndarray]] = []
+    client_deltas = []
+    client_weights = []
+    client_taus = []
 
     for _, fit_res in results:
+        client_params = parameters_to_ndarrays(fit_res.parameters)
+        delta = [c - g for c, g in zip(client_params, global_parameters)]
+        client_deltas.append(delta)
+
+        tau = float(fit_res.metrics.get("local_steps", 1.0))
+        tau = max(tau, 1.0)
+        client_taus.append(tau)
+
         p_i = fit_res.num_examples / total_examples
-        tau_i = float(fit_res.metrics.get("local_steps", 1))
-        p_values.append(p_i)
-        tau_values.append(tau_i)
-        client_params_list.append(parameters_to_ndarrays(fit_res.parameters))
+        client_weights.append(p_i)
 
-    # Effective number of steps
-    tau_eff = sum(p * t for p, t in zip(p_values, tau_values))
+    tau_eff = sum(p * tau for p, tau in zip(client_weights, client_taus))
 
-    # Compute normalized aggregate
-    # d_i = w_global - w_i  (pseudo-gradient, note the sign)
-    aggregated = [np.zeros_like(g) for g in global_parameters]
+    num_layers = len(global_parameters)
+    aggregated_delta = [np.zeros_like(g) for g in global_parameters]
 
-    for p_i, tau_i, client_params in zip(p_values, tau_values, client_params_list):
-        for layer_idx in range(len(global_parameters)):
-            d_i = global_parameters[layer_idx] - client_params[layer_idx]
-            aggregated[layer_idx] += (p_i / tau_i) * d_i
+    for layer_idx in range(num_layers):
+        for delta_i, p_i, tau_i in zip(client_deltas, client_weights, client_taus):
+            d_i = delta_i[layer_idx] / tau_i
+            aggregated_delta[layer_idx] += p_i * d_i
+        aggregated_delta[layer_idx] *= tau_eff
 
-    # w_new = w_global - tau_eff * aggregated_normalized_gradient
     new_params = [
-        global_parameters[idx] - tau_eff * aggregated[idx]
+        global_parameters[idx] + aggregated_delta[idx]
         for idx in range(len(global_parameters))
     ]
 
@@ -87,9 +85,8 @@ class FedNovaStrategy(FlwrFedAvg):
     """FedNova strategy with normalized averaging, extended metrics, and early stopping.
 
     Args:
-        early_stop_patience: Number of rounds without improvement before stopping.
-            Set to 0 to disable.
-        early_stop_metric: Metric key to track (default: accuracy).
+        early_stop_patience: Number of rounds without improvement before stopping (0 to disable).
+        early_stop_metric: Target metric to track ('accuracy' or 'loss').
         metrics_recorder: Optional FLMetricsRecorder instance for logging and visualization.
         All other kwargs are forwarded to flwr.server.strategy.FedAvg.
     """
@@ -107,33 +104,90 @@ class FedNovaStrategy(FlwrFedAvg):
 
         super().__init__(**kwargs)
 
-        # Metrics recorder
         self.recorder = metrics_recorder or FLMetricsRecorder(strategy_name="FedNova")
 
         # Early stopping state
         self.early_stop_patience = early_stop_patience
         self.early_stop_metric = early_stop_metric
         self._best_metric: Optional[float] = None
+        self._best_round: int = 0
+        self._best_parameters: Optional[Parameters] = None
         self._rounds_without_improvement: int = 0
         self.should_stop: bool = False
+        self.latest_parameters: Optional[Parameters] = None
 
         # Per-round timing
         self._round_start: float = 0.0
         self._round_times: List[float] = []
         self._total_start: float = time.time()
 
-        # Store the current global parameters for FedNova delta computation
         self._current_global_params: Optional[List[np.ndarray]] = None
 
-    # ------------------------------------------------------------------ #
-    #  Timing hooks
-    # ------------------------------------------------------------------ #
+    def check_early_stopping(
+        self,
+        server_round: int,
+        metrics: Dict[str, Any],
+        loss: Optional[float] = None,
+        parameters: Optional[Parameters] = None,
+    ) -> bool:
+        """Evaluate early stopping conditions against monitored metric."""
+        if self.early_stop_patience <= 0:
+            return False
+
+        if self.early_stop_metric == "loss":
+            current = loss if loss is not None else metrics.get("loss")
+            is_better = lambda cur, best: best is None or cur < (best - 1e-5)
+        else:
+            current = metrics.get(self.early_stop_metric)
+            is_better = lambda cur, best: best is None or cur > (best + 1e-5)
+
+        if current is not None:
+            current = float(current)
+            if is_better(current, self._best_metric):
+                self._best_metric = current
+                self._best_round = server_round
+                self._rounds_without_improvement = 0
+                if parameters is not None:
+                    self._best_parameters = parameters
+                log(
+                    INFO,
+                    "[EarlyStop] Round %d: new best %s = %.4f",
+                    server_round,
+                    self.early_stop_metric,
+                    current,
+                )
+            else:
+                self._rounds_without_improvement += 1
+                log(
+                    INFO,
+                    "[EarlyStop] Round %d: no improvement for %d rounds (best=%.4f, current=%.4f)",
+                    server_round,
+                    self._rounds_without_improvement,
+                    self._best_metric if self._best_metric is not None else 0.0,
+                    current,
+                )
+                if self._rounds_without_improvement >= self.early_stop_patience:
+                    log(
+                        WARNING,
+                        "[EarlyStop] Stopping at round %d - no improvement in %d rounds.",
+                        server_round,
+                        self.early_stop_patience,
+                    )
+                    self.should_stop = True
+                    return True
+        return self.should_stop
+
+    def get_best_parameters(self) -> Optional[Parameters]:
+        """Return the best recorded model parameters or latest if none."""
+        return self._best_parameters or self.latest_parameters
 
     def configure_fit(self, server_round, parameters, client_manager):
-        """Record round start time and cache global parameters for delta computation."""
+        """Record round start time, cache global parameters, or halt if early stopped."""
+        if self.should_stop:
+            log(INFO, "[EarlyStop] Training halted: configure_fit sampling 0 clients.")
+            return []
         self._round_start = time.time()
         self.recorder.record_round_start(server_round)
-        # Cache current global parameters for use in aggregate_fit
         self._current_global_params = parameters_to_ndarrays(parameters)
         return super().configure_fit(server_round, parameters, client_manager)
 
@@ -149,15 +203,12 @@ class FedNovaStrategy(FlwrFedAvg):
         if not self.accept_failures and failures:
             return None, {}
 
-        # --- FedNova aggregation ---
         if self._current_global_params is not None:
             aggregated_ndarrays = _fednova_aggregate(
                 results, self._current_global_params
             )
         else:
-            # First round fallback: standard weighted average
             from flwr.server.strategy.aggregate import aggregate
-
             weights_results = [
                 (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)
                 for _, fit_res in results
@@ -165,8 +216,8 @@ class FedNovaStrategy(FlwrFedAvg):
             aggregated_ndarrays = aggregate(weights_results)
 
         parameters_aggregated = ndarrays_to_parameters(aggregated_ndarrays)
+        self.latest_parameters = parameters_aggregated
 
-        # Aggregate custom metrics
         metrics_aggregated: Dict[str, Scalar] = {}
         if self.fit_metrics_aggregation_fn:
             fit_metrics = [(res.num_examples, res.metrics) for _, res in results]
@@ -174,7 +225,6 @@ class FedNovaStrategy(FlwrFedAvg):
         elif server_round == 1:
             log(WARNING, "No fit_metrics_aggregation_fn provided")
 
-        # Timing
         round_time = time.time() - self._round_start
         self._round_times.append(round_time)
 
@@ -185,7 +235,6 @@ class FedNovaStrategy(FlwrFedAvg):
         metrics_aggregated["num_clients_reporting"] = len(results)
         metrics_aggregated["num_failures"] = len(failures)
 
-        # Log local_steps from each client
         local_steps_list = [
             float(fit_res.metrics.get("local_steps", 1))
             for _, fit_res in results
@@ -194,7 +243,6 @@ class FedNovaStrategy(FlwrFedAvg):
         metrics_aggregated["local_steps_min"] = float(np.min(local_steps_list))
         metrics_aggregated["local_steps_max"] = float(np.max(local_steps_list))
 
-        # Record in comprehensive metrics recorder
         self.recorder.record_fit_results(
             server_round=server_round,
             round_duration=round_time,
@@ -204,7 +252,7 @@ class FedNovaStrategy(FlwrFedAvg):
 
         log(
             INFO,
-            "[FedNova] Round %d | %.1fs | clients=%d | local_steps=[%.0f–%.0f]",
+            "[FedNova] Round %d | %.1fs | clients=%d | local_steps=[%.0f-%.0f]",
             server_round,
             round_time,
             len(results),
@@ -214,9 +262,20 @@ class FedNovaStrategy(FlwrFedAvg):
 
         return parameters_aggregated, metrics_aggregated
 
-    # ------------------------------------------------------------------ #
-    #  Early stopping in aggregate_evaluate
-    # ------------------------------------------------------------------ #
+    def evaluate(
+        self, server_round: int, parameters: Parameters
+    ) -> Optional[Tuple[float, Dict[str, Scalar]]]:
+        """Evaluate global model parameters using evaluate_fn and check early stopping."""
+        res = super().evaluate(server_round, parameters)
+        if res is not None:
+            loss, metrics = res
+            self.check_early_stopping(
+                server_round=server_round,
+                metrics=metrics,
+                loss=loss,
+                parameters=parameters,
+            )
+        return res
 
     def aggregate_evaluate(self, server_round, results, failures):
         """Aggregate evaluation results and check early stopping condition."""
@@ -235,48 +294,30 @@ class FedNovaStrategy(FlwrFedAvg):
                 )
 
         if self.early_stop_patience > 0 and metrics_aggregated:
-            current = metrics_aggregated.get(self.early_stop_metric)
-            if current is not None:
-                current = float(current)
-                if self._best_metric is None or current > self._best_metric:
-                    self._best_metric = current
-                    self._rounds_without_improvement = 0
-                    log(
-                        INFO,
-                        "[EarlyStop] Round %d: new best %s = %.4f",
-                        server_round,
-                        self.early_stop_metric,
-                        current,
-                    )
-                else:
-                    self._rounds_without_improvement += 1
-                    log(
-                        INFO,
-                        "[EarlyStop] Round %d: no improvement for %d rounds",
-                        server_round,
-                        self._rounds_without_improvement,
-                    )
-                    if self._rounds_without_improvement >= self.early_stop_patience:
-                        log(
-                            WARNING,
-                            "[EarlyStop] Stopping at round %d — no improvement in %d rounds.",
-                            server_round,
-                            self.early_stop_patience,
-                        )
-                        self.should_stop = True
+            self.check_early_stopping(
+                server_round=server_round,
+                metrics=metrics_aggregated,
+                loss=loss_aggregated,
+                parameters=self.latest_parameters,
+            )
 
         return loss_aggregated, metrics_aggregated
 
-    # ------------------------------------------------------------------ #
-    #  Summary & Artifacts
-    # ------------------------------------------------------------------ #
-
     def get_summary(self) -> Dict[str, Any]:
         """Return a dict summarising the entire FL run."""
-        return self.recorder.get_summary()
+        summary = self.recorder.get_summary()
+        summary["best_metric"] = self._best_metric
+        summary["best_round"] = self._best_round
+        summary["early_stopped"] = self.should_stop
+        return summary
 
     def save_artifacts(
         self, save_dir: str, extra_metadata: Optional[Dict[str, Any]] = None
     ) -> Dict[str, Any]:
         """Export CSVs, comparison plots, and rich fl_results.json."""
+        if extra_metadata is None:
+            extra_metadata = {}
+        extra_metadata["best_metric"] = self._best_metric
+        extra_metadata["best_round"] = self._best_round
+        extra_metadata["early_stopped"] = self.should_stop
         return self.recorder.save_all(save_dir=save_dir, extra_metadata=extra_metadata)
