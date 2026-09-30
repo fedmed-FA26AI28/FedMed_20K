@@ -48,13 +48,13 @@ def load_hardware_config(client_id: int = None, device_type: str = None) -> Dict
     Doc cau hinh phan cung tu configs/jetson.yaml.
 
     Uu tien theo thu tu:
-      1. client_id  -> tu resolve device_type qua client_registry
-      2. device_type -> dung truc tiep
-      3. Ca 2 deu None -> doc device_type tu experiment.yaml (mac dinh: 'pc')
+      1. device_type: Truyen truc tiep (vi du: 'pc', 'jetson_orin', 'jetson_nano', 'PC1')
+      2. client_id  : Tu dong tra cuu qua client_registry trong jetson.yaml
+      3. Ca 2 deu None: Doc device_type tu experiment.yaml (mac dinh: 'pc')
 
     Args:
         client_id  : ID cua client (0-9). Tu dong tra cuu Orin/Nano.
-        device_type: 'pc' | 'jetson_orin' | 'jetson_nano' (override thu cong).
+        device_type: 'pc' | 'jetson_orin' | 'jetson_nano' hoac bat ky custom label nao (vd: 'PC1').
 
     Returns:
         Dict chua batch_size, num_workers, pin_memory, device_type.
@@ -63,24 +63,38 @@ def load_hardware_config(client_id: int = None, device_type: str = None) -> Dict
     with open(hw_path, "r", encoding="utf-8") as f:
         hw_cfg = yaml.safe_load(f)
 
-    # 1. Uu tien: client_id -> tra registry
-    if client_id is not None:
-        device_type = resolve_device_type(client_id)
-
-    # 2. Fallback: doc device_type tu experiment.yaml
-    elif device_type is None:
+    # 1. Uu tien tuyet doi: device_type duoc truyen tu caller/CLI
+    resolved_label = None
+    if device_type:
+        resolved_label = str(device_type).strip()
+    elif client_id is not None:
+        resolved_label = resolve_device_type(client_id)
+    else:
         exp_path = _CONFIG_DIR / "experiment.yaml"
-        with open(exp_path, "r", encoding="utf-8") as f:
-            exp_cfg = yaml.safe_load(f)
-        device_type = exp_cfg.get("device_type", "pc")
+        if exp_path.exists():
+            with open(exp_path, "r", encoding="utf-8") as f:
+                exp_cfg = yaml.safe_load(f)
+            resolved_label = exp_cfg.get("device_type", "pc")
+        else:
+            resolved_label = "pc"
 
-    if device_type not in hw_cfg:
-        raise ValueError(
-            f"device_type '{device_type}' khong ton tai trong jetson.yaml. "
-            f"Chon 1 trong: {[k for k in hw_cfg if k != 'client_registry']}"
-        )
+    # Map label to actual hardware settings
+    label_lower = resolved_label.lower()
+    if resolved_label in hw_cfg:
+        matched_hw = dict(hw_cfg[resolved_label])
+    elif label_lower in hw_cfg:
+        matched_hw = dict(hw_cfg[label_lower])
+    elif label_lower.startswith("pc"):
+        matched_hw = dict(hw_cfg.get("pc", {}))
+    elif "orin" in label_lower:
+        matched_hw = dict(hw_cfg.get("jetson_orin", {}))
+    elif "nano" in label_lower:
+        matched_hw = dict(hw_cfg.get("jetson_nano", {}))
+    else:
+        matched_hw = dict(hw_cfg.get("pc", {"batch_size": 32, "num_workers": 2, "pin_memory": True}))
 
-    return hw_cfg[device_type]
+    matched_hw["device_type"] = resolved_label
+    return matched_hw
 
 
 # ─────────────────────────────────────────────────────────────
@@ -193,6 +207,7 @@ def load_partition(json_path: str) -> List[List[int]]:
 
 def get_client_dataloader(dataset, client_indices: List[int],
                           client_id: int = None,
+                          device_type: str = None,
                           batch_size: int = None,
                           shuffle: bool = True,
                           num_workers: int = None) -> DataLoader:
@@ -205,7 +220,7 @@ def get_client_dataloader(dataset, client_indices: List[int],
         batch_size  : Override thu cong neu muon. Mac dinh doc tu config.
         num_workers : Override thu cong neu muon. Mac dinh doc tu config.
     """
-    hw_cfg      = load_hardware_config(client_id=client_id)
+    hw_cfg      = load_hardware_config(client_id=client_id, device_type=device_type)
     batch_size  = batch_size  if batch_size  is not None else hw_cfg["batch_size"]
     num_workers = num_workers if num_workers is not None else hw_cfg["num_workers"]
     pin_memory  = hw_cfg.get("pin_memory", False)

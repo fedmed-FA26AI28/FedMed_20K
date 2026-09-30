@@ -885,7 +885,8 @@ class FLMetricsRecorder:
             device_types = sorted(list(set(c["device_type"] for c in self.client_records)))
             dev_means = []
             dev_stds = []
-            dev_colors = ["#2b5c8f", "#d95f02", "#7570b3", "#e7298a"]
+            base_palette = ["#2b5c8f", "#d95f02", "#7570b3", "#e7298a", "#1b9e77", "#e6ab02", "#a6761d"]
+            dev_colors = [base_palette[i % len(base_palette)] for i in range(len(device_types))]
             for d in device_types:
                 d_ep_times = [
                     e["epoch_time_seconds"]
@@ -900,7 +901,7 @@ class FLMetricsRecorder:
                 dev_means,
                 yerr=dev_stds,
                 capsize=6,
-                color=dev_colors[: len(device_types)],
+                color=dev_colors,
                 alpha=0.85,
                 edgecolor="black",
             )

@@ -48,12 +48,16 @@ def get_resource_usage() -> Dict[str, float]:
     }
 
 
-def get_device_type(client_id: Optional[int] = None) -> str:
-    """Resolve device type ('pc', 'jetson_orin', 'jetson_nano').
+def get_device_type(client_id: Optional[int] = None, override: Optional[str] = None) -> str:
+    """Resolve device type ('pc', 'jetson_orin', 'jetson_nano', or custom label like 'PC1').
 
-    Tries to lookup client_id in configs/jetson.yaml client_registry.
+    If override is provided and non-empty, returns override directly.
+    Otherwise tries to lookup client_id in configs/jetson.yaml client_registry.
     Falls back to 'pc' if client_id is None or unlisted.
     """
+    if override:
+        return str(override).strip()
+
     if client_id is None:
         return "pc"
 
