@@ -48,7 +48,7 @@ def train(model, train_loader, optimizer, epochs, device, val_loader=None, min_l
         total = 0
         for images, labels in train_loader:
             images = images.to(device)
-            labels = labels.squeeze().long().to(device)
+            labels = labels.squeeze(-1).long().to(device)
 
             optimizer.zero_grad()
             outputs = model(images)
