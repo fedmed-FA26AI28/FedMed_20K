@@ -60,23 +60,23 @@ def count_parameters(model: nn.Module):
 
 
 def get_parameters(model: nn.Module) -> List[np.ndarray]:
-    """Trích xuất trọng số mô hình PyTorch thành danh sách các mảng NumPy cho Flower."""
+    """Extract PyTorch model weights as a list of NumPy ndarrays for Flower."""
     return [val.cpu().numpy() for _, val in model.state_dict().items()]
 
 
 def set_parameters(model: nn.Module, parameters: List[np.ndarray]) -> None:
-    """Nạp danh sách trọng số NumPy vào mô hình PyTorch cho Flower."""
+    """Load a list of NumPy ndarrays into PyTorch model weights for Flower."""
     params_dict = zip(model.state_dict().keys(), parameters)
     state_dict = {k: torch.tensor(v) for k, v in params_dict}
     model.load_state_dict(state_dict, strict=True)
 
 
-# Alias tương thích ngược cho các script đang dùng SimpleCNN
+# Backward compatibility alias for scripts referencing SimpleCNN
 SimpleCNN = CNN
 
 
 if __name__ == "__main__":
-    # Chạy kiểm thử kiến trúc mô hình
+    # Test model architecture forward pass and parameter count
     model = CNN(num_classes=8)
     dummy_input = torch.randn(4, 3, 28, 28)
     output = model(dummy_input)

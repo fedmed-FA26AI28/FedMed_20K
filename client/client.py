@@ -13,6 +13,7 @@ Usage:
 
 import argparse
 import json
+import os
 import sys
 import time
 from pathlib import Path
@@ -388,16 +389,51 @@ class FedMedAIClient(fl.client.NumPyClient):
 # CLI entry point
 # ──────────────────────────────────────────────────────────────
 
+def load_yaml_config(config_path: str = "configs/experiment.yaml") -> dict:
+    """Load configuration dictionary from YAML file if available."""
+    if not os.path.exists(config_path):
+        return {}
+    try:
+        import yaml
+        with open(config_path, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+        return cfg
+    except Exception:
+        return {}
+
+
 def main():
-    parser = argparse.ArgumentParser(description="FedMedAI FL Client")
+    pre_parser = argparse.ArgumentParser(add_help=False)
+    pre_parser.add_argument(
+        "--config",
+        type=str,
+        default="configs/experiment.yaml",
+        help="Path to YAML experiment configuration file (default: configs/experiment.yaml)",
+    )
+    pre_args, remaining_argv = pre_parser.parse_known_args()
+    yaml_cfg = load_yaml_config(pre_args.config)
+
+    server_host = yaml_cfg.get("server_host", "127.0.0.1")
+    if server_host == "0.0.0.0":
+        server_host = "127.0.0.1"
+    server_port = yaml_cfg.get("server_port", 8080)
+    default_server_address = f"{server_host}:{server_port}"
+
+    active_clients = yaml_cfg.get("active_clients")
+    default_num_clients = len(active_clients) if isinstance(active_clients, list) and active_clients else 3
+
+    parser = argparse.ArgumentParser(
+        description="FedMedAI FL Client",
+        parents=[pre_parser],
+    )
     parser.add_argument(
         "--client_id", type=int, required=True, help="Client ID (0-9)"
     )
     parser.add_argument(
         "--server_address",
         type=str,
-        default="127.0.0.1:8080",
-        help="FL Server address (default: 127.0.0.1:8080)",
+        default=default_server_address,
+        help=f"FL Server address (default: {default_server_address})",
     )
     parser.add_argument(
         "--partition_path",
@@ -409,13 +445,13 @@ def main():
         "--alpha", type=float, default=0.3, help="Dirichlet alpha (default: 0.3)"
     )
     parser.add_argument(
-        "--num_clients", type=int, default=3, help="Total number of clients (default: 3)"
+        "--num_clients", type=int, default=default_num_clients, help=f"Total number of clients (default: {default_num_clients})"
     )
     parser.add_argument(
-        "--local_epochs", type=int, default=5, help="Local training epochs per round"
+        "--local_epochs", type=int, default=yaml_cfg.get("local_epochs", 5), help=f"Local training epochs per round (default: {yaml_cfg.get('local_epochs', 5)})"
     )
     parser.add_argument(
-        "--learning_rate", type=float, default=0.001, help="Learning rate"
+        "--learning_rate", type=float, default=yaml_cfg.get("learning_rate", 0.001), help=f"Learning rate (default: {yaml_cfg.get('learning_rate', 0.001)})"
     )
     parser.add_argument(
         "--batch_size", type=int, default=None, help="Override batch size from config"

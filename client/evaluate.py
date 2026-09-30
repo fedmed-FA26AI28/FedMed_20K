@@ -1,5 +1,4 @@
-﻿"""Chứa vòng lặp đánh giá cục bộ (local evaluation loop) trên tập validation/test của client để tính toán loss, accuracy."""
-
+"""Local evaluation routine on validation/test sets to calculate loss and accuracy."""
 
 import torch
 import torch.nn as nn
@@ -7,16 +6,16 @@ from sklearn.metrics import accuracy_score, precision_recall_fscore_support, con
 
 
 def evaluate(model, test_loader, device):
-    """
-    Đánh giá mô hình trên tập dữ liệu test.
-    Tính toán các chỉ số: Loss, Accuracy, Precision, Recall, F1-score và Confusion Matrix.
+    """Evaluate model on test dataset.
+
+    Computes loss, accuracy, precision, recall, F1-score, and confusion matrix.
     """
     criterion = nn.CrossEntropyLoss()
     model.eval()
 
     total_loss = 0.0
     all_labels = []
-    all_predictions =[]
+    all_predictions = []
 
     with torch.no_grad():
         for images, labels in test_loader:
@@ -31,16 +30,20 @@ def evaluate(model, test_loader, device):
             all_labels.extend(labels.cpu().numpy())
     avg_loss = total_loss / len(test_loader.dataset)
     accuracy = accuracy_score(all_labels, all_predictions)
-    # Tính toán Precision, Recall, F1-score tổng thể
-    precision, recall, f1_score, _ = precision_recall_fscore_support(all_labels, all_predictions, average='macro', zero_division=0)
 
-    #Tính riêng cho từng class
-    precision_class, recall_class, f1_score_class, _ = precision_recall_fscore_support(all_labels, all_predictions, average=None, zero_division=0)
+    # Macro-averaged metrics
+    precision, recall, f1_score, _ = precision_recall_fscore_support(
+        all_labels, all_predictions, average='macro', zero_division=0
+    )
 
+    # Per-class metrics
+    precision_class, recall_class, f1_score_class, _ = precision_recall_fscore_support(
+        all_labels, all_predictions, average=None, zero_division=0
+    )
 
     conf_matrix = confusion_matrix(all_labels, all_predictions)
 
-    eval_metrics ={
+    eval_metrics = {
         "loss": avg_loss,
         "accuracy": accuracy,
         "precision": precision,
@@ -52,4 +55,3 @@ def evaluate(model, test_loader, device):
         "confusion_matrix": conf_matrix.tolist()
     }
     return avg_loss, eval_metrics
-

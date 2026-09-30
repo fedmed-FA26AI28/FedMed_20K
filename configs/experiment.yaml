@@ -1,69 +1,73 @@
-# Cau hinh tong quan cho cac thi nghiem FL
+# ==============================================================================
+# FedMedAI: Federated Learning Experiment Configuration
+# ==============================================================================
+# This configuration file defines default parameters for the FL server, clients,
+# and training pipelines. CLI arguments will override values specified here.
 
+# --- Dataset and Reproducibility ---
 dataset: bloodmnist
 seed: 42
 
-# Partition (Phase 4)
-# Ablation: so luong clients
+# --- Partitioning (Dirichlet Non-IID) ---
+# Client count options for ablation studies
 num_clients_options: [3, 5, 10]
 
-# Ablation: muc do non-IID (alpha Dirichlet)
-# 1.0 = gan IID | 0.3 = moderately non-IID | 0.1 = highly non-IID
+# Non-IID Dirichlet concentration alpha
+# 1.0 = near IID | 0.3 = moderately non-IID | 0.1 = highly non-IID
 alpha_values: [1.0, 0.3, 0.1]
 
-# Thu muc luu partition JSON va plots
+# Directory to save partition JSON maps and distribution plots
 partition_save_dir: data/partitions
 
-# FL Hyperparameters (Phase 5+)
-learning_rate: 0.001
-local_epochs: 5
-fl_rounds: 50
+# --- Server & FL Training Hyperparameters ---
+strategy: fedavg                 # FL aggregation strategy: 'fedavg', 'fedprox', 'fednova'
+fl_rounds: 50                    # Total number of federated rounds
+min_clients: 3                   # Minimum number of available clients required to start a round
+local_epochs: 5                  # Number of local training epochs on each client per round
+learning_rate: 0.001             # Base initial learning rate for optimizer
 
-# ─────────────────────────────────────────────
-# Deployment Mode
-# ─────────────────────────────────────────────
-# Xac dinh cach he thong chon hardware config cho moi client.
+# --- Server-Side Learning Rate (LR) Schedule ---
+# Step decay: lr = learning_rate * (lr_decay_gamma ** ((server_round - 1) // lr_decay_steps))
+lr_decay_steps: 10               # Decay learning rate every N rounds (0 = disabled)
+lr_decay_gamma: 0.5              # Multiplicative decay factor
+
+# --- Server-Side Early Stopping ---
+early_stop_patience: 10          # Rounds without metric improvement before stopping (0 = disabled)
+early_stop_metric: accuracy      # Target metric to monitor: 'accuracy' or 'loss'
+server_eval: true                # Run centralized evaluation on the server test set each round
+
+# --- Algorithm-Specific Hyperparameters ---
+# FedProx
+proximal_mu: 0.01                # Proximal term coefficient for FedProx (0.0 = standard FedAvg)
+
+# --- Network & Server Communication ---
+server_host: "0.0.0.0"
+server_port: 8080
+
+# ──────────────────────────────────────────────────────────────────────────────
+# Deployment Mode & Client Topology
+# ──────────────────────────────────────────────────────────────────────────────
+# Defines how the system resolves hardware profiles for participating clients:
 #
-# simulation   : Tat ca clients chay tren 1 PC (Phase 5).
-#                Moi client dung config 'pc' bat ke client_id.
-#
-# orin_only    : Chi co Jetson Orin (Phase 6).
-#                Moi client dung config 'jetson_orin'.
-#
-# nano_only    : Chi co Jetson Nano (Phase 7).
-#                Moi client dung config 'jetson_nano'.
-#
-# heterogeneous: Orin + Nano cung luc (Phase 8).
-#                Moi client TU DONG resolve qua client_registry trong jetson.yaml.
-#                BAT BUOC phai set active_clients chinh xac.
+# simulation   : All clients run on 1 PC. Every client uses 'pc' profile.
+# orin_only    : Only Jetson Orin devices. Every client uses 'jetson_orin' profile.
+# nano_only    : Only Jetson Nano devices. Every client uses 'jetson_nano' profile.
+# heterogeneous: Mixed Orin + Nano cluster. Clients resolve profile dynamically
+#                from client_registry in configs/jetson.yaml.
 #
 deployment_mode: simulation
 
-# ─────────────────────────────────────────────
+# ──────────────────────────────────────────────────────────────────────────────
 # Active Clients
-# ─────────────────────────────────────────────
-# Danh sach client_id THUC TE tham gia FL round nay.
-# QUAN TRONG voi deployment_mode: heterogeneous.
+# ──────────────────────────────────────────────────────────────────────────────
+# List of client IDs participating in the experiment.
 #
-# Cac vi du:
+# Examples:
+#   active_clients: [0, 1, 2]                 # 3 Orin clients (ID 0-2)
+#   active_clients: [0, 1, 5]                 # Mixed 3 clients (2 Orin + 1 Nano)
+#   active_clients: [0, 1, 2, 3, 4]           # 5 Orin clients
+#   active_clients: [5, 6, 7, 8, 9]           # 5 Nano clients
+#   active_clients: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9] # Full 10-device heterogeneous cluster
 #
-# 3 clients thuan Orin (id 0-4 la Orin):
-#   active_clients: [0, 1, 2]
-#
-# 3 clients mixed (2 Orin + 1 Nano):
-#   active_clients: [0, 1, 5]
-#
-# 5 clients mixed (3 Orin + 2 Nano):
-#   active_clients: [0, 1, 2, 5, 6]
-#
-# 5 Orin:
-#   active_clients: [0, 1, 2, 3, 4]
-#
-# 5 Nano:
-#   active_clients: [5, 6, 7, 8, 9]
-#
-# Full 10 (5 Orin + 5 Nano):
-#   active_clients: [0, 1, 2, 3, 4, 5, 6, 7, 8, 9]
-#
-# null = dung voi simulation (khong can thiet).
+# Set to null for simulation mode (defaults to all local partitions).
 active_clients: null
