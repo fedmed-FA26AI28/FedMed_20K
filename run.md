@@ -206,6 +206,7 @@ Giả sử IP của PC Server là `192.168.1.50`:
 | `--local_epochs` | `int` | `5` | Số epoch train cục bộ (sẽ bị Server ghi đè nếu Server chỉ định). |
 | `--learning_rate` | `float` | `0.001` | Tốc độ học ban đầu của client. |
 | `--batch_size` | `int` | `None` | Kích thước batch. Mặc định tự đọc từ `configs/jetson.yaml` (PC: 32). Có thể truyền ví dụ `--batch_size 64` để ép buộc. |
+| `--device_type` | `str` | `None` | Ghi đè loại thiết bị / tên nhãn định danh (ví dụ: `pc`, `jetson_orin`, `jetson_nano`, `PC1`). Nếu không truyền, hệ thống sẽ tự động tra cứu từ `configs/jetson.yaml` (Client 0-4: `jetson_orin`, Client 5-9: `jetson_nano`). |
 
 **Ví dụ lệnh Server & Client trên PC:**
 ```powershell

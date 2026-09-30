@@ -177,7 +177,7 @@ class FedMedAIClient(fl.client.NumPyClient):
         self.test_loader = test_loader
         self.local_epochs = local_epochs
         self.learning_rate = learning_rate
-        self.device_type = device_type or get_device_type(client_id)
+        self.device_type = str(device_type).strip() if device_type else get_device_type(client_id)
         self.save_local_metrics = save_local_metrics
         self.server_address = server_address
 
@@ -424,8 +424,7 @@ def main():
         "--device_type",
         type=str,
         default=None,
-        choices=["pc", "jetson_orin", "jetson_nano"],
-        help="Device class override (default: auto-detected from configs/jetson.yaml)",
+        help="Device class/type override (e.g. 'pc', 'jetson_orin', 'jetson_nano', 'PC1'). Defaults to auto-detected from configs/jetson.yaml.",
     )
     parser.add_argument(
         "--no_save_metrics",
@@ -472,6 +471,7 @@ def main():
         train_dataset,
         my_indices,
         client_id=args.client_id,
+        device_type=args.device_type,
         batch_size=args.batch_size,
         shuffle=True,
     )
