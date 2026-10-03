@@ -500,3 +500,103 @@ Hệ thống tự động tra cứu ID trong [`configs/jetson.yaml`](file:///D:/
 | `jtop` | *(chạy trong terminal)* | Trình giám sát tương tác trực quan thời gian thực của Jetson stats. |
 | `pkill` | `-f <tên_tiến_trình>` | Dừng tiến trình client (`pkill -f 'client.client'`) hoặc tegrastats (`pkill tegrastats`). |
 | `tmux` | `new -s <tên>` / `attach -t <tên>` | Quản lý terminal chạy ngầm, không bị tắt khi mất kết nối mạng. |
+
+---
+
+## 4. Automated Multi-Strategy & Multi-Partition Simulation Benchmark (Mô phỏng tự động Benchmark toàn diện trên PC)
+
+Kịch bản này cung cấp công cụ tự động hóa **100% cục bộ trên 1 máy tính PC** ([`experiments/run_simulation.py`](file:///D:/FPT/KLTN/FED/FedMedAI_Study/experiments/run_simulation.py)) để chạy quét toàn bộ lưới ma trận (Grid Search Benchmark) giữa:
+- **Tất cả các thuật toán FL:** `FedAvg`, `FedProx`, `FedNova`, `FedBN`, `SCAFFOLD`.
+- **Tất cả các mức độ dị thể dữ liệu Non-IID:** Dirichlet $\alpha \in \{1.0, 0.3, 0.1\}$.
+- **File cấu hình độc lập chuyên dụng:** [`configs/simulation.yaml`](file:///D:/FPT/KLTN/FED/FedMedAI_Study/configs/simulation.yaml).
+
+> 💡 **Đặc tính kỹ thuật nổi bật:**
+> 1. **100% Localhost Execution:** Tự động tạo Server và số lượng Client mong muốn (`num_clients: 3`, `5`, `10`...) dưới dạng các tiến trình con độc lập chạy qua loopback `127.0.0.1`. Không cần thiết bị Jetson ngoài và không cần kết nối mạng bên ngoài.
+> 2. **Tự động cấp phát cổng động (Dynamic Ephemeral Port):** Mỗi lượt chạy được cấp một socket port trống riêng biệt, loại bỏ hoàn toàn lỗi xung đột cổng (`Address already in use`).
+> 3. **Tự động kiểm tra & sinh phân hoạch Dirichlet:** Nếu thiếu file phân hoạch `partition_seed42_alpha{alpha}_clients{num_clients}.json`, hệ thống tự động phân chia tập BloodMNIST và vẽ biểu đồ phân bố lưu vào `data/partitions/`.
+> 4. **Giám sát đa tiến trình chủ động (Watchdog Monitor):** Theo dõi liên tục cả Server và toàn bộ Client; nếu có lỗi ở bất kỳ client nào, hệ thống lập tức trích xuất log lỗi và thu hồi tiến trình, tránh bị treo vô tận.
+> 5. **Tự động tổng hợp kết quả & biểu đồ so sánh xuất bản:** Xuất 5 biểu đồ so sánh chất lượng cao (300 DPI), 2 file CSV tổng hợp, file JSON benchmark và báo cáo tóm tắt Markdown.
+
+---
+
+### 4.1. Chạy mô phỏng với cấu hình mặc định trong `configs/simulation.yaml`
+
+Lệnh này sẽ tự động duyệt toàn bộ ma trận (5 thuật toán $\times$ 3 mức độ $\alpha$ = 15 lượt chạy):
+
+* **Windows PowerShell:**
+  ```powershell
+  python -m experiments.run_simulation
+  ```
+* **Linux (Bash):**
+  ```bash
+  python3 -m experiments.run_simulation
+  ```
+
+---
+
+### 4.2. Chạy với file cấu hình tùy biến hoặc ghi đè tham số dòng lệnh (CLI)
+
+Bạn có thể dễ dàng chạy thử nhanh một tập con các chiến lược, số round, hoặc số client:
+
+* **Ví dụ 1: Chạy kiểm thử nhanh (Fast Verification) với 1 round, 2 clients, FedAvg:**
+  ```powershell
+  python -m experiments.run_simulation --rounds 1 --local_epochs 1 --num_clients 2 --batch_size 128 --strategies fedavg --alphas 1.0
+  ```
+
+* **Ví dụ 2: So sánh FedAvg vs FedProx trên dữ liệu dị thể trung bình và cao ($\alpha = 0.3, 0.1$):**
+  ```powershell
+  python -m experiments.run_simulation --rounds 20 --num_clients 5 --strategies fedavg fedprox --alphas 0.3 0.1
+  ```
+
+* **Ví dụ 3: Đổi chế độ quản lý Learning Rate sang `server_decay`:**
+  ```powershell
+  python -m experiments.run_simulation --rounds 15 --lr_mode server_decay --strategies fedavg fednova scaffold --alphas 0.3
+  ```
+
+---
+
+### 4.3. Cấu trúc kết quả đầu ra của Simulation Benchmark
+
+Toàn bộ kết quả được lưu tập trung vào thư mục `results/simulation/<timestamp>/`:
+
+```
+results/simulation/<timestamp>/
+├── simulation_summary.csv             # Bảng CSV tổng hợp metrics cốt lõi của tất cả các lần chạy
+├── simulation_rounds_history.csv     # Bảng CSV toàn bộ timeline round-by-round (accuracy, loss, time)
+├── simulation_results.json           # File JSON đầy đủ siêu tham số và kết quả máy đọc
+├── simulation_report.md              # Báo cáo Markdown có bảng xếp hạng Leaderboard trực quan
+├── compare_accuracy_curves.png       # Đồ thị hội tụ Accuracy qua các round (chia theo từng alpha)
+├── compare_loss_curves.png           # Đồ thị hội tụ Loss qua các round (chia theo từng alpha)
+├── compare_accuracy_barchart.png     # Biểu đồ cột so sánh Best Test Accuracy của các thuật toán
+├── compare_runtime_barchart.png      # Biểu đồ cột so sánh tổng thời gian huấn luyện và thời gian/round
+├── compare_accuracy_heatmap.png      # Ma trận Heatmap 2D (Strategy x Alpha) làm nổi bật thuật toán tối ưu
+└── alpha_<alpha>/                    # Thư mục chi tiết từng lần chạy
+    └── <strategy>/                   # Artifacts chi tiết: fl_results.json, round_metrics.csv,
+        ├── clients/                  # Log và metrics của từng client cục bộ
+        └── best_model.pth            # Trọng số tốt nhất đạt được của chiến lược đó
+```
+
+---
+
+### 📝 Ghi chú: Danh sách tùy chọn cấu hình Simulation (`configs/simulation.yaml` & CLI)
+
+| Tùy chọn CLI | Khóa trong `configs/simulation.yaml` | Kiểu dữ liệu | Mặc định | Ý nghĩa & Hướng dẫn sử dụng |
+| :--- | :--- | :---: | :---: | :--- |
+| `--config` | *(đường dẫn)* | `str` | `configs/simulation.yaml` | Đường dẫn file YAML cấu hình mô phỏng. |
+| `--num_clients` | `num_clients` | `int` | `3` | Số lượng client ảo mô phỏng cùng chạy cục bộ trên PC. |
+| `--alphas` | `alphas` | `list[float]` | `[1.0, 0.3, 0.1]` | Danh sách mức độ phân tán nhãn Dirichlet $\alpha$ cần kiểm nghiệm. |
+| `--strategies` | `strategies` | `list[str]` | `[fedavg, fedprox, fednova, fedbn, scaffold]` | Danh sách các thuật toán tổng hợp cần chạy benchmark. |
+| `--rounds` | `rounds` | `int` | `10` | Số vòng giao tiếp FL (rounds) cho mỗi lượt chạy. |
+| `--local_epochs` | `local_epochs` | `int` | `3` | Số epoch huấn luyện cục bộ tại mỗi client trong 1 round. |
+| `--batch_size` | `batch_size` | `int` | `32` | Kích thước mini-batch của DataLoader trên client. |
+| `--num_workers` | `num_workers` | `int` | `0` | Số tiến trình con nạp dữ liệu cho DataLoader (mặc định an toàn trên Windows là `0` để tránh lỗi IPC/multiprocessing). |
+| `--lr` hoặc `--learning_rate` | `learning_rate` | `float` | `0.001` | Tốc độ học khởi tạo cho Optimizer. |
+| `--lr_mode` | `lr_mode` | `str` | `client_loss` | Chế độ quản lý LR: `client_loss` (tự giảm theo loss cục bộ), `server_decay` (giảm toàn cục theo chu kỳ round), hoặc `fixed` (cố định). |
+| *(YAML)* | `client_lr_patience` | `int` | `2` | Số epoch loss đi ngang trước khi client tự giảm LR (chế độ `client_loss`). |
+| *(YAML)* | `client_lr_factor` | `float` | `0.5` | Hệ số nhân giảm LR của client (`new_lr = lr * factor`). |
+| *(YAML)* | `lr_decay_steps` | `int` | `3` | Số round giữa mỗi lần giảm LR toàn cục (chế độ `server_decay`). |
+| *(YAML)* | `proximal_mu` | `float` | `0.01` | Trọng số ràng buộc proximal $\mu$ cho thuật toán FedProx. |
+| `--server_eval` | `server_eval` | `bool` | `True` | Đánh giá mô hình toàn cục sau mỗi round trên 3,421 ảnh test set BloodMNIST. |
+| `--output_dir` | `output_dir` | `str` | `results/simulation/<timestamp>` | Thư mục lưu trữ kết quả và các biểu đồ so sánh. |
+| `--timeout_per_run` | `timeout_per_run` | `int` | `1800` | Thời gian chờ tối đa (giây) cho 1 lượt chạy trước khi tự hủy để tránh treo. |
+

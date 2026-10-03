@@ -87,6 +87,17 @@ def get_bn_mask(model: nn.Module) -> List[bool]:
     return [is_bn_key(model, k) for k in model.state_dict().keys()]
 
 
+def get_buffer_mask(model: nn.Module) -> List[bool]:
+    """Return a boolean mask where True indicates a non-trainable buffer (e.g. running_mean, running_var, num_batches_tracked)."""
+    named_buffers = set(dict(model.named_buffers()).keys())
+    return [k in named_buffers for k in model.state_dict().keys()]
+
+
+def get_var_buffer_mask(model: nn.Module) -> List[bool]:
+    """Return a boolean mask where True indicates a variance buffer (e.g. running_var)."""
+    return ["running_var" in k for k in model.state_dict().keys()]
+
+
 def set_parameters_fedbn(model: nn.Module, parameters: List[np.ndarray]) -> None:
     """Load only non-BatchNorm parameters into the model, preserving local BN states."""
     current_state = model.state_dict()

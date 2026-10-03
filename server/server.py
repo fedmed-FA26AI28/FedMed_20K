@@ -226,7 +226,7 @@ def _get_evaluate_fn(num_classes: int = 8, recorder: Optional[FLMetricsRecorder]
         with torch.no_grad():
             for images, labels in test_loader:
                 images = images.to(device)
-                labels = labels.squeeze().long().to(device)
+                labels = labels.view(-1).long().to(device)
                 outputs = model(images)
                 loss = criterion(outputs, labels)
                 total_loss += loss.item() * images.size(0)
@@ -495,6 +495,14 @@ def main():
         default=yaml_cfg.get("server_eval", True),
         help=f"Enable server-side centralized evaluation (default: {yaml_cfg.get('server_eval', True)})",
     )
+    parser.add_argument(
+        "--save_dir",
+        "--output_dir",
+        dest="save_dir",
+        type=str,
+        default=None,
+        help="Custom directory path to save FL artifacts (default: results/federated/<strategy>/<timestamp>)",
+    )
     args = parser.parse_args()
 
     server_ipv4 = get_device_ipv4()
@@ -559,7 +567,7 @@ def main():
 
     if args.strategy == "fedprox":
         strategy_kwargs["proximal_mu"] = args.proximal_mu
-    elif args.strategy == "fedbn":
+    elif args.strategy in ("fedbn", "fednova"):
         strategy_kwargs["model"] = initial_model
     elif args.strategy == "scaffold":
         strategy_kwargs["num_total_clients"] = args.min_clients
@@ -609,8 +617,11 @@ def main():
         print(f"  Final Server c Norm: {summary.get('server_c_norm', 'N/A')}")
     print(f"{'='*60}\n")
 
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    save_dir = f"results/federated/{args.strategy}/{timestamp}"
+    if args.save_dir:
+        save_dir = args.save_dir
+    else:
+        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+        save_dir = f"results/federated/{args.strategy}/{timestamp}"
     os.makedirs(save_dir, exist_ok=True)
 
     extra_metadata = {

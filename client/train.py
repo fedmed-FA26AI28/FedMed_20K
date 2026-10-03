@@ -64,7 +64,7 @@ def train(
         total = 0
         for images, labels in train_loader:
             images = images.to(device)
-            labels = labels.squeeze(-1).long().to(device)
+            labels = labels.view(-1).long().to(device)
 
             optimizer.zero_grad()
             outputs = model(images)
@@ -94,7 +94,7 @@ def train(
             with torch.no_grad():
                 for val_images, val_labels in val_loader:
                     val_images = val_images.to(device)
-                    val_labels = val_labels.squeeze().long().to(device)
+                    val_labels = val_labels.view(-1).long().to(device)
 
                     val_outputs = model(val_images)
                     v_loss = criterion(val_outputs, val_labels)

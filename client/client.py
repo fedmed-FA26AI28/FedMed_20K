@@ -17,6 +17,7 @@ import os
 import sys
 import time
 from pathlib import Path
+from typing import Optional, Union, List, Dict, Any
 
 import numpy as np
 import torch
@@ -50,6 +51,7 @@ def _local_train(
     proximal_mu: float = 0.0,
     global_params: list = None,
     scaffold_drift: list = None,
+    is_scaffold: bool = False,
     min_lr: float = 1e-6,
     early_stop_patience: int = 5,
 ):
@@ -60,6 +62,7 @@ def _local_train(
         proximal_mu: If > 0 and global_params provided, adds FedProx proximal term.
         global_params: Global model parameters (list of tensors) for proximal term.
         scaffold_drift: List of tensor drift terms (c - c_i) for trainable parameters in SCAFFOLD.
+        is_scaffold: Whether SCAFFOLD is active to track uncorrupted loss gradients (Option 2).
     """
     criterion = nn.CrossEntropyLoss()
 
@@ -73,6 +76,7 @@ def _local_train(
     total_steps = 0
 
     trainable_params = [p for p in model.parameters() if p.requires_grad]
+    grad_accum = [torch.zeros_like(p) for p in trainable_params] if is_scaffold else None
 
     for epoch in range(epochs):
         model.train()
@@ -83,7 +87,7 @@ def _local_train(
 
         for images, labels in train_loader:
             images = images.to(device)
-            labels = labels.squeeze().long().to(device)
+            labels = labels.view(-1).long().to(device)
 
             optimizer.zero_grad()
             outputs = model(images)
@@ -99,6 +103,12 @@ def _local_train(
                 loss = loss + (proximal_mu / 2.0) * proximal_loss
 
             loss.backward()
+
+            # SCAFFOLD Option 2: Accumulate uncorrupted loss gradient before adding drift
+            if grad_accum is not None:
+                for accum, p in zip(grad_accum, trainable_params):
+                    if p.grad is not None:
+                        accum.add_(p.grad)
 
             # SCAFFOLD drift correction: g_i - c_i + c = g_i + (c - c_i)
             if scaffold_drift is not None:
@@ -152,7 +162,7 @@ def _local_train(
                 )
                 break
 
-    return {
+    metrics_out = {
         "train_loss": epoch_loss,
         "train_accuracy": epoch_acc,
         "epoch_times": epoch_times,
@@ -166,6 +176,12 @@ def _local_train(
         "epochs_run": len(epoch_times),
         "total_steps": total_steps,
     }
+    if grad_accum is not None:
+        metrics_out["grad_accum"] = [
+            (accum / max(1, total_steps)).cpu().numpy().astype(np.float64)
+            for accum in grad_accum
+        ]
+    return metrics_out
 
 
 # ──────────────────────────────────────────────────────────────
@@ -191,6 +207,7 @@ class FedMedAIClient(fl.client.NumPyClient):
         save_local_metrics: bool = True,
         server_address: str = "127.0.0.1:8080",
         strategy: str = None,
+        client_dir: Optional[Union[str, Path]] = None,
     ):
         self.client_id = client_id
         self.train_loader = train_loader
@@ -212,7 +229,10 @@ class FedMedAIClient(fl.client.NumPyClient):
         self.epoch_history = []
 
         # Client ping logger
-        self.client_dir = Path("results") / "clients" / f"client_{self.client_id}"
+        if client_dir is not None:
+            self.client_dir = Path(client_dir)
+        else:
+            self.client_dir = Path("results") / "clients" / f"client_{self.client_id}"
         self.ping_logger = ClientPingLogger(
             client_id=self.client_id,
             server_address=self.server_address,
@@ -374,6 +394,7 @@ class FedMedAIClient(fl.client.NumPyClient):
             proximal_mu=proximal_mu,
             global_params=global_params,
             scaffold_drift=scaffold_drift,
+            is_scaffold=is_scaffold,
         )
         training_time = time.time() - train_start
 
@@ -382,21 +403,29 @@ class FedMedAIClient(fl.client.NumPyClient):
 
         if is_scaffold:
             K = max(int(train_metrics.get("total_steps", 1)), 1)
-            lr = float(self.optimizer.param_groups[0]["lr"])
             sd_keys = list(self.model.state_dict().keys())
             named_params = dict(self.model.named_parameters())
+            grad_avg = train_metrics.get("grad_accum")
 
             delta_c = []
             new_client_c = []
+            trainable_idx = 0
             for idx, k in enumerate(sd_keys):
                 if k in named_params:
-                    # Trainable parameter: delta_c_i = (1 / (K * lr)) * (x - y) - server_c
-                    d_c = (1.0 / (K * lr)) * (initial_weights[idx] - updated_model_params[idx]) - server_c[idx]
-                    c_i_new = self.client_control_variate[idx] + d_c
+                    if grad_avg is not None and trainable_idx < len(grad_avg):
+                        # Option 2: Exact empirical loss gradient average (optimizer-agnostic)
+                        c_i_new = grad_avg[trainable_idx]
+                        d_c = c_i_new - self.client_control_variate[idx]
+                    else:
+                        # Fallback Option 1: displacement-based
+                        lr = float(self.optimizer.param_groups[0]["lr"])
+                        d_c = (1.0 / (K * lr)) * (initial_weights[idx] - updated_model_params[idx]) - server_c[idx]
+                        c_i_new = self.client_control_variate[idx] + d_c
+                    trainable_idx += 1
                 else:
                     # Non-trainable buffer: zero delta
-                    d_c = np.zeros_like(updated_model_params[idx])
-                    c_i_new = np.zeros_like(updated_model_params[idx])
+                    d_c = np.zeros_like(updated_model_params[idx], dtype=np.float64)
+                    c_i_new = np.zeros_like(updated_model_params[idx], dtype=np.float64)
                 delta_c.append(d_c)
                 new_client_c.append(c_i_new)
 
@@ -527,7 +556,7 @@ class FedMedAIClient(fl.client.NumPyClient):
         with torch.no_grad():
             for images, labels in self.test_loader:
                 images = images.to(self.device)
-                labels = labels.squeeze().long().to(self.device)
+                labels = labels.view(-1).long().to(self.device)
                 outputs = self.model(images)
                 loss = criterion(outputs, labels)
                 total_loss += loss.item() * images.size(0)
@@ -616,18 +645,24 @@ def main():
     )
     parser.add_argument(
         "--lr_patience",
+        "--client_lr_patience",
+        dest="lr_patience",
         type=int,
         default=yaml_cfg.get("client_lr_patience", 2),
         help=f"Client local epochs without loss improvement before reducing LR (default: {yaml_cfg.get('client_lr_patience', 2)})",
     )
     parser.add_argument(
         "--lr_factor",
+        "--client_lr_factor",
+        dest="lr_factor",
         type=float,
         default=yaml_cfg.get("client_lr_factor", 0.5),
         help=f"Multiplicative factor for client LR reduction (default: {yaml_cfg.get('client_lr_factor', 0.5)})",
     )
     parser.add_argument(
         "--lr_min",
+        "--client_lr_min",
+        dest="lr_min",
         type=float,
         default=yaml_cfg.get("client_lr_min", 1e-6),
         help=f"Minimum client learning rate bound (default: {yaml_cfg.get('client_lr_min', 1e-6)})",
@@ -643,6 +678,18 @@ def main():
         "--batch_size", type=int, default=None, help="Override batch size from config"
     )
     parser.add_argument(
+        "--num_workers",
+        type=int,
+        default=yaml_cfg.get("num_workers", 0 if sys.platform == "win32" else None),
+        help=f"DataLoader worker processes (default: 0 on Windows, or from config)",
+    )
+    parser.add_argument(
+        "--pin_memory",
+        action=argparse.BooleanOptionalAction,
+        default=yaml_cfg.get("pin_memory", None),
+        help="Enable/disable pinned host memory for DataLoader transfers",
+    )
+    parser.add_argument(
         "--device_type",
         type=str,
         default=None,
@@ -654,6 +701,12 @@ def main():
         default=yaml_cfg.get("strategy", "fedavg"),
         choices=["fedavg", "fedprox", "fednova", "fedbn", "scaffold"],
         help=f"FL strategy (default: {yaml_cfg.get('strategy', 'fedavg')})",
+    )
+    parser.add_argument(
+        "--client_dir",
+        type=str,
+        default=None,
+        help="Custom directory to store client metrics and ping logs (default: results/clients/client_<id>)",
     )
     parser.add_argument(
         "--no_save_metrics",
@@ -702,6 +755,8 @@ def main():
         client_id=args.client_id,
         device_type=args.device_type,
         batch_size=args.batch_size,
+        num_workers=args.num_workers,
+        pin_memory=args.pin_memory,
         shuffle=True,
     )
 
@@ -727,6 +782,7 @@ def main():
         save_local_metrics=args.save_metrics,
         server_address=args.server_address,
         strategy=args.strategy,
+        client_dir=args.client_dir,
     )
 
     print(f"[Client {args.client_id}] Connecting to {args.server_address}...")

@@ -10,6 +10,7 @@ from typing import Dict, List, Optional, Tuple, Union, Any
 from logging import WARNING, INFO
 
 import numpy as np
+import torch.nn as nn
 from flwr.common import (
     FitRes,
     Parameters,
@@ -23,11 +24,14 @@ from flwr.server.strategy import FedAvg as FlwrFedAvg
 
 from algorithms.fedavg import _weighted_average_metrics, _format_device_details
 from monitoring.metrics import FLMetricsRecorder
+from models.cnn import CNN, get_buffer_mask, get_var_buffer_mask
 
 
 def _fednova_aggregate(
     results: List[Tuple[ClientProxy, FitRes]],
     global_parameters: List[np.ndarray],
+    buffer_mask: Optional[List[bool]] = None,
+    var_mask: Optional[List[bool]] = None,
 ) -> List[np.ndarray]:
     """Aggregate model updates using FedNova normalized averaging.
 
@@ -39,8 +43,14 @@ def _fednova_aggregate(
         tau_eff = sum_i(p_i * tau_i)  where p_i = n_i / n_total
 
     Aggregated update:
-        delta_nova = tau_eff * sum_i(p_i * d_i)
-        w_new = w_global + delta_nova
+        For trainable parameters:
+            delta_nova = tau_eff * sum_i(p_i * d_i)
+            w_new = w_global + delta_nova
+        For non-trainable buffers (e.g. BatchNorm running_mean, running_var):
+            Standard sample-weighted averaging (FedAvg) is used because buffers
+            represent empirical activation statistics rather than optimization
+            variables updated by SGD. Variance buffers are strictly clipped >= 0
+            to prevent numerical instability and NaN losses during evaluation.
     """
     total_examples = sum(fit_res.num_examples for _, fit_res in results)
     if total_examples == 0:
@@ -49,10 +59,15 @@ def _fednova_aggregate(
     client_deltas = []
     client_weights = []
     client_taus = []
+    client_params_list = []
 
     for _, fit_res in results:
         client_params = parameters_to_ndarrays(fit_res.parameters)
-        delta = [c - g for c, g in zip(client_params, global_parameters)]
+        client_params_list.append(client_params)
+        delta = [
+            np.asarray(c, dtype=np.float64) - np.asarray(g, dtype=np.float64)
+            for c, g in zip(client_params, global_parameters)
+        ]
         client_deltas.append(delta)
 
         tau = float(fit_res.metrics.get("local_steps", 1.0))
@@ -65,18 +80,39 @@ def _fednova_aggregate(
     tau_eff = sum(p * tau for p, tau in zip(client_weights, client_taus))
 
     num_layers = len(global_parameters)
-    aggregated_delta = [np.zeros_like(g) for g in global_parameters]
+    new_params = []
 
     for layer_idx in range(num_layers):
-        for delta_i, p_i, tau_i in zip(client_deltas, client_weights, client_taus):
-            d_i = delta_i[layer_idx] / tau_i
-            aggregated_delta[layer_idx] += p_i * d_i
-        aggregated_delta[layer_idx] *= tau_eff
+        g = global_parameters[layer_idx]
+        is_buf = (
+            buffer_mask[layer_idx]
+            if buffer_mask is not None and layer_idx < len(buffer_mask)
+            else False
+        )
+        is_var = (
+            var_mask[layer_idx]
+            if var_mask is not None and layer_idx < len(var_mask)
+            else False
+        )
 
-    new_params = [
-        global_parameters[idx] + aggregated_delta[idx]
-        for idx in range(len(global_parameters))
-    ]
+        if is_buf:
+            # Standard sample-weighted average for tracking buffers
+            agg_layer = sum(
+                p_i * np.asarray(c_params[layer_idx], dtype=np.float64)
+                for p_i, c_params in zip(client_weights, client_params_list)
+            )
+            if is_var:
+                agg_layer = np.maximum(agg_layer, 0.0)
+            new_params.append(agg_layer.astype(g.dtype))
+        else:
+            # FedNova normalized step aggregation for trainable parameters
+            agg_delta = sum(
+                p_i * (np.asarray(delta_i[layer_idx], dtype=np.float64) / tau_i)
+                for delta_i, p_i, tau_i in zip(client_deltas, client_weights, client_taus)
+            )
+            agg_delta *= tau_eff
+            new_layer = (np.asarray(g, dtype=np.float64) + agg_delta).astype(g.dtype)
+            new_params.append(new_layer)
 
     return new_params
 
@@ -88,6 +124,7 @@ class FedNovaStrategy(FlwrFedAvg):
         early_stop_patience: Number of rounds without improvement before stopping (0 to disable).
         early_stop_metric: Target metric to track ('accuracy' or 'loss').
         metrics_recorder: Optional FLMetricsRecorder instance for logging and visualization.
+        model: Optional nn.Module used to inspect layer types (trainable parameters vs BatchNorm buffers).
         All other kwargs are forwarded to flwr.server.strategy.FedAvg.
     """
 
@@ -97,6 +134,7 @@ class FedNovaStrategy(FlwrFedAvg):
         early_stop_patience: int = 10,
         early_stop_metric: str = "accuracy",
         metrics_recorder: Optional[FLMetricsRecorder] = None,
+        model: Optional[nn.Module] = None,
         **kwargs,
     ):
         if "fit_metrics_aggregation_fn" not in kwargs:
@@ -106,6 +144,11 @@ class FedNovaStrategy(FlwrFedAvg):
 
         self.recorder = metrics_recorder or FLMetricsRecorder(strategy_name="FedNova")
 
+        if model is None:
+            model = CNN(num_classes=8)
+        self.buffer_mask = get_buffer_mask(model)
+        self.var_mask = get_var_buffer_mask(model)
+
         # Early stopping state
         self.early_stop_patience = early_stop_patience
         self.early_stop_metric = early_stop_metric
@@ -113,6 +156,7 @@ class FedNovaStrategy(FlwrFedAvg):
         self._best_round: int = 0
         self._best_parameters: Optional[Parameters] = None
         self._rounds_without_improvement: int = 0
+        self._last_checked_round: Optional[int] = None
         self.should_stop: bool = False
         self.latest_parameters: Optional[Parameters] = None
 
@@ -133,6 +177,10 @@ class FedNovaStrategy(FlwrFedAvg):
         """Evaluate early stopping conditions against monitored metric."""
         if self.early_stop_patience <= 0:
             return False
+
+        if self._last_checked_round == server_round:
+            return self.should_stop
+        self._last_checked_round = server_round
 
         if self.early_stop_metric == "loss":
             current = loss if loss is not None else metrics.get("loss")
@@ -205,7 +253,10 @@ class FedNovaStrategy(FlwrFedAvg):
 
         if self._current_global_params is not None:
             aggregated_ndarrays = _fednova_aggregate(
-                results, self._current_global_params
+                results,
+                self._current_global_params,
+                buffer_mask=self.buffer_mask,
+                var_mask=self.var_mask,
             )
         else:
             from flwr.server.strategy.aggregate import aggregate
