@@ -1,0 +1,82 @@
+# ==============================================================================
+# FedMedAI: Multi-Strategy & Multi-Partition Simulation Configuration
+# ==============================================================================
+# This configuration file specifies settings for running automated FL simulations
+# across multiple aggregation strategies and Dirichlet data partition levels (alphas).
+#
+# Execution Command:
+#     python -m experiments.run_simulation
+#     python -m experiments.run_simulation --config configs/simulation.yaml
+#     python -m experiments.run_simulation --rounds 10 --strategies fedavg fedprox
+# ==============================================================================
+
+# --- Simulation Topology & Matrix Grid ---
+# Number of simulated clients participating in federated training
+num_clients: 10
+
+# Non-IID Dirichlet concentration alpha values to benchmark:
+#   1.0: Near-IID (balanced distribution across clients)
+#   0.3: Moderately non-IID (label skew typical in real-world hospitals)
+#   0.1: Highly non-IID (extreme label skew / severe heterogeneity)
+alphas:
+  - 1.0
+  - 0.3
+  - 0.1
+
+# FL aggregation strategies to benchmark across all partition levels
+# Available: 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold'
+strategies:
+  - fedavg
+  - fedprox
+  - fednova
+  - fedbn
+  - scaffold
+
+# --- Training Hyperparameters ---
+rounds: 20                     # Number of federated communication rounds per simulation run
+local_epochs: 5               # Number of local training epochs on each client per round
+batch_size: 32                # Client training mini-batch size
+learning_rate: 0.001          # Initial base learning rate
+seed: 42                      # Random seed for partition and model initialization reproducibility
+
+# --- Learning Rate (LR) Scheduling Mode ---
+# Options:
+#   'client_loss' : Server only sends initial LR on Round 1; each client independently
+#                   reduces LR when local loss plateaus (default in FedMedAI).
+#   'server_decay': Server computes global step decay every N rounds and synchronizes across all clients.
+#   'fixed'       : Constant learning rate across all rounds and clients (classic Flower baseline).
+lr_mode: server_decay
+
+# Settings for 'client_loss' mode:
+client_lr_patience: 5         # Client local epochs without loss improvement before reducing LR
+client_lr_factor: 0.5         # Multiplicative factor of LR reduction (new_lr = lr * factor)
+client_lr_min: 0.000001       # Minimum learning rate lower bound
+
+# Settings for 'server_decay' mode:
+lr_decay_steps: 3             # Decay learning rate every N rounds
+lr_decay_gamma: 0.5           # Multiplicative decay factor
+
+# --- Algorithm-Specific Hyperparameters ---
+# FedProx proximal term coefficient mu (0.0 = standard FedAvg)
+proximal_mu: 0.01
+
+# --- Server Evaluation & Early Stopping ---
+server_eval: true             # Centralized evaluation on global test set (3,421 BloodMNIST images)
+early_stop_patience: 6        # Rounds without metric improvement before stopping (0 = disabled)
+early_stop_metric: accuracy   # Target metric to monitor: 'accuracy' or 'loss'
+
+# --- Hardware & System Execution ---
+device: auto                  # 'auto', 'cuda', or 'cpu'
+device_type: pc               # Hardware profile for client monitoring ('pc', 'jetson_orin', 'jetson_nano')
+pin_memory: true              # Pinned memory for CUDA transfer acceleration
+num_workers: 0                # DataLoader workers (0 is safest for multi-process simulation on Windows)
+
+# --- Network & Execution Control ---
+server_host: "127.0.0.1"      # Host address for FL server socket
+timeout_per_run: 1800         # Maximum timeout in seconds per (strategy, alpha) run (30 minutes)
+auto_partition: true          # Automatically generate missing partition JSON files using Dirichlet distribution
+save_client_metrics: true     # Record per-client ping and epoch metrics CSVs
+
+# --- Output & Logging ---
+output_dir: results/simulation # Base directory to save simulation run logs, summary CSVs, and plots
+generate_comparison_plots: true # Generate cross-strategy accuracy/loss curves, bar charts, and heatmap

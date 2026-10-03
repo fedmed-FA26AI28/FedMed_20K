@@ -37,10 +37,13 @@ def get_bloodmnist_datasets(batch_size: int = 32, download: bool = True):
     return train_dataset, val_dataset, test_dataset, num_classes
 
 
-def get_bloodmnist_dataloaders(batch_size: int = 32, download: bool = True):
+def get_bloodmnist_dataloaders(batch_size: int = 32, download: bool = True, num_workers: int = None):
     """Return PyTorch DataLoaders for centralized baseline training."""
+    if num_workers is None:
+        import sys
+        num_workers = 0 if sys.platform == "win32" else 2
     train_dataset, val_dataset, test_dataset, num_classes = get_bloodmnist_datasets(download=download)
-    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, num_workers=2)
-    val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False, num_workers=2)
-    test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False, num_workers=2)
+    train_loader = DataLoader(dataset=train_dataset, batch_size=batch_size, shuffle=True, num_workers=num_workers)
+    val_loader = DataLoader(dataset=val_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
+    test_loader = DataLoader(dataset=test_dataset, batch_size=batch_size, shuffle=False, num_workers=num_workers)
     return train_loader, val_loader, test_loader, num_classes

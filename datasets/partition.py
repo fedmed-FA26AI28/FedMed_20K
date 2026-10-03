@@ -1,4 +1,6 @@
 """Trien khai cac thuat toan chia nho dataset (IID va non-IID qua phan phoi Dirichlet) cho cac client."""
+import os
+import sys
 import json
 import yaml
 import numpy as np
@@ -210,7 +212,8 @@ def get_client_dataloader(dataset, client_indices: List[int],
                           device_type: str = None,
                           batch_size: int = None,
                           shuffle: bool = True,
-                          num_workers: int = None) -> DataLoader:
+                          num_workers: int = None,
+                          pin_memory: bool = None) -> DataLoader:
     """
     Tao DataLoader cho 1 client dua tren danh sach indices.
 
@@ -218,12 +221,19 @@ def get_client_dataloader(dataset, client_indices: List[int],
         client_id   : ID cua client (0-9). Tu dong tra cuu device_type -> batch_size, num_workers.
                       Neu None -> fallback ve experiment.yaml (mac dinh: pc).
         batch_size  : Override thu cong neu muon. Mac dinh doc tu config.
-        num_workers : Override thu cong neu muon. Mac dinh doc tu config.
+        num_workers : Override thu cong neu muon. Mac dinh doc tu config (tren Windows mac dinh = 0).
+        pin_memory  : Override thu cong neu muon. Mac dinh doc tu config.
     """
     hw_cfg      = load_hardware_config(client_id=client_id, device_type=device_type)
     batch_size  = batch_size  if batch_size  is not None else hw_cfg["batch_size"]
-    num_workers = num_workers if num_workers is not None else hw_cfg["num_workers"]
-    pin_memory  = hw_cfg.get("pin_memory", False)
+    
+    # On Windows, default to 0 workers to prevent multiprocessing spawn pickling crashes
+    # (OSError [Errno 22] Invalid argument / UnpicklingError) across concurrent clients
+    if num_workers is None:
+        num_workers = 0 if sys.platform == "win32" else hw_cfg.get("num_workers", 0)
+        
+    if pin_memory is None:
+        pin_memory  = hw_cfg.get("pin_memory", False)
 
     subset = Subset(dataset, client_indices)
     return DataLoader(
@@ -237,7 +247,8 @@ def get_client_dataloader(dataset, client_indices: List[int],
 
 def get_all_client_dataloaders(dataset, partition: List[List[int]],
                                batch_size: int = None,
-                               num_workers: int = None) -> List[DataLoader]:
+                               num_workers: int = None,
+                               pin_memory: bool = None) -> List[DataLoader]:
     """
     Tao DataLoader cho tat ca clients (thuong dung cho simulation).
     Doc active_clients tu experiment.yaml de map dung client_id.
@@ -257,7 +268,8 @@ def get_all_client_dataloaders(dataset, partition: List[List[int]],
         loader = get_client_dataloader(dataset, indices,
                                        client_id=cid,
                                        batch_size=batch_size,
-                                       num_workers=num_workers)
+                                       num_workers=num_workers,
+                                       pin_memory=pin_memory)
         loaders.append(loader)
     return loaders
 

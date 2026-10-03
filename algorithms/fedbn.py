@@ -118,6 +118,7 @@ class FedBNStrategy(FlwrFedAvg):
         self._best_round: int = 0
         self._best_parameters: Optional[Parameters] = None
         self._rounds_without_improvement: int = 0
+        self._last_checked_round: Optional[int] = None
         self.should_stop: bool = False
         self.latest_parameters: Optional[Parameters] = None
 
@@ -138,6 +139,10 @@ class FedBNStrategy(FlwrFedAvg):
         """Evaluate early stopping conditions against monitored metric."""
         if self.early_stop_patience <= 0:
             return False
+
+        if self._last_checked_round == server_round:
+            return self.should_stop
+        self._last_checked_round = server_round
 
         if self.early_stop_metric == "loss":
             current = loss if loss is not None else metrics.get("loss")
