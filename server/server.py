@@ -23,6 +23,8 @@ import os
 import sys
 import time
 import timeit
+import signal
+import threading
 import datetime
 from logging import INFO, WARNING
 from typing import Dict, List, Optional, Tuple, Any
@@ -41,6 +43,7 @@ from flwr.common.logger import log
 from models.cnn import CNN, get_parameters, set_parameters
 from algorithms import get_strategy
 from monitoring.metrics import FLMetricsRecorder
+from monitoring.network import get_device_ipv4
 
 
 # ──────────────────────────────────────────────────────────────
@@ -59,6 +62,31 @@ def load_yaml_config(config_path: str = "configs/experiment.yaml") -> Dict[str, 
     except Exception as e:
         log(WARNING, "Failed to load YAML configuration from %s: %s", config_path, e)
         return {}
+
+
+# ──────────────────────────────────────────────────────────────
+# Interruptible Client Manager (enables Ctrl+C on Windows)
+# ──────────────────────────────────────────────────────────────
+
+class InterruptibleClientManager(fl.server.SimpleClientManager):
+    """ClientManager subclass that periodically polls with 0.5s timeout.
+
+    On Windows, the default wait_for(timeout=86400) blocks inside a C runtime
+    condition variable for 24 hours, preventing Python from processing console
+    signals like Ctrl+C / SIGINT. Polling in 0.5s intervals allows Python
+    bytecode execution so KeyboardInterrupt is delivered immediately.
+    """
+
+    def wait_for(self, num_clients: int, timeout: int = 86400) -> bool:
+        """Wait until at least `num_clients` are connected, allowing Ctrl+C."""
+        end_time = time.time() + timeout
+        while time.time() < end_time:
+            with self._cv:
+                if len(self.clients) >= num_clients:
+                    return True
+                self._cv.wait(timeout=0.5)
+        with self._cv:
+            return len(self.clients) >= num_clients
 
 
 # ──────────────────────────────────────────────────────────────
@@ -230,41 +258,95 @@ def _get_evaluate_fn(num_classes: int = 8, recorder: Optional[FLMetricsRecorder]
 
 
 # ──────────────────────────────────────────────────────────────
-# on_fit_config_fn: send config and decayed LR to clients each round
+# on_fit_config_fn: send config and LR to clients each round
 # ──────────────────────────────────────────────────────────────
 
 def _make_on_fit_config_fn(
-    local_epochs: int,
-    learning_rate: float,
-    lr_decay_steps: int = 0,
+    strategy_name: str = "fedavg",
+    local_epochs: int = 5,
+    learning_rate: float = 0.001,
+    lr_mode: str = "client_loss",
+    lr_decay_steps: int = 3,
     lr_decay_gamma: float = 0.5,
     proximal_mu: float = 0.0,
+    client_lr_patience: int = 2,
+    client_lr_factor: float = 0.5,
+    client_lr_min: float = 1e-6,
 ):
-    """Create a function that calculates and sends training config to clients each round."""
+    """Create a function that calculates and sends training config to clients each round.
+
+    Supports three LR scheduling modes:
+    - 'client_loss': Server sends initial LR on round 1; each client independently reduces LR on local loss plateau.
+    - 'server_decay': Server computes global step decay every N rounds and synchronizes across all clients.
+    - 'fixed': Constant initial learning rate across all rounds and clients (classic Flower baseline).
+    """
+    mode = str(lr_mode).lower().strip()
 
     def on_fit_config(server_round: int) -> Dict[str, Scalar]:
-        # Step decay formula: lr = initial_lr * (gamma ** ((round - 1) // steps))
-        if lr_decay_steps > 0 and server_round > 1:
-            step_count = (server_round - 1) // lr_decay_steps
-            scheduled_lr = learning_rate * (lr_decay_gamma ** step_count)
-        else:
-            scheduled_lr = learning_rate
-
         config: Dict[str, Scalar] = {
+            "strategy": strategy_name.lower(),
             "server_round": server_round,
             "local_epochs": local_epochs,
-            "learning_rate": float(scheduled_lr),
+            "lr_mode": mode,
+            "initial_lr": float(learning_rate),
         }
+
         if proximal_mu > 0.0:
             config["proximal_mu"] = proximal_mu
 
-        log(
-            INFO,
-            "[Server] Config for Round %d: local_epochs=%d, LR=%.6f",
-            server_round,
-            local_epochs,
-            scheduled_lr,
-        )
+        if mode == "fixed":
+            # Constant learning rate for all rounds (classic Flower baseline)
+            config["learning_rate"] = float(learning_rate)
+            log(
+                INFO,
+                "[Server] Config for Round %d: strategy=%s, local_epochs=%d, LR=%.6f (fixed)",
+                server_round,
+                strategy_name.upper(),
+                local_epochs,
+                learning_rate,
+            )
+        elif mode in ("server_decay", "server", "step"):
+            # Synchronized global step decay: lr = initial_lr * (gamma ** ((round - 1) // steps))
+            if lr_decay_steps > 0 and server_round > 1:
+                step_count = (server_round - 1) // lr_decay_steps
+                scheduled_lr = learning_rate * (lr_decay_gamma ** step_count)
+            else:
+                scheduled_lr = learning_rate
+            config["learning_rate"] = float(scheduled_lr)
+            log(
+                INFO,
+                "[Server] Config for Round %d: strategy=%s, local_epochs=%d, LR=%.6f (server_decay step=%d, gamma=%.2f)",
+                server_round,
+                strategy_name.upper(),
+                local_epochs,
+                scheduled_lr,
+                lr_decay_steps,
+                lr_decay_gamma,
+            )
+        else:
+            # 'client_loss' mode: server sends initial LR on Round 1 only
+            config["client_lr_patience"] = int(client_lr_patience)
+            config["client_lr_factor"] = float(client_lr_factor)
+            config["client_lr_min"] = float(client_lr_min)
+            if server_round == 1:
+                config["learning_rate"] = float(learning_rate)
+                log(
+                    INFO,
+                    "[Server] Config for Round %d: strategy=%s, local_epochs=%d, init_lr=%.6f (clients reduce LR locally based on loss)",
+                    server_round,
+                    strategy_name.upper(),
+                    local_epochs,
+                    learning_rate,
+                )
+            else:
+                log(
+                    INFO,
+                    "[Server] Config for Round %d: strategy=%s, local_epochs=%d (client_loss mode: clients manage LR on local loss)",
+                    server_round,
+                    strategy_name.upper(),
+                    local_epochs,
+                )
+
         return config
 
     return on_fit_config
@@ -302,14 +384,14 @@ def main():
     yaml_cfg = load_yaml_config(pre_args.config)
 
     parser = argparse.ArgumentParser(
-        description="FedMedAI FL Server with LR Decay, Early Stopping, and YAML config",
+        description="FedMedAI FL Server with Configurable LR Scheduling, Early Stopping, and YAML config",
         parents=[pre_parser],
     )
     parser.add_argument(
         "--strategy",
         type=str,
         default=yaml_cfg.get("strategy", "fedavg"),
-        choices=["fedavg", "fedprox", "fednova"],
+        choices=["fedavg", "fedprox", "fednova", "fedbn", "scaffold"],
         help=f"FL aggregation strategy (default: {yaml_cfg.get('strategy', 'fedavg')})",
     )
     parser.add_argument(
@@ -331,6 +413,13 @@ def main():
         help=f"Number of client local epochs per round (default: {yaml_cfg.get('local_epochs', 5)})",
     )
     parser.add_argument(
+        "--lr_mode",
+        type=str,
+        default=yaml_cfg.get("lr_mode", "client_loss"),
+        choices=["client_loss", "server_decay", "fixed"],
+        help=f"LR schedule mode: 'client_loss' | 'server_decay' | 'fixed' (default: {yaml_cfg.get('lr_mode', 'client_loss')})",
+    )
+    parser.add_argument(
         "--learning_rate",
         "--lr",
         type=float,
@@ -341,14 +430,32 @@ def main():
     parser.add_argument(
         "--lr_decay_steps",
         type=int,
-        default=yaml_cfg.get("lr_decay_steps", 10),
-        help=f"Rounds between LR step decays, 0 to disable (default: {yaml_cfg.get('lr_decay_steps', 10)})",
+        default=yaml_cfg.get("lr_decay_steps", 3),
+        help=f"Rounds between LR step decays for 'server_decay' mode (default: {yaml_cfg.get('lr_decay_steps', 3)})",
     )
     parser.add_argument(
         "--lr_decay_gamma",
         type=float,
         default=yaml_cfg.get("lr_decay_gamma", 0.5),
-        help=f"Multiplicative factor of LR decay (default: {yaml_cfg.get('lr_decay_gamma', 0.5)})",
+        help=f"Multiplicative factor of LR decay for 'server_decay' mode (default: {yaml_cfg.get('lr_decay_gamma', 0.5)})",
+    )
+    parser.add_argument(
+        "--client_lr_patience",
+        type=int,
+        default=yaml_cfg.get("client_lr_patience", 2),
+        help=f"Client local epochs without loss improvement before reducing LR (default: {yaml_cfg.get('client_lr_patience', 2)})",
+    )
+    parser.add_argument(
+        "--client_lr_factor",
+        type=float,
+        default=yaml_cfg.get("client_lr_factor", 0.5),
+        help=f"Multiplicative factor for client LR reduction (default: {yaml_cfg.get('client_lr_factor', 0.5)})",
+    )
+    parser.add_argument(
+        "--client_lr_min",
+        type=float,
+        default=yaml_cfg.get("client_lr_min", 1e-6),
+        help=f"Minimum client learning rate bound (default: {yaml_cfg.get('client_lr_min', 1e-6)})",
     )
     parser.add_argument(
         "--proximal_mu",
@@ -390,18 +497,25 @@ def main():
     )
     args = parser.parse_args()
 
+    server_ipv4 = get_device_ipv4()
+
     print(f"\n{'='*60}")
     print(f"  FedMedAI FL Server")
     print(f"  Config Source: {pre_args.config}")
     print(f"  Strategy     : {args.strategy.upper()}")
+    print(f"  Server IPv4  : {server_ipv4}")
+    print(f"  Client Target: {server_ipv4}:{args.port}")
     print(f"  Rounds       : {args.rounds}")
     print(f"  Min Clients  : {args.min_clients}")
     print(f"  Local Epochs : {args.local_epochs}")
-    print(f"  Initial LR   : {args.learning_rate}")
-    if args.lr_decay_steps > 0:
-        print(f"  LR Decay     : Step decay every {args.lr_decay_steps} rounds (gamma={args.lr_decay_gamma})")
+    print(f"  LR Mode      : {args.lr_mode.upper()}")
+    print(f"  Base LR      : {args.learning_rate}")
+    if args.lr_mode in ("server_decay", "server", "step"):
+        print(f"  Server Decay : Step decay every {args.lr_decay_steps} rounds (gamma={args.lr_decay_gamma})")
+    elif args.lr_mode == "client_loss":
+        print(f"  Client Reducer: Initial LR passed on Round 1 | patience={args.client_lr_patience}, factor={args.client_lr_factor}, min={args.client_lr_min}")
     else:
-        print(f"  LR Decay     : Disabled (constant LR)")
+        print(f"  LR Policy    : Fixed constant learning rate across all rounds")
     if args.strategy == "fedprox":
         print(f"  Proximal mu  : {args.proximal_mu}")
     print(f"  Early Stop   : Patience={args.early_stop_patience} (metric: {args.early_stop_metric})")
@@ -424,11 +538,16 @@ def main():
         "initial_parameters": initial_params,
         "metrics_recorder": recorder,
         "on_fit_config_fn": _make_on_fit_config_fn(
+            strategy_name=args.strategy,
             local_epochs=args.local_epochs,
             learning_rate=args.learning_rate,
+            lr_mode=args.lr_mode,
             lr_decay_steps=args.lr_decay_steps,
             lr_decay_gamma=args.lr_decay_gamma,
             proximal_mu=args.proximal_mu if args.strategy == "fedprox" else 0.0,
+            client_lr_patience=args.client_lr_patience,
+            client_lr_factor=args.client_lr_factor,
+            client_lr_min=args.client_lr_min,
         ),
         "evaluate_metrics_aggregation_fn": _evaluate_metrics_aggregation_fn,
         "early_stop_patience": args.early_stop_patience,
@@ -440,25 +559,34 @@ def main():
 
     if args.strategy == "fedprox":
         strategy_kwargs["proximal_mu"] = args.proximal_mu
+    elif args.strategy == "fedbn":
+        strategy_kwargs["model"] = initial_model
+    elif args.strategy == "scaffold":
+        strategy_kwargs["num_total_clients"] = args.min_clients
+        strategy_kwargs["model"] = initial_model
 
     strategy = get_strategy(args.strategy, **strategy_kwargs)
 
     print(f"[Server] Strategy created: {type(strategy).__name__}")
-    print(f"[Server] Waiting for {args.min_clients} clients on {args.host}:{args.port}...\n")
+    print(f"[Server] Waiting for {args.min_clients} clients on {args.host}:{args.port} (Connect target: {server_ipv4}:{args.port})...\n")
 
-    # Instantiate custom server with early stopping halt capability
+    # Instantiate custom server with early stopping halt capability and interruptible client manager
     server = FedMedAIServer(
-        client_manager=fl.server.SimpleClientManager(),
+        client_manager=InterruptibleClientManager(),
         strategy=strategy,
     )
 
     total_start = time.time()
 
-    history = fl.server.start_server(
-        server_address=f"{args.host}:{args.port}",
-        config=fl.server.ServerConfig(num_rounds=args.rounds),
-        server=server,
-    )
+    try:
+        history = fl.server.start_server(
+            server_address=f"{args.host}:{args.port}",
+            config=fl.server.ServerConfig(num_rounds=args.rounds),
+            server=server,
+        )
+    except KeyboardInterrupt:
+        print("\n[Server] Interrupted by user (Ctrl+C). Shutting down FL server gracefully...")
+        sys.exit(0)
 
     total_time = time.time() - total_start
 
@@ -474,6 +602,11 @@ def main():
     print(f"  Early Stopped  : {summary.get('early_stopped', False)}")
     if args.strategy == "fedprox":
         print(f"  Proximal mu    : {summary.get('proximal_mu', args.proximal_mu)}")
+    elif args.strategy == "fedbn":
+        print(f"  Local BN Layers: {summary.get('num_bn_layers_local', 'N/A')}")
+        print(f"  Aggregated Non-BN: {summary.get('num_non_bn_layers_aggregated', 'N/A')}")
+    elif args.strategy == "scaffold":
+        print(f"  Final Server c Norm: {summary.get('server_c_norm', 'N/A')}")
     print(f"{'='*60}\n")
 
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -498,6 +631,11 @@ def main():
     }
     if args.strategy == "fedprox":
         extra_metadata["proximal_mu"] = args.proximal_mu
+    elif args.strategy == "fedbn":
+        extra_metadata["num_bn_layers_local"] = summary.get("num_bn_layers_local")
+        extra_metadata["num_non_bn_layers_aggregated"] = summary.get("num_non_bn_layers_aggregated")
+    elif args.strategy == "scaffold":
+        extra_metadata["server_c_norm"] = summary.get("server_c_norm")
 
     print("[Server] Generating and saving CSV metrics, comparison plots, and rich fl_results.json...")
     saved_artifacts = strategy.save_artifacts(save_dir=save_dir, extra_metadata=extra_metadata)

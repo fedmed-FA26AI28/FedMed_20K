@@ -79,13 +79,18 @@ tail -f centralized.log
 
 | Tùy chọn (Option) | Kiểu dữ liệu | Mặc định | Ý nghĩa & Hướng dẫn sử dụng |
 | :--- | :---: | :---: | :--- |
-| `--epochs` | `int` | `100` | Số lượng epoch huấn luyện tối đa. Quá trình có tích hợp Early Stopping (patience = 8 epochs) tự động dừng nếu validation loss không cải thiện. |
-| `--batch_size` | `int` | `32` | Kích thước mini-batch cho DataLoader. Tăng lên `64` hoặc `128` nếu PC có GPU VRAM lớn (>= 6GB) để tăng tốc, hoặc giảm xuống `16` nếu chạy trên CPU yếu. |
-| `--lr` hoặc `--learning_rate` | `float` | `0.001` | Tốc độ học ban đầu cho Adam optimizer. Bộ điều chỉnh `ReduceLROnPlateau` sẽ tự động giảm 50% lr khi val loss đi ngang 3 epochs. |
+| `--config` | `str` | `configs/experiment.yaml` | Đường dẫn file cấu hình YAML chứa các siêu tham số tập trung (mục `centralized:`). |
+| `--epochs` | `int` | `100` (YAML) | Số lượng epoch huấn luyện tối đa. Quá trình có tích hợp Early Stopping tự động dừng nếu validation loss không cải thiện. |
+| `--batch_size` | `int` | `32` (YAML) | Kích thước mini-batch cho DataLoader. Tăng lên `64` hoặc `128` nếu PC có GPU VRAM lớn (>= 6GB) để tăng tốc, hoặc giảm xuống `16` nếu chạy trên CPU yếu. |
+| `--lr` hoặc `--learning_rate` | `float` | `0.001` (YAML) | Tốc độ học ban đầu cho Adam optimizer. |
+| `--lr_patience` | `int` | `3` (YAML) | Số epochs val loss đi ngang trước khi `ReduceLROnPlateau` tự động giảm learning rate. |
+| `--lr_factor` | `float` | `0.5` (YAML) | Hệ số nhân giảm learning rate khi gặp plateau (`new_lr = lr * factor`). |
+| `--early_stop_patience` | `int` | `8` (YAML) | Số epochs val loss đi ngang trước khi Early Stopping dừng sớm quá trình huấn luyện. |
+| `--min_lr` | `float` | `1e-6` (YAML) | Giới hạn dưới tối thiểu của learning rate. |
 
-**Ví dụ lệnh kết hợp nhiều tùy chọn:**
+**Ví dụ lệnh kết hợp nhiều tùy chọn hoặc dùng file YAML khác:**
 ```powershell
-python -m experiments.train_centralized --epochs 50 --batch_size 64 --lr 0.0005
+python -m experiments.train_centralized --config configs/experiment.yaml --epochs 50 --batch_size 64 --lr 0.0005
 ```
 
 ---
@@ -150,6 +155,26 @@ Tạo file phân vùng Dirichlet Non-IID trên máy chủ (hoặc trên từng m
      ```powershell
      python -m server.server --strategy fednova --rounds 20 --min_clients 2
      ```
+   * **Chiến lược FedBN (Bảo tồn Batch Normalization cục bộ chống Domain Shift):**
+     ```powershell
+     python -m server.server --strategy fedbn --rounds 20 --min_clients 2
+     ```
+   * **Chiến lược SCAFFOLD (Sử dụng biến đối ngẫu Control Variates chống Client Drift):**
+     ```powershell
+     python -m server.server --strategy scaffold --rounds 20 --min_clients 2
+     ```
+
+   * **Lựa chọn chế độ điều chỉnh Learning Rate (`--lr_mode`):**
+     ```powershell
+     # 1. client_loss (Mặc định): Server chỉ gửi initial LR ở Round 1; từng client tự giảm LR khi local loss đi ngang
+     python -m server.server --strategy fedavg --lr_mode client_loss --learning_rate 0.001 --client_lr_patience 2 --client_lr_factor 0.5
+
+     # 2. server_decay: Server đồng bộ step decay giảm đều LR của tất cả clients sau mỗi N rounds
+     python -m server.server --strategy fedavg --lr_mode server_decay --learning_rate 0.001 --lr_decay_steps 10 --lr_decay_gamma 0.5
+
+     # 3. fixed: Giữ nguyên tốc độ học cố định suốt toàn bộ các rounds (Flower baseline cổ điển)
+     python -m server.server --strategy fedavg --lr_mode fixed --learning_rate 0.001
+     ```
 
 ### 2.3. Khởi động các PC Client kết nối về PC Server
 
@@ -158,21 +183,21 @@ Giả sử IP của PC Server là `192.168.1.50`:
 * **Trên PC Client 1 (Client ID = 0):**
   * Windows:
     ```powershell
-    python -m client.client --client_id 0 --server_address 192.168.1.50:8080 --num_clients 2 --alpha 0.3
+    python -m client.client --client_id 0 --server_address 192.168.1.50:8080 --num_clients 2 --alpha 0.3 --strategy fedavg --lr_mode client_loss
     ```
   * Linux:
     ```bash
-    python3 -m client.client --client_id 0 --server_address 192.168.1.50:8080 --num_clients 2 --alpha 0.3
+    python3 -m client.client --client_id 0 --server_address 192.168.1.50:8080 --num_clients 2 --alpha 0.3 --strategy fedavg --lr_mode client_loss
     ```
 
 * **Trên PC Client 2 (Client ID = 1):**
   * Windows:
     ```powershell
-    python -m client.client --client_id 1 --server_address 192.168.1.50:8080 --num_clients 2 --alpha 0.3
+    python -m client.client --client_id 1 --server_address 192.168.1.50:8080 --num_clients 2 --alpha 0.3 --strategy fedavg --lr_mode client_loss
     ```
   * Linux:
     ```bash
-    python3 -m client.client --client_id 1 --server_address 192.168.1.50:8080 --num_clients 2 --alpha 0.3
+    python3 -m client.client --client_id 1 --server_address 192.168.1.50:8080 --num_clients 2 --alpha 0.3 --strategy fedavg --lr_mode client_loss
     ```
 
 *(Nếu chạy 1 client ngay trên chính máy chủ, có thể dùng `--server_address 127.0.0.1:8080`).*
@@ -184,13 +209,19 @@ Giả sử IP của PC Server là `192.168.1.50`:
 #### A. Tùy chọn cho Server (`server/server.py`)
 | Tùy chọn (Option) | Kiểu dữ liệu | Mặc định | Ý nghĩa & Hướng dẫn sử dụng |
 | :--- | :---: | :---: | :--- |
-| `--strategy` | `str` | `fedavg` | Thuật toán tổng hợp trọng số: `fedavg`, `fedprox`, `fednova`. |
-| `--rounds` | `int` | `50` | Tổng số vòng (rounds) Federated Learning cần huấn luyện. |
-| `--min_clients` | `int` | `3` | Số lượng client tối thiểu phải kết nối trước khi Server bắt đầu mỗi round. **Phải khớp với số PC client tham gia**. |
-| `--local_epochs` | `int` | `5` | Số epoch huấn luyện cục bộ tại mỗi client trong từng round. |
-| `--learning_rate` | `float` | `0.001` | Tốc độ học mà Server chỉ thị cho tất cả clients sử dụng. |
-| `--proximal_mu` | `float` | `0.1` | Hệ số phạt proximal $\mu$ khi dùng thuật toán `fedprox` (ràng buộc trọng số local không lệch quá xa global model). |
-| `--early_stop_patience`| `int` | `10` | Dừng sớm FL nếu sau $N$ round accuracy đánh giá không tăng (`0` để tắt). |
+| `--strategy` | `str` | `fedavg` (YAML) | Thuật toán tổng hợp trọng số: `fedavg`, `fedprox`, `fednova`, `fedbn`, `scaffold`. |
+| `--rounds` | `int` | `50` (YAML) | Tổng số vòng (rounds) Federated Learning cần huấn luyện. |
+| `--min_clients` | `int` | `3` (YAML) | Số lượng client tối thiểu phải kết nối trước khi Server bắt đầu mỗi round. **Phải khớp với số PC client tham gia**. |
+| `--local_epochs` | `int` | `5` (YAML) | Số epoch huấn luyện cục bộ tại mỗi client trong từng round. |
+| `--lr_mode` | `str` | `client_loss` (YAML) | Chế độ quản trị Learning Rate: `client_loss` (mỗi client tự giảm trên loss cục bộ), `server_decay` (server giảm theo chu kỳ round), `fixed` (cố định). |
+| `--learning_rate` | `float` | `0.001` (YAML) | Tốc độ học khởi tạo (initial base learning rate). |
+| `--client_lr_patience`| `int` | `2` (YAML) | Số epoch local loss đi ngang trước khi client tự giảm LR (dùng khi `--lr_mode client_loss`). |
+| `--client_lr_factor` | `float` | `0.5` (YAML) | Hệ số nhân giảm learning rate của client (`new_lr = lr * factor`). |
+| `--client_lr_min` | `float` | `1e-6` (YAML) | Ngưỡng learning rate tối thiểu tại client. |
+| `--lr_decay_steps` | `int` | `10` (YAML) | Chu kỳ số round để server giảm learning rate (dùng khi `--lr_mode server_decay`). |
+| `--lr_decay_gamma` | `float` | `0.5` (YAML) | Hệ số nhân giảm learning rate của server ở mỗi chu kỳ (`--lr_mode server_decay`). |
+| `--proximal_mu` | `float` | `0.1` (YAML) | Hệ số phạt proximal $\mu$ khi dùng thuật toán `fedprox` (ràng buộc trọng số local không lệch quá xa global model). |
+| `--early_stop_patience`| `int` | `10` (YAML) | Dừng sớm FL nếu sau $N$ round accuracy đánh giá không tăng (`0` để tắt). |
 | `--server_eval` | `flag` | `False` | Bật đánh giá tập trung mô hình toàn cục trên tập test sau mỗi round tại Server. |
 | `--host` | `str` | `0.0.0.0` | Địa chỉ IP máy chủ lắng nghe (`0.0.0.0` để lắng nghe từ tất cả card mạng LAN). |
 | `--port` | `int` | `8080` | Cổng mạng TCP gRPC giao tiếp giữa client và server. |
@@ -200,22 +231,29 @@ Giả sử IP của PC Server là `192.168.1.50`:
 | :--- | :---: | :---: | :--- |
 | `--client_id` | `int` | *(Bắt buộc)* | ID đại diện của máy client (0, 1, 2, ...). **Mỗi PC phải có ID riêng biệt**. |
 | `--server_address` | `str` | `127.0.0.1:8080` | Địa chỉ `<IP_SERVER>:<PORT>` của PC Server trong mạng LAN. |
-| `--num_clients` | `int` | `3` | Tổng số client tương ứng với file phân vùng dữ liệu. |
+| `--num_clients` | `int` | `3` (YAML) | Tổng số client tương ứng với file phân vùng dữ liệu. |
 | `--alpha` | `float` | `0.3` | Hệ số Dirichlet $\alpha$ để tìm đúng file phân vùng (`0.1`, `0.3`, `1.0`). |
 | `--partition_path` | `str` | `None` | Đường dẫn trực tiếp đến file JSON phân vùng (nếu không dùng đường dẫn mặc định). |
-| `--local_epochs` | `int` | `5` | Số epoch train cục bộ (sẽ bị Server ghi đè nếu Server chỉ định). |
-| `--learning_rate` | `float` | `0.001` | Tốc độ học ban đầu của client. |
+| `--strategy` | `str` | `fedavg` (YAML) | Tên chiến lược để client kích hoạt cơ chế tương ứng (`scaffold`, `fedbn`, `fedprox`, `fednova`, `fedavg`). |
+| `--local_epochs` | `int` | `5` (YAML) | Số epoch train cục bộ (sẽ bị Server ghi đè nếu Server chỉ định). |
+| `--lr_mode` | `str` | `client_loss` (YAML) | Chế độ LR của client: `client_loss`, `server_decay`, `fixed`. |
+| `--learning_rate` | `float` | `0.001` (YAML) | Tốc độ học ban đầu của client. |
+| `--lr_patience` | `int` | `2` (YAML) | Số epoch local loss đi ngang trước khi client tự giảm LR (khi ở chế độ `client_loss`). |
+| `--lr_factor` | `float` | `0.5` (YAML) | Hệ số nhân giảm learning rate của client. |
+| `--lr_min` | `float` | `1e-6` (YAML) | Giới hạn learning rate tối thiểu của client. |
 | `--batch_size` | `int` | `None` | Kích thước batch. Mặc định tự đọc từ `configs/jetson.yaml` (PC: 32). Có thể truyền ví dụ `--batch_size 64` để ép buộc. |
-| `--device_type` | `str` | `None` | Ghi đè loại thiết bị / tên nhãn định danh (ví dụ: `pc`, `jetson_orin`, `jetson_nano`, `PC1`). Nếu không truyền, hệ thống sẽ tự động tra cứu từ `configs/jetson.yaml` (Client 0-4: `jetson_orin`, Client 5-9: `jetson_nano`). |
+| `--device_type` | `str` | `None` | Ghi đè loại thiết bị / tên nhãn định danh (ví dụ: `pc`, `jetson_orin`, `jetson_nano`, `PC1`). Nếu không truyền, hệ thống sẽ tự động tra cứu từ `configs/jetson.yaml`. |
+| `--no_save_metrics` | `flag` | `False` | Tắt tự động ghi log số liệu metrics per-round & per-epoch ra CSV cục bộ tại client. |
 
 **Ví dụ lệnh Server & Client trên PC:**
 ```powershell
-# Server PC (chờ 3 clients, 30 rounds, chiến lược FedProx, đánh giá toàn cục):
-python -m server.server --strategy fedprox --proximal_mu 0.05 --rounds 30 --min_clients 3 --server_eval
+# Server PC (chờ 3 clients, 30 rounds, chiến lược SCAFFOLD, client_loss LR mode, đánh giá toàn cục):
+python -m server.server --strategy scaffold --lr_mode client_loss --rounds 30 --min_clients 3 --server_eval
 
-# Client PC (ID 0, kết nối tới 192.168.1.50, batch 32):
-python -m client.client --client_id 0 --server_address 192.168.1.50:8080 --num_clients 3 --alpha 0.3 --batch_size 32
+# Client PC (ID 0, kết nối tới 192.168.1.50, batch 32, strategy scaffold):
+python -m client.client --client_id 0 --server_address 192.168.1.50:8080 --num_clients 3 --alpha 0.3 --strategy scaffold --batch_size 32
 ```
+
 
 > 📁 **Kết quả đầu ra của FL Server (FL Run Artifacts):**  
 > Tự động lưu tại thư mục `results/federated/<strategy>/<timestamp>/` gồm đầy đủ định dạng số liệu, đồ thị và báo cáo:
@@ -315,14 +353,30 @@ sudo pkill tegrastats
 Trên máy chủ Server (ví dụ IP: `192.168.1.15`):
 
 ```bash
-# Khởi động FedAvg cho 10 clients, 50 rounds:
+# 1. Khởi động FedAvg cho 10 clients, 50 rounds:
 python3 -m server.server --strategy fedavg --host 0.0.0.0 --port 8080 --min_clients 10 --rounds 50
 
-# Hoặc FedProx để giảm phân kỳ do dữ liệu Non-IID trên 10 thiết bị:
+# 2. Hoặc FedProx để giảm phân kỳ do dữ liệu Non-IID trên 10 thiết bị:
 python3 -m server.server --strategy fedprox --proximal_mu 0.1 --min_clients 10 --rounds 50
 
-# Hoặc FedNova để xử lý vấn đề không đồng nhất phần cứng (Orin nhanh hơn Nano):
+# 3. Hoặc FedNova để xử lý vấn đề không đồng nhất phần cứng (Orin nhanh hơn Nano):
 python3 -m server.server --strategy fednova --min_clients 10 --rounds 50
+
+# 4. Hoặc FedBN để bảo tồn Batch Normalization cục bộ chống Domain Shift:
+python3 -m server.server --strategy fedbn --min_clients 10 --rounds 50
+
+# 5. Hoặc SCAFFOLD với Control Variates để khắc phục Client Drift giữa các Jetson:
+python3 -m server.server --strategy scaffold --min_clients 10 --rounds 50
+
+# Tùy chỉnh chế độ Learning Rate trên Server:
+# - Chế độ client_loss (mặc định): Từng Jetson tự điều chỉnh tốc độ học theo local loss
+python3 -m server.server --strategy fedavg --lr_mode client_loss --learning_rate 0.001 --client_lr_patience 2
+
+# - Chế độ server_decay: Giảm đều LR toàn cụm sau mỗi 10 rounds
+python3 -m server.server --strategy fedavg --lr_mode server_decay --learning_rate 0.001 --lr_decay_steps 10 --lr_decay_gamma 0.5
+
+# - Chế độ fixed: Giữ cố định LR suốt 50 rounds
+python3 -m server.server --strategy fedavg --lr_mode fixed --learning_rate 0.001
 ```
 
 *(Mẹo: Dùng `tmux new -s fl_server` trên Linux Server để phiên chạy không bị gián đoạn).*
@@ -334,37 +388,37 @@ Giả sử IP máy chủ là `192.168.1.15:8080`:
 * **Trên 5 máy Jetson Orin (Client 0 → 4):**
   ```bash
   # Orin 0:
-  python3 -m client.client --client_id 0 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3
+  python3 -m client.client --client_id 0 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3 --strategy fedavg --lr_mode client_loss
 
   # Orin 1:
-  python3 -m client.client --client_id 1 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3
+  python3 -m client.client --client_id 1 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3 --strategy fedavg --lr_mode client_loss
 
   # Orin 2:
-  python3 -m client.client --client_id 2 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3
+  python3 -m client.client --client_id 2 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3 --strategy fedavg --lr_mode client_loss
 
   # Orin 3:
-  python3 -m client.client --client_id 3 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3
+  python3 -m client.client --client_id 3 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3 --strategy fedavg --lr_mode client_loss
 
   # Orin 4:
-  python3 -m client.client --client_id 4 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3
+  python3 -m client.client --client_id 4 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3 --strategy fedavg --lr_mode client_loss
   ```
 
 * **Trên 5 máy Jetson Nano (Client 5 → 9):**
   ```bash
   # Nano 5:
-  python3 -m client.client --client_id 5 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3
+  python3 -m client.client --client_id 5 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3 --strategy fedavg --lr_mode client_loss
 
   # Nano 6:
-  python3 -m client.client --client_id 6 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3
+  python3 -m client.client --client_id 6 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3 --strategy fedavg --lr_mode client_loss
 
   # Nano 7:
-  python3 -m client.client --client_id 7 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3
+  python3 -m client.client --client_id 7 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3 --strategy fedavg --lr_mode client_loss
 
   # Nano 8:
-  python3 -m client.client --client_id 8 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3
+  python3 -m client.client --client_id 8 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3 --strategy fedavg --lr_mode client_loss
 
   # Nano 9:
-  python3 -m client.client --client_id 9 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3
+  python3 -m client.client --client_id 9 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3 --strategy fedavg --lr_mode client_loss
   ```
 
 ### 3.6. Tự động hóa qua SSH Script (Chạy & Dừng toàn bộ cụm 10 Jetson từ xa)
@@ -375,6 +429,8 @@ Giả sử IP máy chủ là `192.168.1.15:8080`:
   ```bash
   #!/bin/bash
   SERVER_IP="192.168.1.15:8080"
+  STRATEGY="fedavg"
+  LR_MODE="client_loss"
   ORIN_IPS=("192.168.1.50" "192.168.1.51" "192.168.1.52" "192.168.1.53" "192.168.1.54")
   NANO_IPS=("192.168.1.60" "192.168.1.61" "192.168.1.62" "192.168.1.63" "192.168.1.64")
 
@@ -382,7 +438,7 @@ Giả sử IP máy chủ là `192.168.1.15:8080`:
   for i in {0..4}; do
     IP=${ORIN_IPS[$i]}
     echo "Khởi động Client $i trên Orin ($IP)..."
-    ssh -n jetson@$IP "cd ~/FedMedAI && nohup python3 -m client.client --client_id $i --server_address $SERVER_IP --num_clients 10 --alpha 0.3 > ~/FedMedAI/client_$i.log 2>&1 &"
+    ssh -n jetson@$IP "cd ~/FedMedAI && nohup python3 -m client.client --client_id $i --server_address $SERVER_IP --num_clients 10 --alpha 0.3 --strategy $STRATEGY --lr_mode $LR_MODE > ~/FedMedAI/client_$i.log 2>&1 &"
   done
 
   echo "=== Kích hoạt 5 Jetson Nano ==="
@@ -390,7 +446,7 @@ Giả sử IP máy chủ là `192.168.1.15:8080`:
     CID=$((i + 5))
     IP=${NANO_IPS[$i]}
     echo "Khởi động Client $CID trên Nano ($IP)..."
-    ssh -n nano@$IP "cd ~/FedMedAI && nohup python3 -m client.client --client_id $CID --server_address $SERVER_IP --num_clients 10 --alpha 0.3 > ~/FedMedAI/client_$CID.log 2>&1 &"
+    ssh -n nano@$IP "cd ~/FedMedAI && nohup python3 -m client.client --client_id $CID --server_address $SERVER_IP --num_clients 10 --alpha 0.3 --strategy $STRATEGY --lr_mode $LR_MODE > ~/FedMedAI/client_$CID.log 2>&1 &"
   done
   echo "Tất cả 10 Jetson clients đã được kích hoạt!"
   ```
@@ -421,12 +477,17 @@ Hệ thống tự động tra cứu ID trong [`configs/jetson.yaml`](file:///D:/
 | :--- | :---: | :---: | :--- |
 | `--client_id` | `int` | *(Bắt buộc)* | ID thiết bị: `0..4` cho Orin, `5..9` cho Nano. |
 | `--server_address` | `str` | `127.0.0.1:8080` | Địa chỉ IP:Port của FL Server trong mạng LAN (ví dụ `192.168.1.15:8080`). |
-| `--num_clients` | `int` | `10` | Tổng số client trong cụm (mặc định cho cụm Jetson là 10). |
+| `--num_clients` | `int` | `10` (YAML) | Tổng số client trong cụm (mặc định cho cụm Jetson là 10). |
 | `--alpha` | `float` | `0.3` | Tham số Dirichlet $\alpha$ của phân vùng (`0.1`, `0.3`, `1.0`). |
 | `--partition_path` | `str` | `None` | Chỉ định file phân vùng cụ thể nếu lưu ở vị trí khác. |
+| `--strategy` | `str` | `fedavg` (YAML) | Thuật toán client tham gia: `fedavg`, `fedprox`, `fednova`, `fedbn`, `scaffold`. |
 | `--batch_size` | `int` | Tự động | Ghi đè kích thước batch nếu không muốn dùng giá trị tự động từ config. |
-| `--learning_rate` | `float` | `0.001` | Tốc độ học khởi tạo. |
-| `--local_epochs` | `int` | `5` | Số epoch huấn luyện cục bộ mỗi round. |
+| `--lr_mode` | `str` | `client_loss` (YAML) | Chế độ quản lý learning rate: `client_loss`, `server_decay`, `fixed`. |
+| `--learning_rate` | `float` | `0.001` (YAML) | Tốc độ học khởi tạo. |
+| `--lr_patience` | `int` | `2` (YAML) | Số epoch local loss đi ngang trước khi client tự giảm LR (ở chế độ `client_loss`). |
+| `--lr_factor` | `float` | `0.5` (YAML) | Hệ số nhân giảm learning rate của client. |
+| `--lr_min` | `float` | `1e-6` (YAML) | Ngưỡng learning rate tối thiểu tại client. |
+| `--local_epochs` | `int` | `5` (YAML) | Số epoch huấn luyện cục bộ mỗi round. |
 | `--device_type` | `str` | `None` (Tự động) | Ép buộc lớp thiết bị: `pc`, `jetson_orin`, `jetson_nano`. |
 | `--no_save_metrics` | `flag` | `False` | Tắt tự động ghi log số liệu metrics per-round & per-epoch ra CSV cục bộ tại client. |
 

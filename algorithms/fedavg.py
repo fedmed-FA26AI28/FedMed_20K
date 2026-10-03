@@ -85,6 +85,18 @@ def _weighted_average_metrics(
     return aggregated
 
 
+def _format_device_details(results: List[Tuple[ClientProxy, FitRes]]) -> str:
+    """Format participating client devices with client_id, device_ipv4, and device_type."""
+    details = []
+    for _, fit_res in results:
+        cid = fit_res.metrics.get("client_id")
+        ip = fit_res.metrics.get("device_ipv4")
+        dtype = fit_res.metrics.get("device_type")
+        if cid is not None or ip is not None:
+            details.append(f"Client {cid} (IPv4: {ip or 'unknown'}, {dtype or 'unknown'})")
+    return " | ".join(details) if details else ""
+
+
 class FedAvgStrategy(FlwrFedAvg):
     """FedAvg strategy with extended metrics, early stopping, and per-round timing.
 
@@ -230,6 +242,9 @@ class FedAvgStrategy(FlwrFedAvg):
             len(results),
             len(failures),
         )
+        dev_str = _format_device_details(results)
+        if dev_str:
+            log(INFO, "[Reporting Devices] %s", dev_str)
 
         return parameters_aggregated, metrics_aggregated
 

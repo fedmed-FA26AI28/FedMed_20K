@@ -21,7 +21,7 @@ from flwr.common.logger import log
 from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy import FedProx as FlwrFedProx
 
-from algorithms.fedavg import _weighted_average_metrics
+from algorithms.fedavg import _weighted_average_metrics, _format_device_details
 from monitoring.metrics import FLMetricsRecorder
 
 
@@ -175,6 +175,9 @@ class FedProxStrategy(FlwrFedProx):
             len(failures),
             self.proximal_mu,
         )
+        dev_str = _format_device_details(results)
+        if dev_str:
+            log(INFO, "[Reporting Devices] %s", dev_str)
 
         return parameters_aggregated, metrics_aggregated
 

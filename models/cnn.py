@@ -71,6 +71,36 @@ def set_parameters(model: nn.Module, parameters: List[np.ndarray]) -> None:
     model.load_state_dict(state_dict, strict=True)
 
 
+def is_bn_key(model: nn.Module, key: str) -> bool:
+    """Check if a state_dict key belongs to a BatchNorm layer."""
+    submod_name = key.rsplit(".", 1)[0] if "." in key else ""
+    try:
+        submod = model.get_submodule(submod_name) if submod_name else model
+        return isinstance(submod, (nn.BatchNorm1d, nn.BatchNorm2d, nn.BatchNorm3d))
+    except Exception:
+        key_lower = key.lower()
+        return "bn" in key_lower or "batchnorm" in key_lower
+
+
+def get_bn_mask(model: nn.Module) -> List[bool]:
+    """Return a boolean mask where True indicates a BatchNorm parameter or buffer."""
+    return [is_bn_key(model, k) for k in model.state_dict().keys()]
+
+
+def set_parameters_fedbn(model: nn.Module, parameters: List[np.ndarray]) -> None:
+    """Load only non-BatchNorm parameters into the model, preserving local BN states."""
+    current_state = model.state_dict()
+    new_state = {}
+    for (k, v), param_array in zip(current_state.items(), parameters):
+        if is_bn_key(model, k):
+            # Preserve local client BN parameters and running statistics
+            new_state[k] = v
+        else:
+            # Overwrite non-BN layers with global parameters
+            new_state[k] = torch.as_tensor(param_array)
+    model.load_state_dict(new_state, strict=True)
+
+
 # Backward compatibility alias for scripts referencing SimpleCNN
 SimpleCNN = CNN
 

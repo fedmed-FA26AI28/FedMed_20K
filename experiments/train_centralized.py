@@ -219,9 +219,34 @@ def plot_summary_card(train_metrics, eval_metrics, resource_before, resource_aft
     print("Summary card saved: summary_card.png")
 
 
-def run_centralized(epochs: int = 100, batch_size: int = 32, learning_rate: float = 0.001):
+def load_yaml_config(config_path: str = "configs/experiment.yaml") -> dict:
+    """Load configuration dictionary from YAML file if available."""
+    if not os.path.exists(config_path):
+        return {}
+    try:
+        import yaml
+        with open(config_path, "r", encoding="utf-8") as f:
+            cfg = yaml.safe_load(f) or {}
+        return cfg
+    except Exception:
+        return {}
+
+
+def run_centralized(
+    epochs: int = 100,
+    batch_size: int = 32,
+    learning_rate: float = 0.001,
+    lr_patience: int = 3,
+    lr_factor: float = 0.5,
+    min_lr: float = 1e-6,
+    early_stop_patience: int = 8,
+    config_source: str = "configs/experiment.yaml",
+):
     print("Starting centralized training...")
-    print(f"Config: epochs={epochs}, batch_size={batch_size}, learning_rate={learning_rate}")
+    print(
+        f"Config ({config_source}): epochs={epochs}, batch_size={batch_size}, learning_rate={learning_rate}, "
+        f"lr_patience={lr_patience}, lr_factor={lr_factor}, early_stop_patience={early_stop_patience}"
+    )
 
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
     save_dir = f"results/centralized/{timestamp}"
@@ -244,7 +269,18 @@ def run_centralized(epochs: int = 100, batch_size: int = 32, learning_rate: floa
     resource_usage_before = get_resource_usage()
 
     print("Starting training...")
-    training_metrics = train(model, train_loader, optimizer, epochs, device, val_loader=val_loader)
+    training_metrics = train(
+        model,
+        train_loader,
+        optimizer,
+        epochs,
+        device,
+        val_loader=val_loader,
+        lr_patience=lr_patience,
+        lr_factor=lr_factor,
+        min_lr=min_lr,
+        early_stop_patience=early_stop_patience,
+    )
 
     resource_usage_after = get_resource_usage()
 
@@ -280,10 +316,15 @@ def run_centralized(epochs: int = 100, batch_size: int = 32, learning_rate: floa
     )
 
     results = {
+        "config_source": config_source,
         "hyperparameters": {
             "epochs": epochs,
             "batch_size": batch_size,
-            "learning_rate": learning_rate
+            "learning_rate": learning_rate,
+            "lr_patience": lr_patience,
+            "lr_factor": lr_factor,
+            "min_lr": min_lr,
+            "early_stop_patience": early_stop_patience,
         },
         "dataset_info": {
             "train_samples": len(train_data),
@@ -306,13 +347,47 @@ def run_centralized(epochs: int = 100, batch_size: int = 32, learning_rate: floa
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Centralized Training Baseline for BloodMNIST.")
-    parser.add_argument("--epochs", type=int, default=100,
-                        help="Maximum training epochs (default: 100, with early stopping patience=8).")
-    parser.add_argument("--batch_size", type=int, default=32,
-                        help="Batch size (default: 32).")
-    parser.add_argument("--lr", "--learning_rate", type=float, default=0.001, dest="learning_rate",
-                        help="Learning rate for Adam optimizer (default: 0.001).")
+    pre_parser = argparse.ArgumentParser(add_help=False)
+    pre_parser.add_argument(
+        "--config",
+        type=str,
+        default="configs/experiment.yaml",
+        help="Path to YAML experiment configuration file (default: configs/experiment.yaml)",
+    )
+    pre_args, remaining_argv = pre_parser.parse_known_args()
+    yaml_cfg = load_yaml_config(pre_args.config)
+
+    # Resolve centralized run parameters from YAML (nested under 'centralized' or flat 'centralized_*')
+    cen_cfg = yaml_cfg.get("centralized", {})
+    if not isinstance(cen_cfg, dict):
+        cen_cfg = {}
+
+    default_epochs = cen_cfg.get("epochs", yaml_cfg.get("centralized_epochs", 100))
+    default_batch_size = cen_cfg.get("batch_size", yaml_cfg.get("centralized_batch_size", 32))
+    default_lr = cen_cfg.get("learning_rate", yaml_cfg.get("centralized_learning_rate", yaml_cfg.get("learning_rate", 0.001)))
+    default_lr_patience = cen_cfg.get("lr_patience", yaml_cfg.get("centralized_lr_patience", 3))
+    default_lr_factor = cen_cfg.get("lr_factor", yaml_cfg.get("centralized_lr_factor", 0.5))
+    default_min_lr = cen_cfg.get("min_lr", yaml_cfg.get("centralized_min_lr", 1e-6))
+    default_early_stop = cen_cfg.get("early_stop_patience", yaml_cfg.get("centralized_early_stop_patience", 8))
+
+    parser = argparse.ArgumentParser(
+        description="Centralized Training Baseline for BloodMNIST with YAML Config Support.",
+        parents=[pre_parser],
+    )
+    parser.add_argument("--epochs", type=int, default=default_epochs,
+                        help=f"Maximum training epochs (default: {default_epochs}).")
+    parser.add_argument("--batch_size", type=int, default=default_batch_size,
+                        help=f"Batch size (default: {default_batch_size}).")
+    parser.add_argument("--lr", "--learning_rate", type=float, default=default_lr, dest="learning_rate",
+                        help=f"Initial learning rate for Adam optimizer (default: {default_lr}).")
+    parser.add_argument("--lr_patience", type=int, default=default_lr_patience,
+                        help=f"Epochs without val loss improvement before reducing LR (default: {default_lr_patience}).")
+    parser.add_argument("--lr_factor", type=float, default=default_lr_factor,
+                        help=f"Multiplicative factor for LR reduction (default: {default_lr_factor}).")
+    parser.add_argument("--min_lr", type=float, default=default_min_lr,
+                        help=f"Minimum learning rate lower bound (default: {default_min_lr}).")
+    parser.add_argument("--early_stop_patience", type=int, default=default_early_stop,
+                        help=f"Early stopping patience in epochs (default: {default_early_stop}).")
     return parser.parse_args()
 
 
@@ -321,5 +396,10 @@ if __name__ == "__main__":
     run_centralized(
         epochs=args.epochs,
         batch_size=args.batch_size,
-        learning_rate=args.learning_rate
+        learning_rate=args.learning_rate,
+        lr_patience=args.lr_patience,
+        lr_factor=args.lr_factor,
+        min_lr=args.min_lr,
+        early_stop_patience=args.early_stop_patience,
+        config_source=args.config,
     )
