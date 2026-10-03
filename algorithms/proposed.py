@@ -9,5 +9,7 @@ Alternative: FedNova (addresses objective inconsistency with heterogeneous local
 
 from algorithms.fedprox import FedProxStrategy as ProposedStrategy  # noqa: F401
 from algorithms.fednova import FedNovaStrategy  # noqa: F401
+from algorithms.fedbn import FedBNStrategy  # noqa: F401
+from algorithms.scaffold import SCAFFOLDStrategy  # noqa: F401
 
-__all__ = ["ProposedStrategy", "FedNovaStrategy"]
+__all__ = ["ProposedStrategy", "FedNovaStrategy", "FedBNStrategy", "SCAFFOLDStrategy"]

@@ -27,13 +27,13 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 import flwr as fl
 from flwr.common import NDArrays, Scalar
 
-from models.cnn import CNN, get_parameters, set_parameters
+from models.cnn import CNN, get_parameters, set_parameters, set_parameters_fedbn
 from datasets.medmnist_code import get_bloodmnist_datasets
 from datasets.partition import load_partition, get_client_dataloader
 
 
 from monitoring.resource import get_resource_usage, get_device_type
-from monitoring.network import ClientPingLogger
+from monitoring.network import ClientPingLogger, get_device_ipv4
 
 
 # ──────────────────────────────────────────────────────────────
@@ -46,21 +46,22 @@ def _local_train(
     optimizer,
     device: torch.device,
     epochs: int,
+    scheduler=None,
     proximal_mu: float = 0.0,
     global_params: list = None,
+    scaffold_drift: list = None,
     min_lr: float = 1e-6,
     early_stop_patience: int = 5,
 ):
     """Train locally and return rich metrics.
 
     Args:
+        scheduler: Optional persistent ReduceLROnPlateau scheduler.
         proximal_mu: If > 0 and global_params provided, adds FedProx proximal term.
         global_params: Global model parameters (list of tensors) for proximal term.
+        scaffold_drift: List of tensor drift terms (c - c_i) for trainable parameters in SCAFFOLD.
     """
     criterion = nn.CrossEntropyLoss()
-    scheduler = ReduceLROnPlateau(
-        optimizer, mode="min", factor=0.5, patience=2, min_lr=min_lr
-    )
 
     best_loss = float("inf")
     patience_counter = 0
@@ -69,6 +70,9 @@ def _local_train(
     epoch_accuracies = []
     epoch_lrs = []
     total_samples = 0
+    total_steps = 0
+
+    trainable_params = [p for p in model.parameters() if p.requires_grad]
 
     for epoch in range(epochs):
         model.train()
@@ -95,7 +99,15 @@ def _local_train(
                 loss = loss + (proximal_mu / 2.0) * proximal_loss
 
             loss.backward()
+
+            # SCAFFOLD drift correction: g_i - c_i + c = g_i + (c - c_i)
+            if scaffold_drift is not None:
+                for p, drift in zip(trainable_params, scaffold_drift):
+                    if p.grad is not None:
+                        p.grad.data.add_(drift)
+
             optimizer.step()
+            total_steps += 1
 
             running_loss += loss.item() * images.size(0)
             _, predicted = torch.max(outputs.data, 1)
@@ -119,12 +131,13 @@ def _local_train(
             f"| {epoch_time:.2f}s"
         )
 
-        # LR scheduling on train loss
+        # LR scheduling on client's own train loss
         old_lr = current_lr
-        scheduler.step(epoch_loss)
+        if scheduler is not None:
+            scheduler.step(epoch_loss)
         new_lr = optimizer.param_groups[0]["lr"]
         if new_lr < old_lr:
-            print(f"    -> LR reduced: {old_lr:.6f} -> {new_lr:.6f}")
+            print(f"    -> [Client LR Reducer] Loss plateaued: LR reduced {old_lr:.6f} -> {new_lr:.6f}")
 
         # Early stopping on train loss
         if epoch_loss < best_loss:
@@ -151,6 +164,7 @@ def _local_train(
         "epoch_time_max": float(np.max(epoch_times)),
         "num_samples": total_samples,
         "epochs_run": len(epoch_times),
+        "total_steps": total_steps,
     }
 
 
@@ -169,18 +183,30 @@ class FedMedAIClient(fl.client.NumPyClient):
         num_classes: int = 8,
         local_epochs: int = 5,
         learning_rate: float = 0.001,
+        lr_mode: str = "client_loss",
+        lr_patience: int = 2,
+        lr_factor: float = 0.5,
+        lr_min: float = 1e-6,
         device_type: str = None,
         save_local_metrics: bool = True,
         server_address: str = "127.0.0.1:8080",
+        strategy: str = None,
     ):
         self.client_id = client_id
         self.train_loader = train_loader
         self.test_loader = test_loader
         self.local_epochs = local_epochs
         self.learning_rate = learning_rate
+        self.lr_mode = str(lr_mode).lower().strip() if lr_mode else "client_loss"
+        self.lr_patience = lr_patience
+        self.lr_factor = lr_factor
+        self.lr_min = lr_min
+        self._lr_initialized = False
         self.device_type = str(device_type).strip() if device_type else get_device_type(client_id)
         self.save_local_metrics = save_local_metrics
         self.server_address = server_address
+        self.strategy = strategy.lower() if strategy else None
+        self.client_control_variate: Optional[List[np.ndarray]] = None
 
         self.round_history = []
         self.epoch_history = []
@@ -203,10 +229,20 @@ class FedMedAIClient(fl.client.NumPyClient):
         self.optimizer = optim.Adam(
             self.model.parameters(), lr=self.learning_rate
         )
+        self.scheduler = ReduceLROnPlateau(
+            self.optimizer,
+            mode="min",
+            factor=self.lr_factor,
+            patience=self.lr_patience,
+            min_lr=self.lr_min,
+        )
+
+        self.device_ipv4 = get_device_ipv4()
 
         print(
             f"[Client {self.client_id}] Initialized on {self.device} ({self.device_type}) | "
-            f"train_samples={len(train_loader.dataset)}"
+            f"IPv4: {self.device_ipv4} | train_samples={len(train_loader.dataset)} | "
+            f"LR Mode: {self.lr_mode} (Initial LR: {self.learning_rate})"
         )
 
     def get_parameters(self, config) -> NDArrays:
@@ -215,17 +251,105 @@ class FedMedAIClient(fl.client.NumPyClient):
 
     def fit(self, parameters: NDArrays, config: dict):
         """Receive global model, train locally, return updated weights + metrics."""
-        # Load global parameters
-        set_parameters(self.model, parameters)
+        strategy = str(config.get("strategy", self.strategy or "fedavg")).lower()
+        num_model_layers = len(get_parameters(self.model))
+        is_scaffold = (strategy == "scaffold") or (len(parameters) == 2 * num_model_layers)
+        is_fedbn = (strategy == "fedbn")
+
+        initial_weights = None
+        server_c = None
+        scaffold_drift = None
+
+        if is_scaffold:
+            if len(parameters) == 2 * num_model_layers:
+                initial_weights = parameters[:num_model_layers]
+                server_c = parameters[num_model_layers:]
+            else:
+                initial_weights = parameters
+                server_c = [np.zeros_like(p) for p in initial_weights]
+
+            set_parameters(self.model, initial_weights)
+
+            if self.client_control_variate is None:
+                self.client_control_variate = [np.zeros_like(p) for p in initial_weights]
+
+            # Construct drift correction terms (server_c - client_c) for trainable parameters
+            sd_keys = list(self.model.state_dict().keys())
+            named_params = dict(self.model.named_parameters())
+            scaffold_drift = [
+                torch.as_tensor(s - c, device=self.device, dtype=named_params[k].dtype)
+                for k, s, c in zip(sd_keys, server_c, self.client_control_variate)
+                if k in named_params
+            ]
+        elif is_fedbn:
+            set_parameters_fedbn(self.model, parameters)
+        else:
+            set_parameters(self.model, parameters)
 
         # Read config from server
         server_round = int(config.get("server_round", len(self.round_history) + 1))
         local_epochs = int(config.get("local_epochs", self.local_epochs))
         proximal_mu = float(config.get("proximal_mu", 0.0))
-        lr_override = config.get("learning_rate")
-        if lr_override is not None:
+        lr_mode = str(config.get("lr_mode", self.lr_mode)).lower().strip()
+
+        active_scheduler = None
+
+        if lr_mode == "fixed":
+            # Fixed constant LR mode (classical Flower baseline)
+            fixed_lr = float(config.get("learning_rate", self.learning_rate))
             for pg in self.optimizer.param_groups:
-                pg["lr"] = float(lr_override)
+                pg["lr"] = fixed_lr
+            self.learning_rate = fixed_lr
+            active_scheduler = None
+            print(f"[Client {self.client_id}] Round {server_round}: Fixed LR = {fixed_lr:.6f}")
+
+        elif lr_mode in ("server_decay", "server", "step"):
+            # Server-synchronized global step decay
+            scheduled_lr = float(config.get("learning_rate", self.learning_rate))
+            for pg in self.optimizer.param_groups:
+                pg["lr"] = scheduled_lr
+            self.learning_rate = scheduled_lr
+            active_scheduler = None
+            print(f"[Client {self.client_id}] Round {server_round}: Server decayed LR = {scheduled_lr:.6f}")
+
+        else:
+            # 'client_loss' mode: independent client-side loss-based reducer
+            if server_round == 1 or not self._lr_initialized:
+                self._lr_initialized = True
+                init_lr = config.get("learning_rate")
+                if init_lr is None:
+                    init_lr = config.get("initial_lr", self.learning_rate)
+                init_lr = float(init_lr)
+                for pg in self.optimizer.param_groups:
+                    pg["lr"] = init_lr
+                self.learning_rate = init_lr
+
+                # Read client LR scheduler hyperparams if provided by server
+                if "client_lr_patience" in config:
+                    self.lr_patience = int(config["client_lr_patience"])
+                if "client_lr_factor" in config:
+                    self.lr_factor = float(config["client_lr_factor"])
+                if "client_lr_min" in config:
+                    self.lr_min = float(config["client_lr_min"])
+
+                self.scheduler = ReduceLROnPlateau(
+                    self.optimizer,
+                    mode="min",
+                    factor=self.lr_factor,
+                    patience=self.lr_patience,
+                    min_lr=self.lr_min,
+                )
+                print(
+                    f"[Client {self.client_id}] Training start (Round {server_round}): Initial LR = {init_lr:.6f} "
+                    f"(local reducer: patience={self.lr_patience}, factor={self.lr_factor})"
+                )
+            else:
+                current_lr = self.optimizer.param_groups[0]["lr"]
+                print(
+                    f"[Client {self.client_id}] Round {server_round}: Continuing with local LR = {current_lr:.6f} "
+                    f"(managed independently by local loss)"
+                )
+            active_scheduler = self.scheduler
 
         # Measure network ping to server for this round
         ping_res = self.ping_logger.log_ping(server_round=server_round, event="fit")
@@ -238,7 +362,7 @@ class FedMedAIClient(fl.client.NumPyClient):
                 p.clone().detach() for p in self.model.parameters()
             ]
 
-        # Train
+        # Train locally
         train_start = time.time()
         train_metrics = _local_train(
             model=self.model,
@@ -246,23 +370,53 @@ class FedMedAIClient(fl.client.NumPyClient):
             optimizer=self.optimizer,
             device=self.device,
             epochs=local_epochs,
+            scheduler=active_scheduler,
             proximal_mu=proximal_mu,
             global_params=global_params,
+            scaffold_drift=scaffold_drift,
         )
         training_time = time.time() - train_start
+
+        # Compute updated parameters
+        updated_model_params = get_parameters(self.model)
+
+        if is_scaffold:
+            K = max(int(train_metrics.get("total_steps", 1)), 1)
+            lr = float(self.optimizer.param_groups[0]["lr"])
+            sd_keys = list(self.model.state_dict().keys())
+            named_params = dict(self.model.named_parameters())
+
+            delta_c = []
+            new_client_c = []
+            for idx, k in enumerate(sd_keys):
+                if k in named_params:
+                    # Trainable parameter: delta_c_i = (1 / (K * lr)) * (x - y) - server_c
+                    d_c = (1.0 / (K * lr)) * (initial_weights[idx] - updated_model_params[idx]) - server_c[idx]
+                    c_i_new = self.client_control_variate[idx] + d_c
+                else:
+                    # Non-trainable buffer: zero delta
+                    d_c = np.zeros_like(updated_model_params[idx])
+                    c_i_new = np.zeros_like(updated_model_params[idx])
+                delta_c.append(d_c)
+                new_client_c.append(c_i_new)
+
+            self.client_control_variate = new_client_c
+            return_parameters = updated_model_params + delta_c
+        else:
+            return_parameters = updated_model_params
 
         # Sample hardware resources
         res = get_resource_usage()
 
         # Compute weight size in KB
-        updated_params = get_parameters(self.model)
-        weight_size_bytes = sum(p.nbytes for p in updated_params)
+        weight_size_bytes = sum(p.nbytes for p in return_parameters)
         weight_size_kb = weight_size_bytes / 1024.0
 
         # Build metrics dict (only Scalar types: bool, bytes, float, int, str)
         metrics = {
             "client_id": int(self.client_id),
             "device_type": str(self.device_type),
+            "device_ipv4": str(self.device_ipv4),
             "server_round": int(server_round),
             "num_samples": int(train_metrics["num_samples"]),
             "local_epochs": int(local_epochs),
@@ -278,7 +432,7 @@ class FedMedAIClient(fl.client.NumPyClient):
             "epoch_accuracies": json.dumps([round(a, 4) for a in train_metrics["epoch_accuracies"]]),
             "epoch_lrs": json.dumps([round(lr, 6) for lr in train_metrics["epoch_lrs"]]),
             "epochs_run": int(train_metrics["epochs_run"]),
-            "local_steps": int(train_metrics["epochs_run"]),
+            "local_steps": int(train_metrics.get("total_steps", train_metrics["epochs_run"])),
             "ping_ms": float(ping_ms) if ping_ms is not None else -1.0,
             "weight_size_kb": float(weight_size_kb),
             "cpu_percent": float(res["cpu_percent"]),
@@ -296,6 +450,7 @@ class FedMedAIClient(fl.client.NumPyClient):
                 "round": server_round,
                 "client_id": self.client_id,
                 "device_type": self.device_type,
+                "device_ipv4": self.device_ipv4,
                 "epoch": ep_idx + 1,
                 "epoch_time_seconds": round(ep_time, 4),
                 "cumulative_epoch_time_seconds": round(cum_t, 4),
@@ -308,13 +463,13 @@ class FedMedAIClient(fl.client.NumPyClient):
             self._save_client_csvs()
 
         print(
-            f"[Client {self.client_id}] fit done | Round {server_round} | "
+            f"[Client {self.client_id}] fit done | Round {server_round} | IPv4: {self.device_ipv4} | "
             f"loss={metrics['train_loss']:.4f} acc={metrics['train_accuracy']:.4f} "
             f"| round_time={training_time:.2f}s | avg_epoch={metrics['epoch_time_avg']:.2f}s "
             f"| weights={weight_size_kb:.1f}KB"
         )
 
-        return updated_params, train_metrics["num_samples"], metrics
+        return return_parameters, train_metrics["num_samples"], metrics
 
     def _save_client_csvs(self):
         """Export local client CSV metrics for on-device inspection."""
@@ -355,7 +510,13 @@ class FedMedAIClient(fl.client.NumPyClient):
         if eval_round is not None:
             self.ping_logger.log_ping(server_round=int(eval_round), event="evaluate")
 
-        set_parameters(self.model, parameters)
+        strategy = str(config.get("strategy", self.strategy or "fedavg")).lower()
+        if strategy == "fedbn":
+            # Retain local BN statistics and evaluate non-BN global layers
+            set_parameters_fedbn(self.model, parameters)
+        else:
+            set_parameters(self.model, parameters)
+
         self.model.eval()
 
         criterion = nn.CrossEntropyLoss()
@@ -451,7 +612,32 @@ def main():
         "--local_epochs", type=int, default=yaml_cfg.get("local_epochs", 5), help=f"Local training epochs per round (default: {yaml_cfg.get('local_epochs', 5)})"
     )
     parser.add_argument(
-        "--learning_rate", type=float, default=yaml_cfg.get("learning_rate", 0.001), help=f"Learning rate (default: {yaml_cfg.get('learning_rate', 0.001)})"
+        "--learning_rate", type=float, default=yaml_cfg.get("learning_rate", 0.001), help=f"Initial base learning rate (default: {yaml_cfg.get('learning_rate', 0.001)})"
+    )
+    parser.add_argument(
+        "--lr_patience",
+        type=int,
+        default=yaml_cfg.get("client_lr_patience", 2),
+        help=f"Client local epochs without loss improvement before reducing LR (default: {yaml_cfg.get('client_lr_patience', 2)})",
+    )
+    parser.add_argument(
+        "--lr_factor",
+        type=float,
+        default=yaml_cfg.get("client_lr_factor", 0.5),
+        help=f"Multiplicative factor for client LR reduction (default: {yaml_cfg.get('client_lr_factor', 0.5)})",
+    )
+    parser.add_argument(
+        "--lr_min",
+        type=float,
+        default=yaml_cfg.get("client_lr_min", 1e-6),
+        help=f"Minimum client learning rate bound (default: {yaml_cfg.get('client_lr_min', 1e-6)})",
+    )
+    parser.add_argument(
+        "--lr_mode",
+        type=str,
+        default=yaml_cfg.get("lr_mode", "client_loss"),
+        choices=["client_loss", "server_decay", "fixed"],
+        help=f"LR schedule mode: 'client_loss' (each client reduces LR on local loss plateau), 'server_decay' (step decay on rounds), 'fixed' (constant LR) (default: {yaml_cfg.get('lr_mode', 'client_loss')})",
     )
     parser.add_argument(
         "--batch_size", type=int, default=None, help="Override batch size from config"
@@ -461,6 +647,13 @@ def main():
         type=str,
         default=None,
         help="Device class/type override (e.g. 'pc', 'jetson_orin', 'jetson_nano', 'PC1'). Defaults to auto-detected from configs/jetson.yaml.",
+    )
+    parser.add_argument(
+        "--strategy",
+        type=str,
+        default=yaml_cfg.get("strategy", "fedavg"),
+        choices=["fedavg", "fedprox", "fednova", "fedbn", "scaffold"],
+        help=f"FL strategy (default: {yaml_cfg.get('strategy', 'fedavg')})",
     )
     parser.add_argument(
         "--no_save_metrics",
@@ -526,16 +719,25 @@ def main():
         num_classes=num_classes,
         local_epochs=args.local_epochs,
         learning_rate=args.learning_rate,
+        lr_mode=args.lr_mode,
+        lr_patience=args.lr_patience,
+        lr_factor=args.lr_factor,
+        lr_min=args.lr_min,
         device_type=args.device_type,
         save_local_metrics=args.save_metrics,
         server_address=args.server_address,
+        strategy=args.strategy,
     )
 
     print(f"[Client {args.client_id}] Connecting to {args.server_address}...")
-    fl.client.start_numpy_client(
-        server_address=args.server_address,
-        client=client,
-    )
+    try:
+        fl.client.start_numpy_client(
+            server_address=args.server_address,
+            client=client,
+        )
+    except KeyboardInterrupt:
+        print(f"\n[Client {args.client_id}] Interrupted by user (Ctrl+C). Exiting...")
+        sys.exit(0)
 
 
 if __name__ == "__main__":

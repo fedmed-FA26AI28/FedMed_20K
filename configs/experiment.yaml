@@ -20,25 +20,63 @@ alpha_values: [1.0, 0.3, 0.1]
 partition_save_dir: data/partitions
 
 # --- Server & FL Training Hyperparameters ---
-strategy: fedavg                 # FL aggregation strategy: 'fedavg', 'fedprox', 'fednova'
+strategy: fedavg                 # FL aggregation strategy: 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold'
 fl_rounds: 50                    # Total number of federated rounds
 min_clients: 3                   # Minimum number of available clients required to start a round
 local_epochs: 5                  # Number of local training epochs on each client per round
 learning_rate: 0.001             # Base initial learning rate for optimizer
 
-# --- Server-Side Learning Rate (LR) Schedule ---
-# Step decay: lr = learning_rate * (lr_decay_gamma ** ((server_round - 1) // lr_decay_steps))
-lr_decay_steps: 10               # Decay learning rate every N rounds (0 = disabled)
+# --- Learning Rate (LR) Scheduling Mode ---
+# Select the learning rate scheduling strategy:
+#   - 'client_loss' : Server passes initial LR on Round 1; each client independently reduces LR on local loss plateau.
+#   - 'server_decay': Server computes global step decay every N rounds and synchronizes across all clients.
+#   - 'fixed'       : Constant learning rate across all rounds and clients (classic Flower baseline).
+lr_mode: client_loss            # 'client_loss' | 'server_decay' | 'fixed'
+
+# Settings for 'client_loss' mode:
+client_lr_patience: 2            # Local epochs without loss improvement before reducing LR
+client_lr_factor: 0.5            # Multiplicative factor of LR reduction (new_lr = lr * factor)
+client_lr_min: 0.000001          # Minimum learning rate lower bound
+
+# Settings for 'server_decay' mode:
+# Step decay formula: lr = learning_rate * (lr_decay_gamma ** ((server_round - 1) // lr_decay_steps))
+lr_decay_steps: 3               # Decay learning rate every N rounds
 lr_decay_gamma: 0.5              # Multiplicative decay factor
 
 # --- Server-Side Early Stopping ---
-early_stop_patience: 10          # Rounds without metric improvement before stopping (0 = disabled)
+early_stop_patience: 3          # Rounds without metric improvement before stopping (0 = disabled)
 early_stop_metric: accuracy      # Target metric to monitor: 'accuracy' or 'loss'
 server_eval: true                # Run centralized evaluation on the server test set each round
 
 # --- Algorithm-Specific Hyperparameters ---
 # FedProx
 proximal_mu: 0.01                # Proximal term coefficient for FedProx (0.0 = standard FedAvg)
+
+# FedBN
+# BatchNorm layers remain local on each client; server aggregates non-BN parameters.
+
+# SCAFFOLD
+# Uses variance-reduced control variates to correct client drift under Non-IID distributions.
+
+# --- Centralized Baseline Training Run Parameters ---
+# Configuration for standalone centralized training benchmark (experiments/train_centralized.py)
+centralized:
+  epochs: 100                    # Maximum training epochs for centralized baseline
+  batch_size: 32                 # DataLoader mini-batch size
+  learning_rate: 0.001           # Initial learning rate for Adam optimizer
+  lr_patience: 3                 # Epochs without validation loss improvement before reducing LR
+  lr_factor: 0.5                 # Multiplicative factor of LR reduction
+  min_lr: 0.000001               # Minimum learning rate lower bound
+  early_stop_patience: 8         # Early stopping patience (epochs without val loss improvement)
+
+# Flat aliases for centralized run parameters
+centralized_epochs: 100
+centralized_batch_size: 32
+centralized_learning_rate: 0.001
+centralized_early_stop_patience: 8
+centralized_lr_patience: 3
+centralized_lr_factor: 0.5
+centralized_min_lr: 0.000001
 
 # --- Network & Server Communication ---
 server_host: "0.0.0.0"

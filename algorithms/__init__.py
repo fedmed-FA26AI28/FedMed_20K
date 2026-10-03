@@ -11,12 +11,16 @@ Usage:
 from algorithms.fedavg import FedAvgStrategy
 from algorithms.fedprox import FedProxStrategy
 from algorithms.fednova import FedNovaStrategy
+from algorithms.fedbn import FedBNStrategy
+from algorithms.scaffold import SCAFFOLDStrategy
 
 
 STRATEGY_REGISTRY = {
     "fedavg": FedAvgStrategy,
     "fedprox": FedProxStrategy,
     "fednova": FedNovaStrategy,
+    "fedbn": FedBNStrategy,
+    "scaffold": SCAFFOLDStrategy,
 }
 
 

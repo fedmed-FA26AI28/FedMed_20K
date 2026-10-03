@@ -12,22 +12,35 @@ import torch.nn as nn
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 
-def train(model, train_loader, optimizer, epochs, device, val_loader=None, min_lr: float = 1e-6):
+def train(
+    model,
+    train_loader,
+    optimizer,
+    epochs,
+    device,
+    val_loader=None,
+    lr_patience: int = 3,
+    lr_factor: float = 0.5,
+    min_lr: float = 1e-6,
+    early_stop_patience: int = 8,
+):
     criterion = nn.CrossEntropyLoss()
     model.train()
 
     start_time = time.time()
 
     # 1. Initialize Learning Rate Scheduler
-    # - factor=0.5: reduce LR by half when validation loss plateaus
-    # - patience=3: wait 3 epochs before reducing LR
+    # - factor: reduce LR by multiplicative factor when validation loss plateaus
+    # - patience: epochs to wait before reducing LR
     # - min_lr: lower bound for learning rate
-    scheduler = ReduceLROnPlateau(optimizer, mode='min', factor=0.5, patience=3, min_lr=min_lr)
+    scheduler = ReduceLROnPlateau(
+        optimizer, mode='min', factor=lr_factor, patience=lr_patience, min_lr=min_lr
+    )
     
     # 2. Early stopping state
     best_loss = float('inf')
     patience_counter = 0
-    patience = 8
+    patience = early_stop_patience
     best_weights = None
     best_epoch = 0
     best_val_loss = None

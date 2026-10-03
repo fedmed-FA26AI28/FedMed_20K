@@ -1,10 +1,12 @@
-"""FedAvg Strategy with extended metrics logging, early stopping, and LR scheduling support.
+"""SCAFFOLD Strategy - Stochastic Controlled Averaging for Federated Learning.
 
-Wraps flwr.server.strategy.FedAvg and adds:
-- Per-round timing and weight-size tracking.
-- Server-side early stopping based on evaluation accuracy or loss.
-- Automatic preservation of best global model weights.
-- fit_metrics_aggregation_fn that aggregates per-client training metrics.
+Reference:
+    Karimireddy et al., "SCAFFOLD: Stochastic Controlled Averaging for Federated Learning",
+    ICML 2020. https://arxiv.org/abs/1910.06378
+
+SCAFFOLD uses control variates (variance reduction) to correct for "client drift"
+caused by non-IID data distributions across clients. The server maintains a global
+control variate c, and each client maintains a local control variate c_i.
 """
 
 import time
@@ -12,6 +14,7 @@ from typing import Dict, List, Optional, Tuple, Union, Any
 from logging import WARNING, INFO
 
 import numpy as np
+import torch.nn as nn
 from flwr.common import (
     FitRes,
     Parameters,
@@ -22,85 +25,19 @@ from flwr.common import (
 from flwr.common.logger import log
 from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy import FedAvg as FlwrFedAvg
-from flwr.server.strategy.aggregate import aggregate
 
+from algorithms.fedavg import _weighted_average_metrics, _format_device_details
 from monitoring.metrics import FLMetricsRecorder
+from models.cnn import CNN, get_parameters
 
 
-def _weighted_average_metrics(
-    metrics: List[Tuple[int, Dict[str, Scalar]]],
-) -> Dict[str, Scalar]:
-    """Aggregate fit metrics from all clients using weighted average."""
-    if not metrics:
-        return {}
-
-    total_examples = sum(n for n, _ in metrics)
-    aggregated: Dict[str, Scalar] = {}
-
-    epoch_times = []
-    training_times = []
-    weight_sizes_kb = []
-    ping_times = []
-
-    for n, m in metrics:
-        for key in ("train_loss", "train_accuracy"):
-            if key in m:
-                aggregated[key] = aggregated.get(key, 0.0) + float(m[key]) * n
-
-        if "epoch_time_avg" in m:
-            epoch_times.append(float(m["epoch_time_avg"]))
-        if "training_time" in m:
-            training_times.append(float(m["training_time"]))
-        if "weight_size_kb" in m:
-            weight_sizes_kb.append(float(m["weight_size_kb"]))
-        if "ping_ms" in m and float(m["ping_ms"]) >= 0:
-            ping_times.append(float(m["ping_ms"]))
-
-    # Finalize weighted averages
-    for key in ("train_loss", "train_accuracy"):
-        if key in aggregated:
-            aggregated[key] = float(aggregated[key]) / total_examples
-
-    # Per-client timing stats
-    if epoch_times:
-        aggregated["epoch_time_avg"] = float(np.mean(epoch_times))
-        aggregated["epoch_time_min"] = float(np.min(epoch_times))
-        aggregated["epoch_time_max"] = float(np.max(epoch_times))
-
-    if training_times:
-        aggregated["client_train_time_avg"] = float(np.mean(training_times))
-        aggregated["client_train_time_min"] = float(np.min(training_times))
-        aggregated["client_train_time_max"] = float(np.max(training_times))
-        aggregated["straggler_time"] = float(np.max(training_times))
-
-    if weight_sizes_kb:
-        aggregated["weight_size_kb_avg"] = float(np.mean(weight_sizes_kb))
-        aggregated["weight_size_kb_total"] = float(np.sum(weight_sizes_kb))
-
-    if ping_times:
-        aggregated["ping_ms_avg"] = float(np.mean(ping_times))
-        aggregated["ping_ms_min"] = float(np.min(ping_times))
-        aggregated["ping_ms_max"] = float(np.max(ping_times))
-
-    return aggregated
-
-
-def _format_device_details(results: List[Tuple[ClientProxy, FitRes]]) -> str:
-    """Format participating client devices with client_id, device_ipv4, and device_type."""
-    details = []
-    for _, fit_res in results:
-        cid = fit_res.metrics.get("client_id")
-        ip = fit_res.metrics.get("device_ipv4")
-        dtype = fit_res.metrics.get("device_type")
-        if cid is not None or ip is not None:
-            details.append(f"Client {cid} (IPv4: {ip or 'unknown'}, {dtype or 'unknown'})")
-    return " | ".join(details) if details else ""
-
-
-class FedAvgStrategy(FlwrFedAvg):
-    """FedAvg strategy with extended metrics, early stopping, and per-round timing.
+class SCAFFOLDStrategy(FlwrFedAvg):
+    """SCAFFOLD strategy with control variate aggregation, extended metrics, and early stopping.
 
     Args:
+        num_total_clients: Total number of clients N in the federation (used to scale delta_c).
+            Defaults to min_fit_clients.
+        model: Optional PyTorch model instance to initialize control variates shape.
         early_stop_patience: Number of rounds without improvement before stopping (0 to disable).
         early_stop_metric: Target metric to track ('accuracy' or 'loss').
         metrics_recorder: Optional FLMetricsRecorder instance for logging and visualization.
@@ -110,6 +47,8 @@ class FedAvgStrategy(FlwrFedAvg):
     def __init__(
         self,
         *,
+        num_total_clients: Optional[int] = None,
+        model: Optional[nn.Module] = None,
         early_stop_patience: int = 10,
         early_stop_metric: str = "accuracy",
         metrics_recorder: Optional[FLMetricsRecorder] = None,
@@ -120,7 +59,17 @@ class FedAvgStrategy(FlwrFedAvg):
 
         super().__init__(**kwargs)
 
-        self.recorder = metrics_recorder or FLMetricsRecorder(strategy_name="FedAvg")
+        self.recorder = metrics_recorder or FLMetricsRecorder(strategy_name="SCAFFOLD")
+
+        self.num_total_clients = num_total_clients or self.min_fit_clients
+
+        # Initialize server control variates c
+        target_model = model if model is not None else CNN(num_classes=8)
+        initial_ndarrays = get_parameters(target_model)
+        self.num_layers = len(initial_ndarrays)
+        self.server_control_variate: List[np.ndarray] = [
+            np.zeros_like(arr, dtype=np.float64) for arr in initial_ndarrays
+        ]
 
         # Early stopping state
         self.early_stop_patience = early_stop_patience
@@ -136,6 +85,8 @@ class FedAvgStrategy(FlwrFedAvg):
         self._round_start: float = 0.0
         self._round_times: List[float] = []
         self._total_start: float = time.time()
+
+        self._current_global_params: Optional[List[np.ndarray]] = None
 
     def check_early_stopping(
         self,
@@ -196,13 +147,30 @@ class FedAvgStrategy(FlwrFedAvg):
         return self._best_parameters or self.latest_parameters
 
     def configure_fit(self, server_round, parameters, client_manager):
-        """Record round start time, then delegate to parent or halt if early stopped."""
+        """Append server control variates c to parameters sent to clients for local drift correction."""
         if self.should_stop:
-            log(INFO, "[EarlyStop] Training halted: configure_fit returning 0 clients.")
+            log(INFO, "[EarlyStop] Training halted: configure_fit sampling 0 clients.")
             return []
+
         self._round_start = time.time()
         self.recorder.record_round_start(server_round)
-        return super().configure_fit(server_round, parameters, client_manager)
+
+        # Cache standard model parameters (M ndarrays)
+        model_ndarrays = parameters_to_ndarrays(parameters)
+        self._current_global_params = model_ndarrays
+        self.num_layers = len(model_ndarrays)
+
+        # Ensure server control variate matches parameter shapes
+        if len(self.server_control_variate) != self.num_layers:
+            self.server_control_variate = [
+                np.zeros_like(p, dtype=np.float64) for p in model_ndarrays
+            ]
+
+        # Concatenate model parameters x and server control variates c (2M ndarrays total)
+        combined_ndarrays = model_ndarrays + self.server_control_variate
+        combined_parameters = ndarrays_to_parameters(combined_ndarrays)
+
+        return super().configure_fit(server_round, combined_parameters, client_manager)
 
     def aggregate_fit(
         self,
@@ -210,12 +178,70 @@ class FedAvgStrategy(FlwrFedAvg):
         results: List[Tuple[ClientProxy, FitRes]],
         failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
     ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
-        """Aggregate client parameters and append round timing metrics."""
-        parameters_aggregated, metrics_aggregated = super().aggregate_fit(
-            server_round, results, failures
+        """SCAFFOLD aggregation: average model weights and update global control variate c."""
+        if not results:
+            return None, {}
+        if not self.accept_failures and failures:
+            return None, {}
+
+        total_examples = sum(fit_res.num_examples for _, fit_res in results)
+        if total_examples == 0:
+            return None, {}
+
+        # Unpack each client's payload: [y_i (M arrays)] + [delta_c_i (M arrays)]
+        client_models: List[List[np.ndarray]] = []
+        client_delta_cs: List[List[np.ndarray]] = []
+        client_weights: List[float] = []
+
+        for _, fit_res in results:
+            arrays = parameters_to_ndarrays(fit_res.parameters)
+            if len(arrays) == 2 * self.num_layers:
+                y_i = arrays[: self.num_layers]
+                delta_c_i = arrays[self.num_layers :]
+            else:
+                # Fallback if client only returned model parameters
+                y_i = arrays
+                delta_c_i = [np.zeros_like(a, dtype=np.float64) for a in arrays]
+
+            client_models.append(y_i)
+            client_delta_cs.append(delta_c_i)
+            client_weights.append(fit_res.num_examples / total_examples)
+
+        # 1. Aggregate model parameters x_new = sum(p_i * y_i)
+        aggregated_model = [np.zeros_like(g, dtype=np.float64) for g in self._current_global_params]
+        for y_i, p_i in zip(client_models, client_weights):
+            for l_idx in range(self.num_layers):
+                aggregated_model[l_idx] += p_i * np.asarray(y_i[l_idx], dtype=np.float64)
+
+        # Cast back to original layer dtypes (e.g. integer buffers like num_batches_tracked)
+        final_model = [
+            arr.astype(g.dtype)
+            for arr, g in zip(aggregated_model, self._current_global_params)
+        ]
+
+        # 2. Update server control variate c_new = c + (1 / N) * sum(delta_c_i)
+        # Using effective client count N = self.num_total_clients
+        n_clients = max(self.num_total_clients, len(results))
+        for delta_c_i in client_delta_cs:
+            for l_idx in range(self.num_layers):
+                self.server_control_variate[l_idx] = self.server_control_variate[l_idx] + (
+                    1.0 / n_clients
+                ) * np.asarray(delta_c_i[l_idx], dtype=np.float64)
+
+        # Compute norm of server control variates for telemetry
+        c_norm = float(
+            np.sqrt(sum(np.sum(arr ** 2) for arr in self.server_control_variate))
         )
-        if parameters_aggregated is not None:
-            self.latest_parameters = parameters_aggregated
+
+        parameters_aggregated = ndarrays_to_parameters(final_model)
+        self.latest_parameters = parameters_aggregated
+
+        metrics_aggregated: Dict[str, Scalar] = {}
+        if self.fit_metrics_aggregation_fn:
+            fit_metrics = [(res.num_examples, res.metrics) for _, res in results]
+            metrics_aggregated = self.fit_metrics_aggregation_fn(fit_metrics)
+        elif server_round == 1:
+            log(WARNING, "No fit_metrics_aggregation_fn provided")
 
         round_time = time.time() - self._round_start
         self._round_times.append(round_time)
@@ -226,6 +252,7 @@ class FedAvgStrategy(FlwrFedAvg):
         )
         metrics_aggregated["num_clients_reporting"] = len(results)
         metrics_aggregated["num_failures"] = len(failures)
+        metrics_aggregated["server_c_norm"] = float(c_norm)
 
         self.recorder.record_fit_results(
             server_round=server_round,
@@ -236,11 +263,11 @@ class FedAvgStrategy(FlwrFedAvg):
 
         log(
             INFO,
-            "[FedAvg] Round %d | %.1fs | clients=%d | failures=%d",
+            "[SCAFFOLD] Round %d | %.1fs | clients=%d | server_c_norm=%.4f",
             server_round,
             round_time,
             len(results),
-            len(failures),
+            c_norm,
         )
         dev_str = _format_device_details(results)
         if dev_str:
@@ -263,12 +290,7 @@ class FedAvgStrategy(FlwrFedAvg):
             )
         return res
 
-    def aggregate_evaluate(
-        self,
-        server_round: int,
-        results,
-        failures,
-    ):
+    def aggregate_evaluate(self, server_round, results, failures):
         """Aggregate evaluation results and check early stopping condition."""
         loss_aggregated, metrics_aggregated = super().aggregate_evaluate(
             server_round, results, failures
@@ -300,6 +322,9 @@ class FedAvgStrategy(FlwrFedAvg):
         summary["best_metric"] = self._best_metric
         summary["best_round"] = self._best_round
         summary["early_stopped"] = self.should_stop
+        summary["server_c_norm"] = float(
+            np.sqrt(sum(np.sum(arr ** 2) for arr in self.server_control_variate))
+        )
         return summary
 
     def save_artifacts(
@@ -311,4 +336,7 @@ class FedAvgStrategy(FlwrFedAvg):
         extra_metadata["best_metric"] = self._best_metric
         extra_metadata["best_round"] = self._best_round
         extra_metadata["early_stopped"] = self.should_stop
+        extra_metadata["server_c_norm"] = float(
+            np.sqrt(sum(np.sum(arr ** 2) for arr in self.server_control_variate))
+        )
         return self.recorder.save_all(save_dir=save_dir, extra_metadata=extra_metadata)

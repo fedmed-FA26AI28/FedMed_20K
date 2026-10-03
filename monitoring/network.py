@@ -53,6 +53,32 @@ def parse_server_address(server_address: str, default_port: int = 8080) -> Tuple
     return addr, default_port
 
 
+def get_device_ipv4() -> str:
+    """Return the primary local IPv4 address of this machine.
+
+    Uses a zero-packet UDP socket lookup (standard library) with fallbacks
+    to hostname resolution. Works across Windows and Linux (Jetson Orin/Nano).
+    """
+    try:
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        ip = s.getsockname()[0]
+        s.close()
+        if ip and not ip.startswith("127."):
+            return ip
+    except Exception:
+        pass
+
+    try:
+        ip = socket.gethostbyname(socket.gethostname())
+        if ip and not ip.startswith("127."):
+            return ip
+    except Exception:
+        pass
+
+    return "127.0.0.1"
+
+
 def measure_icmp_ping(host: str, timeout_seconds: float = 1.0) -> Optional[float]:
     """Measure round-trip ICMP ping latency in milliseconds.
 
