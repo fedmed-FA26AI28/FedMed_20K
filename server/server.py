@@ -181,6 +181,14 @@ class FedMedAIServer(fl.server.Server):
                     history.add_metrics_distributed(
                         server_round=current_round, metrics=evaluate_metrics_fed
                     )
+                    if res_cen is None:
+                        acc_fed = float(evaluate_metrics_fed.get("accuracy", 0.0))
+                        print(
+                            f"\n{'='*60}\n"
+                            f"  [Server] Round {current_round} Distributed Client Evaluation (FedBN Paper Setting)\n"
+                            f"  Loss: {loss_fed:.4f} | Accuracy: {acc_fed:.4f} ({acc_fed*100:.2f}%)\n"
+                            f"{'='*60}\n"
+                        )
 
             # Check if early stopping was triggered during evaluation in this round
             if getattr(self.strategy, "should_stop", False):
@@ -562,8 +570,11 @@ def main():
         "early_stop_metric": args.early_stop_metric,
     }
 
-    if args.server_eval:
+    if args.server_eval and args.strategy != "fedbn":
         strategy_kwargs["evaluate_fn"] = _get_evaluate_fn(num_classes=8, recorder=recorder)
+    elif args.strategy == "fedbn":
+        print("  [Server] FedBN Official Setting: Centralized server evaluation is disabled.\n"
+              "           Model performance is evaluated via distributed client evaluation.")
 
     if args.strategy == "fedprox":
         strategy_kwargs["proximal_mu"] = args.proximal_mu

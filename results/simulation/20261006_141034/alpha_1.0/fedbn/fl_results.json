@@ -1,0 +1,301 @@
+{
+    "metadata": {
+        "strategy": "fedbn",
+        "timestamp": "20261006_141123",
+        "status": "completed",
+        "num_rounds_completed": 2,
+        "num_rounds_requested": 2,
+        "min_clients": 2,
+        "local_epochs": 5,
+        "initial_learning_rate": 0.001,
+        "lr_decay_steps": 3,
+        "lr_decay_gamma": 0.5,
+        "server_eval_enabled": true,
+        "server_address": "127.0.0.1:59806",
+        "early_stop_patience": 6,
+        "early_stop_metric": "accuracy",
+        "early_stopped": false,
+        "best_metric": 0.6997953814674072,
+        "best_round": 2,
+        "num_bn_layers_local": 10,
+        "num_non_bn_layers_aggregated": 6
+    },
+    "summary": {
+        "total_wall_clock_time_seconds": 40.56,
+        "total_client_compute_time_seconds": 52.88,
+        "avg_round_time_seconds": 19.81,
+        "min_round_time_seconds": 15.44,
+        "max_round_time_seconds": 24.18,
+        "total_straggler_overhead_seconds": 9.63,
+        "straggler_overhead_percent": 23.73,
+        "final_global_accuracy": 0.699795,
+        "best_global_accuracy": 0.6998,
+        "best_global_accuracy_round": 2,
+        "final_global_loss": 0.829202,
+        "best_global_loss": 0.8292,
+        "final_train_loss_avg": 0.305185,
+        "final_train_accuracy_avg": 0.907601,
+        "total_communication_kb": 317.2,
+        "total_communication_mb": 0.31
+    },
+    "client_summaries": {
+        "0": {
+            "client_id": 0,
+            "device_type": "pc",
+            "num_samples": 4537,
+            "total_rounds_participated": 2,
+            "total_training_time_seconds": 21.625,
+            "avg_time_per_round_seconds": 10.8125,
+            "min_time_per_round_seconds": 10.5178,
+            "max_time_per_round_seconds": 11.1072,
+            "avg_time_per_epoch_seconds": 2.1624,
+            "min_time_per_epoch_seconds": 2.0691,
+            "max_time_per_epoch_seconds": 2.6866,
+            "total_epochs_trained": 10,
+            "final_train_loss": 0.398756,
+            "final_train_accuracy": 0.873926,
+            "total_data_uploaded_kb": 158.6,
+            "avg_cpu_percent": 85.8,
+            "avg_ram_percent": 45.95,
+            "avg_gpu_memory_mb": 16.57,
+            "avg_ping_ms": 1.0,
+            "min_ping_ms": 1.0,
+            "max_ping_ms": 1.0
+        },
+        "1": {
+            "client_id": 1,
+            "device_type": "pc",
+            "num_samples": 7422,
+            "total_rounds_participated": 2,
+            "total_training_time_seconds": 31.2508,
+            "avg_time_per_round_seconds": 15.6254,
+            "min_time_per_round_seconds": 15.4119,
+            "max_time_per_round_seconds": 15.8389,
+            "avg_time_per_epoch_seconds": 3.1244,
+            "min_time_per_epoch_seconds": 2.4735,
+            "max_time_per_epoch_seconds": 4.0477,
+            "total_epochs_trained": 10,
+            "final_train_loss": 0.247986,
+            "final_train_accuracy": 0.928186,
+            "total_data_uploaded_kb": 158.6,
+            "avg_cpu_percent": 82.05,
+            "avg_ram_percent": 44.75,
+            "avg_gpu_memory_mb": 16.57,
+            "avg_ping_ms": 1.0,
+            "min_ping_ms": 1.0,
+            "max_ping_ms": 1.0
+        }
+    },
+    "hardware_heterogeneity": {
+        "device_types_present": [
+            "pc"
+        ],
+        "by_device_type": {
+            "pc": {
+                "client_count": 2,
+                "avg_round_training_time_seconds": 13.2189,
+                "avg_epoch_time_seconds": 2.6434,
+                "avg_ping_ms": 1.0,
+                "total_device_compute_time_seconds": 52.8758
+            }
+        }
+    },
+    "rounds_history": [
+        {
+            "round": 1,
+            "round_time_seconds": 24.1829,
+            "total_elapsed_seconds": 24.1986,
+            "num_clients_reporting": 2,
+            "train_loss_avg": 0.39673,
+            "train_accuracy_avg": 0.892215,
+            "eval_loss": 2.253341,
+            "eval_accuracy": 0.319497,
+            "client_train_time_avg": 13.4731,
+            "client_train_time_min": 11.1072,
+            "client_train_time_max": 15.8389,
+            "straggler_time_seconds": 4.7317,
+            "epoch_time_avg": 2.6943,
+            "total_weight_size_kb": 158.6,
+            "server_overhead_seconds": 8.344,
+            "ping_ms_avg": 1.0,
+            "ping_ms_min": 1.0,
+            "ping_ms_max": 1.0,
+            "clients": [
+                {
+                    "client_id": 1,
+                    "device_type": "pc",
+                    "num_samples": 7422,
+                    "training_time_seconds": 15.8389,
+                    "epoch_time_avg": 3.1674,
+                    "epoch_times": [
+                        4.0477,
+                        3.3806,
+                        3.4528,
+                        2.4823,
+                        2.4735
+                    ],
+                    "train_loss": 0.336884,
+                    "train_accuracy": 0.909458,
+                    "ping_ms": 1.0,
+                    "epoch_losses": [
+                        1.0973,
+                        0.6145,
+                        0.467,
+                        0.3794,
+                        0.3369
+                    ],
+                    "epoch_accuracies": [
+                        0.6954,
+                        0.8615,
+                        0.8879,
+                        0.9034,
+                        0.9095
+                    ],
+                    "weight_size_kb": 79.3,
+                    "cpu_percent": 80.3,
+                    "ram_percent": 44.7,
+                    "gpu_memory_mb": 16.57
+                },
+                {
+                    "client_id": 0,
+                    "device_type": "pc",
+                    "num_samples": 4537,
+                    "training_time_seconds": 11.1072,
+                    "epoch_time_avg": 2.2212,
+                    "epoch_times": [
+                        2.6866,
+                        2.1296,
+                        2.0691,
+                        2.0852,
+                        2.1357
+                    ],
+                    "train_loss": 0.494632,
+                    "train_accuracy": 0.864007,
+                    "ping_ms": 1.0,
+                    "epoch_losses": [
+                        1.0307,
+                        0.6908,
+                        0.5862,
+                        0.5361,
+                        0.4946
+                    ],
+                    "epoch_accuracies": [
+                        0.713,
+                        0.8413,
+                        0.8574,
+                        0.8574,
+                        0.864
+                    ],
+                    "weight_size_kb": 79.3,
+                    "cpu_percent": 88.0,
+                    "ram_percent": 47.2,
+                    "gpu_memory_mb": 16.57
+                }
+            ]
+        },
+        {
+            "round": 2,
+            "round_time_seconds": 15.4409,
+            "total_elapsed_seconds": 40.5581,
+            "num_clients_reporting": 2,
+            "train_loss_avg": 0.305185,
+            "train_accuracy_avg": 0.907601,
+            "eval_loss": 0.829202,
+            "eval_accuracy": 0.699795,
+            "client_train_time_avg": 12.9648,
+            "client_train_time_min": 10.5178,
+            "client_train_time_max": 15.4119,
+            "straggler_time_seconds": 4.8941,
+            "epoch_time_avg": 2.5925,
+            "total_weight_size_kb": 158.6,
+            "server_overhead_seconds": 0.029,
+            "ping_ms_avg": 1.0,
+            "ping_ms_min": 1.0,
+            "ping_ms_max": 1.0,
+            "clients": [
+                {
+                    "client_id": 0,
+                    "device_type": "pc",
+                    "num_samples": 4537,
+                    "training_time_seconds": 10.5178,
+                    "epoch_time_avg": 2.1036,
+                    "epoch_times": [
+                        2.1439,
+                        2.0861,
+                        2.0989,
+                        2.0994,
+                        2.0895
+                    ],
+                    "train_loss": 0.398756,
+                    "train_accuracy": 0.873926,
+                    "ping_ms": 1.0,
+                    "epoch_losses": [
+                        0.5399,
+                        0.4546,
+                        0.4392,
+                        0.4058,
+                        0.3988
+                    ],
+                    "epoch_accuracies": [
+                        0.8428,
+                        0.8629,
+                        0.8667,
+                        0.8746,
+                        0.8739
+                    ],
+                    "weight_size_kb": 79.3,
+                    "cpu_percent": 83.6,
+                    "ram_percent": 44.7,
+                    "gpu_memory_mb": 16.57
+                },
+                {
+                    "client_id": 1,
+                    "device_type": "pc",
+                    "num_samples": 7422,
+                    "training_time_seconds": 15.4119,
+                    "epoch_time_avg": 3.0814,
+                    "epoch_times": [
+                        3.4533,
+                        3.4292,
+                        3.4258,
+                        2.5727,
+                        2.5259
+                    ],
+                    "train_loss": 0.247986,
+                    "train_accuracy": 0.928186,
+                    "ping_ms": 1.0,
+                    "epoch_losses": [
+                        0.3746,
+                        0.3111,
+                        0.273,
+                        0.2648,
+                        0.248
+                    ],
+                    "epoch_accuracies": [
+                        0.9068,
+                        0.9148,
+                        0.9241,
+                        0.9237,
+                        0.9282
+                    ],
+                    "weight_size_kb": 79.3,
+                    "cpu_percent": 83.8,
+                    "ram_percent": 44.8,
+                    "gpu_memory_mb": 16.57
+                }
+            ]
+        }
+    ],
+    "artifacts": {
+        "client_round_metrics_csv": "client_round_metrics.csv",
+        "client_epoch_metrics_csv": "client_epoch_metrics.csv",
+        "round_metrics_csv": "round_metrics.csv",
+        "plots": [
+            "client_training_time_comparison.png",
+            "client_epoch_time_comparison.png",
+            "fl_training_curves.png",
+            "round_time_breakdown.png",
+            "fl_summary_card.png"
+        ]
+    }
+}

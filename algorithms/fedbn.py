@@ -271,20 +271,36 @@ class FedBNStrategy(FlwrFedAvg):
 
         return parameters_aggregated, metrics_aggregated
 
+    def configure_evaluate(
+        self, server_round: int, parameters: Parameters, client_manager
+    ):
+        """Configure client evaluation round, passing strategy='fedbn' to preserve local BN."""
+        if self.should_stop:
+            return []
+        evaluate_ins_list = super().configure_evaluate(
+            server_round, parameters, client_manager
+        )
+        for _, evaluate_ins in evaluate_ins_list:
+            evaluate_ins.config["strategy"] = "fedbn"
+            evaluate_ins.config["server_round"] = server_round
+        return evaluate_ins_list
+
     def evaluate(
         self, server_round: int, parameters: Parameters
     ) -> Optional[Tuple[float, Dict[str, Scalar]]]:
-        """Evaluate global model parameters using evaluate_fn and check early stopping."""
-        res = super().evaluate(server_round, parameters)
-        if res is not None:
-            loss, metrics = res
-            self.check_early_stopping(
-                server_round=server_round,
-                metrics=metrics,
-                loss=loss,
-                parameters=parameters,
-            )
-        return res
+        """Centralized server evaluation is disabled in FedBN per official paper.
+
+        Reference:
+            Li et al., 'FedBN: Federated Learning on Non-IID Features via Local
+            Batch Normalization', ICLR 2021.
+
+        In FedBN, Batch Normalization parameters (weights, biases, running mean,
+        running variance) remain strictly local to clients. The server does not
+        maintain trained global BN parameters, so centralized evaluation of a
+        single global model on the server is not applicable. Model performance
+        is evaluated via distributed client evaluation in aggregate_evaluate().
+        """
+        return None
 
     def aggregate_evaluate(self, server_round, results, failures):
         """Aggregate evaluation results and check early stopping condition."""
