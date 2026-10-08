@@ -121,6 +121,10 @@ def run_simulation(args) -> Path:
         raise ValueError("client_fraction must be in (0, 1]")
     if args.client_gpus > 0 and not torch.cuda.is_available():
         raise ValueError("client_gpus > 0 was requested, but CUDA is unavailable")
+    if args.ray_cpus is not None and args.ray_cpus < args.client_cpus:
+        raise ValueError("ray_cpus must be at least client_cpus")
+    if args.ray_object_store_mb is not None and args.ray_object_store_mb < 80:
+        raise ValueError("ray_object_store_mb must be at least 80")
     if not 0.0 < args.calibration_fraction < 1.0:
         raise ValueError("calibration_fraction must be in (0, 1)")
     if args.final_test and not args.locked_config:
@@ -188,6 +192,11 @@ def run_simulation(args) -> Path:
         f"min={min(partition_sizes)}, max={max(partition_sizes)}"
     )
 
+    # Partition label reads may invoke random training transforms. Reset the
+    # model-initialization seed here so centralized and FL arms start identically.
+    torch.manual_seed(args.seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed_all(args.seed)
     initial_model = build_model(args.model, num_classes=num_classes)
     initial_parameters = ndarrays_to_parameters(get_parameters(initial_model))
     selected_clients = max(
@@ -247,6 +256,11 @@ def run_simulation(args) -> Path:
     )
 
     start_time = time.time()
+    ray_init_args = {"ignore_reinit_error": True, "include_dashboard": False}
+    if args.ray_cpus is not None:
+        ray_init_args["num_cpus"] = args.ray_cpus
+    if args.ray_object_store_mb is not None:
+        ray_init_args["object_store_memory"] = args.ray_object_store_mb * 1024 * 1024
     fl.simulation.start_simulation(
         client_fn=client_fn,
         num_clients=args.num_clients,
@@ -256,10 +270,7 @@ def run_simulation(args) -> Path:
             "num_cpus": args.client_cpus,
             "num_gpus": args.client_gpus,
         },
-        ray_init_args={
-            "ignore_reinit_error": True,
-            "include_dashboard": False,
-        },
+        ray_init_args=ray_init_args,
     )
     if strategy.latest_parameters is initial_parameters:
         raise RuntimeError("No client model updates were aggregated; inspect Flower client failures")
@@ -334,6 +345,8 @@ def run_simulation(args) -> Path:
             "num_cpus": args.client_cpus,
             "num_gpus": args.client_gpus,
         },
+        "ray_cpus": args.ray_cpus,
+        "ray_object_store_mb": args.ray_object_store_mb,
         "train_partition_sizes": partition_sizes,
         "train_partition_hashes": [
             _partition_hash(partition) for partition in train_partitions
@@ -410,6 +423,10 @@ def main():
     )
     parser.add_argument("--client_cpus", type=float, default=1.0)
     parser.add_argument("--client_gpus", type=float, default=0.0)
+    parser.add_argument("--ray_cpus", type=int, default=None,
+                        help="Limit concurrent Ray actors; 1 with client_cpus=1 serializes virtual clients")
+    parser.add_argument("--ray_object_store_mb", type=int, default=None,
+                        help="Cap Ray object-store memory in MB; 256 is a low-memory starting point")
     parser.add_argument(
         "--output_dir", default="results/simulations"
     )
