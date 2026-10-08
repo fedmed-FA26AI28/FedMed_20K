@@ -67,7 +67,9 @@ class FederatedDataFlowTests(unittest.TestCase):
 
     def test_final_run_requires_locked_development_spec(self):
         args = SimpleNamespace(num_clients=2, client_fraction=1.0,
-                               client_gpus=0.0, calibration_fraction=0.5,
+                               client_cpus=1.0, client_gpus=0.0,
+                               ray_cpus=None, ray_object_store_mb=None,
+                               calibration_fraction=0.5,
                                final_test=True, locked_config=None)
         with self.assertRaises(ValueError):
             run_simulation(args)
@@ -119,7 +121,7 @@ class FederatedDataFlowTests(unittest.TestCase):
             fit_train_normalization(dataset, [0])
 
     def test_model_parameter_round_trip_and_balanced_budget(self):
-        for name in ("tiny_cnn", "mobilenet_v3_small"):
+        for name in ("tiny_cnn", "tiny_cnn_gn", "mobilenet_v3_small"):
             model = build_model(name)
             restored = build_model(name)
             set_parameters(restored, get_parameters(model))
@@ -131,6 +133,16 @@ class FederatedDataFlowTests(unittest.TestCase):
         balanced = balanced_loader(loader, torch.tensor([9.0, 1.0]), seed=42)
         self.assertEqual(10, len(list(balanced.sampler)))
         self.assertEqual(len(loader), len(balanced))
+
+    def test_groupnorm_tiny_cnn_has_no_client_running_statistics(self):
+        model = build_model("tiny_cnn_gn")
+        self.assertFalse(any(isinstance(layer, torch.nn.BatchNorm2d)
+                             for layer in model.modules()))
+        self.assertEqual(2, sum(isinstance(layer, torch.nn.GroupNorm)
+                                for layer in model.modules()))
+        self.assertFalse(any("running_mean" in name or "running_var" in name
+                             or "num_batches_tracked" in name
+                             for name in model.state_dict()))
 
     def test_train_and_validation_partitions_are_complete_and_disjoint(self):
         train_dataset = LabelDataset([0] * 15 + [1] * 15 + [2] * 15)
@@ -219,6 +231,18 @@ class FederatedDataFlowTests(unittest.TestCase):
         self.assertEqual(6, metrics["num_val_samples"])
         self.assertIn("val_loss", metrics)
         self.assertIn("val_accuracy", metrics)
+
+    def test_local_training_handles_final_batch_of_one(self):
+        train_loader = DataLoader(
+            TensorDataset(torch.randn(5, 4), torch.randint(0, 2, (5,))),
+            batch_size=2,
+        )
+        model = torch.nn.Linear(4, 2)
+        metrics = _local_train(
+            model, train_loader, torch.optim.SGD(model.parameters(), lr=0.01),
+            torch.device("cpu"), epochs=1,
+        )
+        self.assertEqual(5, metrics["num_samples"])
 
     def test_metrics_do_not_replace_sample_weighted_parameter_aggregation(self):
         aggregated = _weighted_average_metrics(

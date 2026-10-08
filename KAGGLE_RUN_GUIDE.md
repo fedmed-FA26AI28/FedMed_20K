@@ -53,8 +53,47 @@ optimizer states and computation order differ.
 
 Development runs save `run_spec.json` and final-model **validation** metrics.
 They do not load test. Compare paired-seed macro-F1, worst-class/per-class
-recall, calibration, runtime, and model/communication bytes. Freeze the
-configuration using validation before a locked final run:
+recall, calibration, runtime, and model/communication bytes.
+
+## Diagnose a weak FedAvg baseline before claiming a method gain
+
+The seed-42, alpha-0.1 `tiny_cnn` FedAvg run completed 30 rounds but its
+final validation macro-F1 was 0.236, versus 0.945 for the centralized CNN.
+This is a development result, **not** a test score or proof of the cause.
+`tiny_cnn` uses BatchNorm, including client-dependent running statistics.
+`tiny_cnn_gn` keeps the same 32/64-channel convolutional architecture but
+replaces its two BatchNorm layers with GroupNorm, which has no running
+statistics to aggregate. This is a diagnostic baseline, not a proposed novel
+method or a guaranteed improvement. GroupNorm uses input statistics in both
+training and evaluation ([PyTorch documentation](https://docs.pytorch.org/docs/stable/generated/torch.nn.GroupNorm.html)).
+
+After committing and pushing this experiment-branch update, pull it on
+Kaggle and run these **one at a time**. First vary only the partition skew,
+using the original CNN:
+
+```bash
+python -m experiments.run_simulation --strategy fedavg --num_clients 10 --alpha 0.3 --rounds 30 --local_epochs 1 --batch_size 32 --learning_rate 0.001 --model tiny_cnn --size 64 --augment --seed 42 --client_cpus 1 --ray_cpus 1 --ray_object_store_mb 256 --client_gpus 1 --output_dir results/kaggle_runs/diagnostics
+```
+
+Then compare the GroupNorm model with a matching centralized run and the same
+severe alpha-0.1 FL setup:
+
+```bash
+python -m experiments.run_centralized_research --epochs 30 --model tiny_cnn_gn --size 64 --augment --seed 42 --batch_size 32 --learning_rate 0.001 --use_gpu --output_dir results/kaggle_runs/diagnostics/centralized_gn
+python -m experiments.run_simulation --strategy fedavg --num_clients 10 --alpha 0.1 --rounds 30 --local_epochs 1 --batch_size 32 --learning_rate 0.001 --model tiny_cnn_gn --size 64 --augment --seed 42 --client_cpus 1 --ray_cpus 1 --ray_object_store_mb 256 --client_gpus 1 --output_dir results/kaggle_runs/diagnostics
+```
+
+Compare **final validation macro-F1 and per-class recall** for (a) BatchNorm
+FedAvg at alpha 0.1 versus 0.3, and (b) GroupNorm versus BatchNorm at alpha
+0.1, each alongside its own centralized comparator. Keep the train budget,
+seed, rounds, local epochs, and validation split fixed. A single seed is only
+a diagnostic; repeat promising comparisons at seeds 43 and 44 before making
+research claims. If GroupNorm is useful, the existing matrix accepts
+`--model tiny_cnn_gn` for matched method comparisons. Do **not** use
+`--final_test` during these diagnostics.
+
+Once this diagnostic is resolved, freeze the configuration using validation
+before a locked final run:
 
 ```bash
 python -m experiments.run_centralized_research --final_test --locked_config results/kaggle_runs/centralized/SEED_RUN/run_spec.json --output_dir results/kaggle_runs/final_centralized

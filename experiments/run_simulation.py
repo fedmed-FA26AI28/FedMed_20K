@@ -386,7 +386,7 @@ def main():
     parser.add_argument("--local_epochs", type=int, default=1)
     parser.add_argument("--batch_size", type=int, default=32)
     parser.add_argument("--size", type=int, choices=[28, 64], default=28)
-    parser.add_argument("--model", choices=["legacy", "tiny_cnn", "mobilenet_v3_small"], default="legacy")
+    parser.add_argument("--model", choices=["legacy", "tiny_cnn", "tiny_cnn_gn", "mobilenet_v3_small"], default="legacy")
     parser.add_argument("--augment", action="store_true")
     parser.add_argument("--normalization", choices=["fixed", "train"], default="fixed")
     parser.add_argument("--alpha", type=float, default=0.3)

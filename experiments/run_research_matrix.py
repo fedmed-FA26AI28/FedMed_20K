@@ -33,6 +33,7 @@ def main():
     parser.add_argument("--execute", action="store_true", help="Run every job; default only prints commands")
     parser.add_argument("--rounds", type=int, default=30)
     parser.add_argument("--local_epochs", type=int, default=1)
+    parser.add_argument("--model", choices=["tiny_cnn", "tiny_cnn_gn"], default="tiny_cnn")
     parser.add_argument("--client_gpus", type=float, default=0.0)
     parser.add_argument("--client_cpus", type=float, default=None)
     parser.add_argument("--ray_cpus", type=int, default=None)
@@ -50,7 +51,7 @@ def main():
         command = [sys.executable, "-m", "experiments.run_simulation",
                    "--num_clients", "10", "--rounds", str(args.rounds),
                    "--local_epochs", str(args.local_epochs),
-                   "--model", "tiny_cnn", "--size", "64", "--augment",
+                   "--model", args.model, "--size", "64", "--augment",
                    "--strategy", job["strategy"], "--alpha", str(job["alpha"]),
                    "--seed", str(job["seed"]), "--client_gpus", str(args.client_gpus)]
         if "coverage_kappa" in job:

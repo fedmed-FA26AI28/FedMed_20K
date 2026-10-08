@@ -116,7 +116,7 @@ def _local_train(
 
         for images, labels in train_loader:
             images = images.to(device)
-            labels = labels.squeeze().long().to(device)
+            labels = labels.reshape(-1).long().to(device)
 
             optimizer.zero_grad()
             outputs = model(images)
@@ -272,7 +272,7 @@ def _evaluate_model(model: nn.Module, data_loader, device: torch.device):
     with torch.no_grad():
         for images, labels in data_loader:
             images = images.to(device)
-            labels = labels.squeeze().long().to(device)
+            labels = labels.reshape(-1).long().to(device)
             outputs = model(images)
             total_loss += criterion(outputs, labels).item() * images.size(0)
             correct += (outputs.argmax(dim=1) == labels).sum().item()
@@ -298,7 +298,7 @@ def _evaluate_detailed(model: nn.Module, data_loader, device: torch.device):
     with torch.no_grad():
         for images, labels in data_loader:
             images = images.to(device)
-            labels = labels.squeeze().long().to(device)
+            labels = labels.reshape(-1).long().to(device)
             outputs = model(images)
             total_loss += criterion(outputs, labels).item() * images.size(0)
             y_true.extend(labels.cpu().tolist())

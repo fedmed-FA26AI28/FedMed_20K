@@ -51,6 +51,15 @@ class CNN(nn.Module):
         return x
 
 
+class GroupNormCNN(CNN):
+    """Same tiny CNN, with per-example normalization and no running BN state."""
+
+    def __init__(self, num_classes: int = 8):
+        super().__init__(num_classes=num_classes)
+        self.conv_block1[1] = nn.GroupNorm(8, 32)
+        self.conv_block2[1] = nn.GroupNorm(8, 64)
+
+
 class MobileNetSmall(nn.Module):
     """Untrained MobileNetV3-Small with an exposed linear FL classifier head."""
     def __init__(self, num_classes: int = 8):
@@ -66,10 +75,11 @@ class MobileNetSmall(nn.Module):
 
 
 def build_model(name: str = "legacy", num_classes: int = 8):
-    """Use the same `tiny_cnn` and `mobilenet_v3_small` in both data budgets."""
+    """Build a shared architecture for the full and 5K training budgets."""
     factories = {
         "legacy": lambda: CNN(num_classes=num_classes),
         "tiny_cnn": lambda: CNN(num_classes=num_classes),
+        "tiny_cnn_gn": lambda: GroupNormCNN(num_classes=num_classes),
         "mobilenet_v3_small": lambda: MobileNetSmall(num_classes=num_classes),
     }
     if name not in factories:

@@ -344,7 +344,7 @@ def main():
     parser.add_argument("--distill_temperature", type=float, default=2.0)
     parser.add_argument("--distill_max_count", type=int, default=0)
     parser.add_argument("--distill_warmup_rounds", type=int, default=1)
-    parser.add_argument("--model", choices=["legacy", "tiny_cnn", "mobilenet_v3_small"], default="legacy")
+    parser.add_argument("--model", choices=["legacy", "tiny_cnn", "tiny_cnn_gn", "mobilenet_v3_small"], default="legacy")
     parser.add_argument("--size", type=int, choices=[28, 64], default=28)
     parser.add_argument("--final_test", action="store_true",
                         help="Evaluate held-out test after a locked final run")
