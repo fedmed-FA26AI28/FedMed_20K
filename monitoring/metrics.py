@@ -137,6 +137,8 @@ class FLMetricsRecorder:
 
             train_loss = float(m.get("train_loss", 0.0))
             train_accuracy = float(m.get("train_accuracy", 0.0))
+            distill_loss = float(m.get("distill_loss", 0.0))
+            distill_active_classes = int(m.get("distill_active_classes", 0))
             val_loss = (
                 float(m["val_loss"]) if m.get("val_loss") is not None else None
             )
@@ -186,6 +188,8 @@ class FLMetricsRecorder:
                 "epoch_time_max": round(epoch_time_max, 4),
                 "train_loss": round(train_loss, 6),
                 "train_accuracy": round(train_accuracy, 6),
+                "distill_loss": round(distill_loss, 6),
+                "distill_active_classes": distill_active_classes,
                 "val_loss": round(val_loss, 6) if val_loss is not None else None,
                 "val_accuracy": (
                     round(val_accuracy, 6) if val_accuracy is not None else None
@@ -283,6 +287,8 @@ class FLMetricsRecorder:
             "num_clients_reporting": len(round_clients),
             "train_loss_avg": round(train_loss_avg, 6),
             "train_accuracy_avg": round(train_acc_avg, 6),
+            "distill_loss_avg": round(float(metrics_aggregated.get("distill_loss", 0.0)), 6),
+            "distill_active_clients": sum(c["distill_active_classes"] > 0 for c in round_clients),
             "eval_loss": round(eval_loss, 6) if eval_loss is not None else None,
             "eval_accuracy": round(eval_acc, 6) if eval_acc is not None else None,
             "client_train_time_avg": round(c_avg, 4),

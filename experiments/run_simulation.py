@@ -125,6 +125,15 @@ def run_simulation(args) -> Path:
         raise ValueError("calibration_fraction must be in (0, 1)")
     if args.final_test and not args.locked_config:
         raise ValueError("final test requires --locked_config from a development run")
+    if args.strategy in {"vacant_distill", "coverage_distill"}:
+        if not math.isfinite(args.distill_mu) or args.distill_mu <= 0:
+            raise ValueError("distill_mu must be finite and positive")
+        if not math.isfinite(args.distill_temperature) or args.distill_temperature <= 0:
+            raise ValueError("distill_temperature must be finite and positive")
+        if args.distill_max_count < 0 or args.distill_warmup_rounds < 0:
+            raise ValueError("distillation count and warmup must be non-negative")
+        if args.rounds <= args.distill_warmup_rounds:
+            raise ValueError("rounds must exceed distill_warmup_rounds")
 
     _seed_everything(args.seed)
     train_dataset, num_classes = get_bloodmnist_dataset(
@@ -202,11 +211,15 @@ def run_simulation(args) -> Path:
             proximal_mu=(
                 args.proximal_mu if args.strategy == "fedprox" else 0.0
             ),
-            logit_tau=args.logit_tau if args.strategy in {"coverage", "logit_only"} else 0.0,
+            logit_tau=args.logit_tau if args.strategy in {"coverage", "logit_only", "coverage_distill"} else 0.0,
             prior_smoothing=args.prior_smoothing,
-            head_mu=args.head_mu if args.strategy in {"coverage", "head_only"} else 0.0,
+            head_mu=args.head_mu if args.strategy in {"coverage", "head_only", "coverage_distill"} else 0.0,
             coverage_kappa=args.coverage_kappa,
             balanced_sampling=args.strategy == "balanced",
+            distill_mu=args.distill_mu if args.strategy in {"vacant_distill", "coverage_distill"} else 0.0,
+            distill_temperature=args.distill_temperature,
+            distill_max_count=args.distill_max_count,
+            distill_warmup_rounds=args.distill_warmup_rounds,
         ),
         "on_evaluate_config_fn": _make_on_evaluate_config_fn(),
         "evaluate_metrics_aggregation_fn": _evaluate_metrics_aggregation_fn,
@@ -304,11 +317,18 @@ def run_simulation(args) -> Path:
         "calibration_fraction": args.calibration_fraction,
         "conformal_alpha": args.conformal_alpha,
         "coverage_objective": {
-            "enabled": args.strategy in {"coverage", "logit_only", "head_only"},
-            "logit_tau": args.logit_tau if args.strategy in {"coverage", "logit_only"} else 0.0,
+            "enabled": args.strategy in {"coverage", "logit_only", "head_only", "coverage_distill"},
+            "logit_tau": args.logit_tau if args.strategy in {"coverage", "logit_only", "coverage_distill"} else 0.0,
             "prior_smoothing": args.prior_smoothing,
-            "head_mu": args.head_mu if args.strategy in {"coverage", "head_only"} else 0.0,
+            "head_mu": args.head_mu if args.strategy in {"coverage", "head_only", "coverage_distill"} else 0.0,
             "coverage_kappa": args.coverage_kappa,
+        },
+        "vacant_distillation": {
+            "enabled": args.strategy in {"vacant_distill", "coverage_distill"},
+            "distill_mu": args.distill_mu if args.strategy in {"vacant_distill", "coverage_distill"} else 0.0,
+            "temperature": args.distill_temperature,
+            "max_count": args.distill_max_count,
+            "warmup_rounds": args.distill_warmup_rounds,
         },
         "client_resources": {
             "num_cpus": args.client_cpus,
@@ -360,7 +380,7 @@ def main():
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument(
         "--strategy",
-        choices=["fedavg", "fedprox", "fednova", "coverage", "balanced", "logit_only", "head_only"],
+        choices=["fedavg", "fedprox", "fednova", "coverage", "balanced", "logit_only", "head_only", "vacant_distill", "coverage_distill"],
         default="fedavg",
     )
     parser.add_argument("--learning_rate", type=float, default=0.001)
@@ -369,6 +389,10 @@ def main():
     parser.add_argument("--prior_smoothing", type=float, default=1.0)
     parser.add_argument("--head_mu", type=float, default=0.01)
     parser.add_argument("--coverage_kappa", type=float, default=32.0)
+    parser.add_argument("--distill_mu", type=float, default=0.1)
+    parser.add_argument("--distill_temperature", type=float, default=2.0)
+    parser.add_argument("--distill_max_count", type=int, default=0)
+    parser.add_argument("--distill_warmup_rounds", type=int, default=1)
     parser.add_argument(
         "--train_samples",
         type=int,

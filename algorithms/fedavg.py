@@ -44,7 +44,7 @@ def _weighted_average_metrics(
 
     for n, m in metrics:
         # Weighted loss and accuracy
-        for key in ("train_loss", "train_accuracy"):
+        for key in ("train_loss", "train_accuracy", "distill_loss"):
             if key in m:
                 aggregated[key] = aggregated.get(key, 0.0) + float(m[key]) * n
 
@@ -68,7 +68,7 @@ def _weighted_average_metrics(
             ping_times.append(float(m["ping_ms"]))
 
     # Finalize weighted averages
-    for key in ("train_loss", "train_accuracy"):
+    for key in ("train_loss", "train_accuracy", "distill_loss"):
         if key in aggregated:
             aggregated[key] = float(aggregated[key]) / total_examples
     for key in ("val_loss", "val_accuracy"):

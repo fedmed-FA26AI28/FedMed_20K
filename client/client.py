@@ -34,6 +34,10 @@ from algorithms.coverage import (
     logit_adjustment,
     snapshot_classifier_head,
 )
+from algorithms.vacant_distillation import (
+    frozen_global_teacher,
+    vacant_class_distillation_loss,
+)
 from models.cnn import CNN, get_parameters, set_parameters
 from datasets.medmnist_code import build_transform, get_bloodmnist_dataset
 from datasets.partition import (
@@ -69,6 +73,10 @@ def _local_train(
     head_mu: float = 0.0,
     coverage_kappa: float = 32.0,
     global_head: dict = None,
+    global_teacher=None,
+    distill_mu: float = 0.0,
+    distill_temperature: float = 2.0,
+    distill_max_count: int = 0,
 ):
     """Train locally and return rich metrics.
 
@@ -95,12 +103,14 @@ def _local_train(
     epoch_lrs = []
     epoch_val_losses = []
     epoch_val_accuracies = []
+    epoch_distill_losses = []
     total_samples = 0
 
     for epoch in range(epochs):
         model.train()
         epoch_start = time.time()
         running_loss = 0.0
+        running_distill_loss = 0.0
         correct = 0
         total = 0
 
@@ -116,6 +126,16 @@ def _local_train(
                 else outputs
             )
             loss = criterion(adjusted_outputs, labels)
+            if global_teacher is not None:
+                with torch.no_grad():
+                    teacher_outputs = global_teacher(images)
+                distill_loss = vacant_class_distillation_loss(
+                    outputs, teacher_outputs, class_counts,
+                    temperature=distill_temperature,
+                    max_count=distill_max_count,
+                )
+                loss = loss + distill_mu * distill_loss
+                running_distill_loss += distill_loss.detach().item() * images.size(0)
 
             # FedProx proximal term
             if proximal_mu > 0.0 and global_params is not None:
@@ -156,6 +176,7 @@ def _local_train(
         epoch_times.append(epoch_time)
         epoch_losses.append(epoch_loss)
         epoch_accuracies.append(epoch_acc)
+        epoch_distill_losses.append(running_distill_loss / total)
         epoch_lrs.append(current_lr)
         total_samples = total
 
@@ -217,6 +238,8 @@ def _local_train(
         "epoch_times": epoch_times,
         "epoch_losses": epoch_losses,
         "epoch_accuracies": epoch_accuracies,
+        "distill_loss": epoch_distill_losses[-1],
+        "epoch_distill_losses": epoch_distill_losses,
         "epoch_lrs": epoch_lrs,
         "epoch_time_avg": float(np.mean(epoch_times)),
         "epoch_time_min": float(np.min(epoch_times)),
@@ -391,6 +414,8 @@ class FedMedAIClient(fl.client.NumPyClient):
         prior_smoothing = float(config.get("prior_smoothing", 1.0))
         head_mu = float(config.get("head_mu", 0.0))
         coverage_kappa = float(config.get("coverage_kappa", 32.0))
+        distill_mu = float(config.get("distill_mu", 0.0))
+        distill_max_count = int(config.get("distill_max_count", 0))
         lr_override = config.get("learning_rate")
         if lr_override is not None:
             for pg in self.optimizer.param_groups:
@@ -408,6 +433,12 @@ class FedMedAIClient(fl.client.NumPyClient):
             ]
         global_head = (
             snapshot_classifier_head(self.model) if head_mu > 0.0 else None
+        )
+        global_teacher = frozen_global_teacher(
+            self.model, self.class_counts, distill_mu,
+            server_round=server_round,
+            warmup_rounds=int(config.get("distill_warmup_rounds", 1)),
+            max_count=distill_max_count,
         )
 
         # Train
@@ -434,6 +465,10 @@ class FedMedAIClient(fl.client.NumPyClient):
             head_mu=head_mu,
             coverage_kappa=coverage_kappa,
             global_head=global_head,
+            global_teacher=global_teacher,
+            distill_mu=distill_mu,
+            distill_temperature=float(config.get("distill_temperature", 2.0)),
+            distill_max_count=distill_max_count,
         )
         training_time = time.time() - train_start
 
@@ -474,6 +509,8 @@ class FedMedAIClient(fl.client.NumPyClient):
             "num_classes_present": int((self.class_counts > 0).sum().item()),
             "logit_tau": float(logit_tau),
             "head_mu": float(head_mu),
+            "distill_loss": float(train_metrics["distill_loss"]),
+            "distill_active_classes": int((self.class_counts <= distill_max_count).sum().item()) if global_teacher is not None else 0,
         }
         if head_mu > 0.0:
             metrics["coverage_weight_mean"] = float(

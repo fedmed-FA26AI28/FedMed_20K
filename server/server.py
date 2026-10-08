@@ -19,6 +19,7 @@ Usage:
 
 import argparse
 import json
+import math
 import os
 import time
 import datetime
@@ -224,6 +225,10 @@ def _make_on_fit_config_fn(
     head_mu: float = 0.0,
     coverage_kappa: float = 32.0,
     balanced_sampling: bool = False,
+    distill_mu: float = 0.0,
+    distill_temperature: float = 2.0,
+    distill_max_count: int = 0,
+    distill_warmup_rounds: int = 1,
 ):
     """Create a function that sends training config to clients each round."""
 
@@ -245,6 +250,13 @@ def _make_on_fit_config_fn(
                     "coverage_kappa": coverage_kappa,
                 }
             )
+        if distill_mu > 0.0:
+            config.update({
+                "distill_mu": distill_mu,
+                "distill_temperature": distill_temperature,
+                "distill_max_count": distill_max_count,
+                "distill_warmup_rounds": distill_warmup_rounds,
+            })
         return config
 
     return on_fit_config
@@ -294,7 +306,7 @@ def main():
         "--strategy",
         type=str,
         default="fedavg",
-        choices=["fedavg", "fedprox", "fednova", "coverage", "balanced", "logit_only", "head_only"],
+        choices=["fedavg", "fedprox", "fednova", "coverage", "balanced", "logit_only", "head_only", "vacant_distill", "coverage_distill"],
         help="FL aggregation strategy (default: fedavg)",
     )
     parser.add_argument(
@@ -328,6 +340,10 @@ def main():
     parser.add_argument("--prior_smoothing", type=float, default=1.0)
     parser.add_argument("--head_mu", type=float, default=0.01)
     parser.add_argument("--coverage_kappa", type=float, default=32.0)
+    parser.add_argument("--distill_mu", type=float, default=0.1)
+    parser.add_argument("--distill_temperature", type=float, default=2.0)
+    parser.add_argument("--distill_max_count", type=int, default=0)
+    parser.add_argument("--distill_warmup_rounds", type=int, default=1)
     parser.add_argument("--model", choices=["legacy", "tiny_cnn", "mobilenet_v3_small"], default="legacy")
     parser.add_argument("--size", type=int, choices=[28, 64], default=28)
     parser.add_argument("--final_test", action="store_true",
@@ -358,6 +374,15 @@ def main():
         help="Enable server-side centralized validation each round",
     )
     args = parser.parse_args()
+    if args.strategy in {"vacant_distill", "coverage_distill"}:
+        if not math.isfinite(args.distill_mu) or args.distill_mu <= 0:
+            parser.error("--distill_mu must be finite and positive")
+        if not math.isfinite(args.distill_temperature) or args.distill_temperature <= 0:
+            parser.error("--distill_temperature must be finite and positive")
+        if args.distill_max_count < 0 or args.distill_warmup_rounds < 0:
+            parser.error("distillation count and warmup must be non-negative")
+        if args.rounds <= args.distill_warmup_rounds:
+            parser.error("--rounds must exceed --distill_warmup_rounds")
     if args.final_test:
         if not args.locked_config:
             parser.error("--final_test requires --locked_config")
@@ -373,6 +398,13 @@ def main():
             "coverage_kappa": args.coverage_kappa,
             "early_stop_patience": args.early_stop_patience,
         }
+        if args.strategy in {"vacant_distill", "coverage_distill"}:
+            locked_fields.update({
+                "distill_mu": args.distill_mu,
+                "distill_temperature": args.distill_temperature,
+                "distill_max_count": args.distill_max_count,
+                "distill_warmup_rounds": args.distill_warmup_rounds,
+            })
         for key, value in locked_fields.items():
             if locked.get(key) != value:
                 parser.error(f"{key} differs from locked development run")
@@ -411,11 +443,15 @@ def main():
             local_epochs=args.local_epochs,
             learning_rate=args.learning_rate,
             proximal_mu=args.proximal_mu if args.strategy == "fedprox" else 0.0,
-            logit_tau=args.logit_tau if args.strategy in {"coverage", "logit_only"} else 0.0,
+            logit_tau=args.logit_tau if args.strategy in {"coverage", "logit_only", "coverage_distill"} else 0.0,
             prior_smoothing=args.prior_smoothing,
-            head_mu=args.head_mu if args.strategy in {"coverage", "head_only"} else 0.0,
+            head_mu=args.head_mu if args.strategy in {"coverage", "head_only", "coverage_distill"} else 0.0,
             coverage_kappa=args.coverage_kappa,
             balanced_sampling=args.strategy == "balanced",
+            distill_mu=args.distill_mu if args.strategy in {"vacant_distill", "coverage_distill"} else 0.0,
+            distill_temperature=args.distill_temperature,
+            distill_max_count=args.distill_max_count,
+            distill_warmup_rounds=args.distill_warmup_rounds,
         ),
         "evaluate_metrics_aggregation_fn": _evaluate_metrics_aggregation_fn,
         "on_evaluate_config_fn": _make_on_evaluate_config_fn(),

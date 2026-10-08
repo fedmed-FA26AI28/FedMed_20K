@@ -20,6 +20,8 @@ STRATEGY_REGISTRY = {
     "balanced": FedAvgStrategy,
     "logit_only": FedAvgStrategy,
     "head_only": FedAvgStrategy,
+    "vacant_distill": FedAvgStrategy,
+    "coverage_distill": FedAvgStrategy,
     "fedprox": FedProxStrategy,
     "fednova": FedNovaStrategy,
 }
