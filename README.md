@@ -6,6 +6,45 @@ Tài liệu này hướng dẫn chi tiết quy trình triển khai thuật toán
 
 ---
 
+## Research simulation
+
+For the validation-only experiment matrix, native 64×64 data, model comparisons,
+locked final-test procedure, and Jetson measurements, see [RESEARCH_STUDY.md](RESEARCH_STUDY.md).
+
+Run the proposed client-private coverage-aware objective with many virtual
+clients on one machine:
+
+```powershell
+python -m experiments.run_simulation --strategy coverage --num_clients 20 --client_fraction 0.25 --alpha 0.3 --rounds 50 --local_epochs 5
+```
+
+The `FedMed_20K` label means the full-data experimental regime. BloodMNIST has
+fewer than 20,000 training examples, so the simulator uses the complete
+official training split and records the exact value as `train_samples_used`.
+Use `--train_samples N` for a smaller controlled budget.
+
+Recommended ablations use the same seed and partition:
+
+```powershell
+# Baseline
+python -m experiments.run_simulation --strategy fedavg --num_clients 10 --alpha 0.3 --seed 42
+
+# Local log-prior adjustment only
+python -m experiments.run_simulation --strategy coverage --head_mu 0 --num_clients 10 --alpha 0.3 --seed 42
+
+# Coverage-weighted head regularization only
+python -m experiments.run_simulation --strategy coverage --logit_tau 0 --num_clients 10 --alpha 0.3 --seed 42
+
+# Combined method
+python -m experiments.run_simulation --strategy coverage --num_clients 10 --alpha 0.3 --seed 42
+```
+
+Validation is split into disjoint client-monitoring and calibration subsets.
+Development runs never load test; only an explicit `--final_test --locked_config RUN_SPEC`
+run evaluates it after all FL rounds. Final artifacts report
+macro-F1, worst-class recall, probability calibration (NLL, Brier, ECE), and
+conformal coverage/set size in addition to accuracy and communication metrics.
+
 ## 1. Yêu Cầu Hệ Thống
 
 | Thành phần | Yêu cầu chi tiết |

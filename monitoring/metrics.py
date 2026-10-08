@@ -137,6 +137,15 @@ class FLMetricsRecorder:
 
             train_loss = float(m.get("train_loss", 0.0))
             train_accuracy = float(m.get("train_accuracy", 0.0))
+            val_loss = (
+                float(m["val_loss"]) if m.get("val_loss") is not None else None
+            )
+            val_accuracy = (
+                float(m["val_accuracy"])
+                if m.get("val_accuracy") is not None
+                else None
+            )
+            num_val_samples = int(m.get("num_val_samples", 0))
             weight_size_kb = float(m.get("weight_size_kb", 0.0))
 
             cpu_percent = float(m.get("cpu_percent", 0.0))
@@ -177,6 +186,11 @@ class FLMetricsRecorder:
                 "epoch_time_max": round(epoch_time_max, 4),
                 "train_loss": round(train_loss, 6),
                 "train_accuracy": round(train_accuracy, 6),
+                "val_loss": round(val_loss, 6) if val_loss is not None else None,
+                "val_accuracy": (
+                    round(val_accuracy, 6) if val_accuracy is not None else None
+                ),
+                "num_val_samples": num_val_samples,
                 "ping_ms": round(ping_ms, 2) if ping_ms is not None else None,
                 "weight_size_kb": round(weight_size_kb, 2),
                 "cpu_percent": round(cpu_percent, 2),
@@ -370,6 +384,9 @@ class FLMetricsRecorder:
             "epoch_time_max",
             "train_loss",
             "train_accuracy",
+            "val_loss",
+            "val_accuracy",
+            "num_val_samples",
             "ping_ms",
             "weight_size_kb",
             "cpu_percent",
@@ -595,6 +612,9 @@ class FLMetricsRecorder:
                     "epoch_times": c["epoch_times"],
                     "train_loss": c["train_loss"],
                     "train_accuracy": c["train_accuracy"],
+                    "val_loss": c.get("val_loss"),
+                    "val_accuracy": c.get("val_accuracy"),
+                    "num_val_samples": c.get("num_val_samples", 0),
                     "ping_ms": c.get("ping_ms"),
                     "epoch_losses": c["epoch_losses"],
                     "epoch_accuracies": c["epoch_accuracies"],
@@ -672,13 +692,18 @@ class FLMetricsRecorder:
                 "total_straggler_overhead_seconds": round(total_straggler, 2),
                 "straggler_overhead_percent": straggler_overhead_pct,
                 "final_global_accuracy": final_eval_acc,
+                "final_validation_accuracy": final_eval_acc,
                 "best_global_accuracy": round(self.best_eval_accuracy, 4)
+                if self.best_eval_accuracy > 0
+                else None,
+                "best_validation_accuracy": round(self.best_eval_accuracy, 4)
                 if self.best_eval_accuracy > 0
                 else None,
                 "best_global_accuracy_round": self.best_eval_round
                 if self.best_eval_accuracy > 0
                 else None,
                 "final_global_loss": final_eval_loss,
+                "final_validation_loss": final_eval_loss,
                 "best_global_loss": round(self.best_eval_loss, 4)
                 if self.best_eval_loss != float("inf")
                 else None,
@@ -941,7 +966,7 @@ class FLMetricsRecorder:
             fig, axes = plt.subplots(1, 3, figsize=(18, 5.5))
             rounds = [r["round"] for r in self.round_records]
 
-            # (A) Loss over Rounds (Train vs Global Eval)
+            # (A) Loss over Rounds (Train vs Validation)
             ax = axes[0]
             train_losses = [r["train_loss_avg"] for r in self.round_records]
             ax.plot(rounds, train_losses, "b-o", linewidth=2, label="Client Train Loss (Avg)")
@@ -949,14 +974,14 @@ class FLMetricsRecorder:
             if any(l is not None for l in eval_losses):
                 valid_r = [r for r, l in zip(rounds, eval_losses) if l is not None]
                 valid_l = [l for l in eval_losses if l is not None]
-                ax.plot(valid_r, valid_l, "r-s", linewidth=2, label="Global Eval Loss")
+                ax.plot(valid_r, valid_l, "r-s", linewidth=2, label="Validation Loss")
             ax.set_title("Loss over FL Rounds", fontsize=13, fontweight="bold")
             ax.set_xlabel("FL Round", fontsize=11)
             ax.set_ylabel("Loss", fontsize=11)
             ax.grid(True, linestyle="--", alpha=0.6)
             ax.legend(loc="best", fontsize=10)
 
-            # (B) Accuracy over Rounds (Train vs Global Eval)
+            # (B) Accuracy over Rounds (Train vs Validation)
             ax = axes[1]
             train_accs = [r["train_accuracy_avg"] for r in self.round_records]
             ax.plot(rounds, train_accs, "b-o", linewidth=2, label="Client Train Acc (Avg)")
@@ -964,13 +989,13 @@ class FLMetricsRecorder:
             if any(a is not None for a in eval_accs):
                 valid_r = [r for r, a in zip(rounds, eval_accs) if a is not None]
                 valid_a = [a for a in eval_accs if a is not None]
-                ax.plot(valid_r, valid_a, "g-^", linewidth=2, label="Global Eval Acc")
+                ax.plot(valid_r, valid_a, "g-^", linewidth=2, label="Validation Acc")
                 if self.best_eval_accuracy > 0:
                     ax.axhline(
                         y=self.best_eval_accuracy,
                         color="darkgreen",
                         linestyle=":",
-                        label=f"Best Eval: {self.best_eval_accuracy:.4f}",
+                        label=f"Best Val: {self.best_eval_accuracy:.4f}",
                     )
             ax.set_title("Accuracy over FL Rounds", fontsize=13, fontweight="bold")
             ax.set_xlabel("FL Round", fontsize=11)
@@ -1228,8 +1253,8 @@ class FLMetricsRecorder:
                 else "N/A"
             )
 
-            y = draw_entry(ax, y, "Best Global Test Accuracy", best_eval_acc, c_row_light)
-            y = draw_entry(ax, y, "Final Global Test Accuracy", final_eval_acc, c_row_dark)
+            y = draw_entry(ax, y, "Best Global Validation Accuracy", best_eval_acc, c_row_light)
+            y = draw_entry(ax, y, "Final Global Validation Accuracy", final_eval_acc, c_row_dark)
             y = draw_entry(ax, y, "Final Client Train Accuracy (Avg)", final_train_acc, c_row_light)
             y = draw_entry(ax, y, "Final Client Train Loss (Avg)", final_train_loss, c_row_dark)
             y -= 0.015

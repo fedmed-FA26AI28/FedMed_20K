@@ -34,6 +34,7 @@ def _weighted_average_metrics(
     total_examples = sum(n for n, _ in metrics)
 
     aggregated: Dict[str, Scalar] = {}
+    total_val_examples = 0
 
     # --- Per-client epoch time ---
     epoch_times = []
@@ -46,6 +47,16 @@ def _weighted_average_metrics(
         for key in ("train_loss", "train_accuracy"):
             if key in m:
                 aggregated[key] = aggregated.get(key, 0.0) + float(m[key]) * n
+
+        num_val_examples = int(m.get("num_val_samples", 0))
+        if num_val_examples > 0:
+            total_val_examples += num_val_examples
+            for key in ("val_loss", "val_accuracy"):
+                if key in m:
+                    aggregated[key] = (
+                        aggregated.get(key, 0.0)
+                        + float(m[key]) * num_val_examples
+                    )
 
         if "epoch_time_avg" in m:
             epoch_times.append(float(m["epoch_time_avg"]))
@@ -60,6 +71,9 @@ def _weighted_average_metrics(
     for key in ("train_loss", "train_accuracy"):
         if key in aggregated:
             aggregated[key] = float(aggregated[key]) / total_examples
+    for key in ("val_loss", "val_accuracy"):
+        if key in aggregated and total_val_examples > 0:
+            aggregated[key] = float(aggregated[key]) / total_val_examples
 
     # Per-client timing stats
     if epoch_times:
@@ -149,6 +163,10 @@ class FedAvgStrategy(FlwrFedAvg):
         parameters_aggregated, metrics_aggregated = super().aggregate_fit(
             server_round, results, failures
         )
+        if parameters_aggregated is not None:
+            # Metrics are logged separately; the final global model always comes
+            # from aggregated client parameters weighted by training samples.
+            self.latest_parameters = parameters_aggregated
 
         round_time = time.time() - self._round_start
         self._round_times.append(round_time)

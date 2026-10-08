@@ -51,6 +51,32 @@ class CNN(nn.Module):
         return x
 
 
+class MobileNetSmall(nn.Module):
+    """Untrained MobileNetV3-Small with an exposed linear FL classifier head."""
+    def __init__(self, num_classes: int = 8):
+        super().__init__()
+        from torchvision.models import mobilenet_v3_small
+        self.backbone = mobilenet_v3_small(weights=None)
+        features = self.backbone.classifier[-1].in_features
+        self.backbone.classifier[-1] = nn.Identity()
+        self.fc = nn.Linear(features, num_classes)
+
+    def forward(self, x):
+        return self.fc(self.backbone(x))
+
+
+def build_model(name: str = "legacy", num_classes: int = 8):
+    """Use the same `tiny_cnn` and `mobilenet_v3_small` in both data budgets."""
+    factories = {
+        "legacy": lambda: CNN(num_classes=num_classes),
+        "tiny_cnn": lambda: CNN(num_classes=num_classes),
+        "mobilenet_v3_small": lambda: MobileNetSmall(num_classes=num_classes),
+    }
+    if name not in factories:
+        raise ValueError(f"unknown model {name!r}; choose from {sorted(factories)}")
+    return factories[name]()
+
+
 def count_parameters(model: nn.Module):
     total_parameters = sum(p.numel() for p in model.parameters())
     trainable_parameters = sum(

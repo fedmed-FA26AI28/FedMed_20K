@@ -90,7 +90,24 @@ python -m experiments.train_centralized --epochs 50 --batch_size 64 --lr 0.0005
 
 ---
 
-## 2. FL Run on Multiple PC (Federated Learning trên nhiều PC trong mạng LAN)
+## 2. FL Simulation on One PC (Nhiều client ảo trên một máy)
+
+Không cần mở server/client ở nhiều terminal. Flower + Ray sẽ tạo các client độc lập, mỗi client chỉ nhận partition train/validation của mình.
+
+```powershell
+# Chạy thử nhanh: 5 clients, 2 rounds, 1 local epoch
+python -m experiments.run_simulation --num_clients 5 --rounds 2 --local_epochs 1
+
+# Thí nghiệm lớn hơn: 10 clients, non-IID alpha 0.3, FedAvg
+python -m experiments.run_simulation --num_clients 10 --rounds 50 --local_epochs 5 --alpha 0.3 --strategy fedavg
+
+# Chỉ chọn 50% clients trong mỗi round
+python -m experiments.run_simulation --num_clients 10 --client_fraction 0.5 --rounds 20
+```
+
+Kết quả nằm trong `results/simulations/`. Tập test chỉ được tải và đánh giá một lần sau khi simulation kết thúc.
+
+## 3. FL Run on Multiple PC (Federated Learning trên nhiều PC trong mạng LAN)
 
 Kịch bản này triển khai Federated Learning trên **nhiều máy tính PC / Laptop kết nối chung một mạng LAN** (Wi-Fi hoặc switch Ethernet), hoặc mô phỏng nhiều client chạy trên các terminal của cùng 1 PC.
 
@@ -109,7 +126,7 @@ Flower giao tiếp qua **gRPC trên socket TCP**, hoàn toàn tương thích ch�
   └─────────────────────────┘    └─────────────────────────┘
 ```
 
-### 2.1. Bước chuẩn bị phân vùng dữ liệu (Data Partitioning)
+### 3.1. Bước chuẩn bị phân vùng dữ liệu (Data Partitioning)
 
 Tạo file phân vùng Dirichlet Non-IID trên máy chủ (hoặc trên từng máy):
 
@@ -119,7 +136,7 @@ Tạo file phân vùng Dirichlet Non-IID trên máy chủ (hoặc trên từng m
 
 * **Sao chép file phân vùng:** Copy file vừa tạo trong `data/partitions/` sang các máy PC client (hoặc chạy lệnh trên với cùng `--seed 42` ở mỗi máy). Tập dữ liệu MedMNIST sẽ tự động tải về khi client chạy lần đầu.
 
-### 2.2. Thiết lập trên PC làm Máy Chủ (FL Server)
+### 3.2. Thiết lập trên PC làm Máy Chủ (FL Server)
 
 1. **Tìm địa chỉ IP LAN của máy chủ:**
    * **Windows:** Mở PowerShell/CMD gõ `ipconfig` -> Tìm dòng `IPv4 Address` (ví dụ: `192.168.1.50`).
@@ -151,7 +168,7 @@ Tạo file phân vùng Dirichlet Non-IID trên máy chủ (hoặc trên từng m
      python -m server.server --strategy fednova --rounds 20 --min_clients 2
      ```
 
-### 2.3. Khởi động các PC Client kết nối về PC Server
+### 3.3. Khởi động các PC Client kết nối về PC Server
 
 Giả sử IP của PC Server là `192.168.1.50`:
 
@@ -191,7 +208,7 @@ Giả sử IP của PC Server là `192.168.1.50`:
 | `--learning_rate` | `float` | `0.001` | Tốc độ học mà Server chỉ thị cho tất cả clients sử dụng. |
 | `--proximal_mu` | `float` | `0.1` | Hệ số phạt proximal $\mu$ khi dùng thuật toán `fedprox` (ràng buộc trọng số local không lệch quá xa global model). |
 | `--early_stop_patience`| `int` | `10` | Dừng sớm FL nếu sau $N$ round accuracy đánh giá không tăng (`0` để tắt). |
-| `--server_eval` | `flag` | `False` | Bật đánh giá tập trung mô hình toàn cục trên tập test sau mỗi round tại Server. |
+| `--server_eval` | `flag` | `False` | Bật đánh giá tập trung mô hình toàn cục trên tập validation sau mỗi round tại Server. Tập test chỉ được đánh giá một lần sau round cuối. |
 | `--host` | `str` | `0.0.0.0` | Địa chỉ IP máy chủ lắng nghe (`0.0.0.0` để lắng nghe từ tất cả card mạng LAN). |
 | `--port` | `int` | `8080` | Cổng mạng TCP gRPC giao tiếp giữa client và server. |
 
@@ -228,7 +245,8 @@ python -m client.client --client_id 0 --server_address 192.168.1.50:8080 --num_c
 > 2. **Các biểu đồ trực quan so sánh (.png):**
 >    - `client_training_time_comparison.png`: Đồ thị so sánh thời gian huấn luyện per-round giữa các client, biểu đồ cột thời gian trung bình kèm sai số, và biểu đồ độ trễ trễ hạn (straggler latency penalty = max_time - min_time).
 >    - `client_epoch_time_comparison.png`: Biểu đồ hộp (Boxplot) phân phối thời gian tính toán mỗi epoch của từng client và biểu đồ so sánh thời gian epoch trung bình giữa các lớp phần cứng (PC vs Orin vs Nano).
->    - `fl_training_curves.png`: Đường cong hội tụ Loss & Accuracy qua các round (Weighted Client Train vs Global Centralized Test) và biểu đồ phân tán độ chính xác của từng client.
+>    - `fl_training_curves.png`: Đường cong hội tụ Loss & Accuracy qua các round (Weighted Client Train vs Validation) và biểu đồ phân tán độ chính xác của từng client.
+>    - `final_test_metrics.json`: Kết quả đánh giá duy nhất của global model cuối cùng trên tập test được giữ nguyên.
 >    - `round_time_breakdown.png`: Biểu đồ cột xếp chồng phân rã thời gian mỗi round thành 3 thành phần: Thời gian tính toán client nhanh nhất, thời gian chờ do straggler, và overhead truyền thông mạng / tổng hợp server.
 >    - `fl_summary_card.png`: Thẻ tóm tắt trực quan (Dashboard Summary Card) tổng kết siêu tham số, hiệu năng mô hình, tài nguyên và độ chênh lệch tính toán phần cứng.
 >
@@ -242,7 +260,7 @@ python -m client.client --client_id 0 --server_address 192.168.1.50:8080 --num_c
 
 ---
 
-## 3. FL Run on Jetson Device with Linux (Federated Learning trên cụm thiết bị NVIDIA Jetson)
+## 4. FL Run on Jetson Device with Linux (Federated Learning trên cụm thiết bị NVIDIA Jetson)
 
 Kịch bản này triển khai hệ thống Federated Learning thực tế trên cụm **10 thiết bị biên nhúng chạy Linux JetPack**:
 - **5 thiết bị NVIDIA Jetson AGX Orin** (Client 0 → 4): Phần cứng mạnh (16-32GB RAM, 12-core ARM, GPU Ampere).
@@ -265,7 +283,7 @@ Kịch bản này triển khai hệ thống Federated Learning thực tế trên
 └───────────────────────────────┘               └───────────────────────────────┘
 ```
 
-### 3.1. Phân phối dữ liệu tới 10 thiết bị Jetson qua SCP
+### 4.1. Phân phối dữ liệu tới 10 thiết bị Jetson qua SCP
 
 Từ máy tính chủ (đã có thư mục `data/partitions/`), phân phối phân vùng 10 clients:
 
@@ -280,7 +298,7 @@ Từ máy tính chủ (đã có thư mục `data/partitions/`), phân phối ph�
   scp data/partitions/partition_seed42_alpha0.3_clients10.json nano@192.168.1.60:~/FedMedAI/data/partitions/
   ```
 
-### 3.2. Cấu hình phần cứng & Chế độ năng lượng trên Jetson (Bắt buộc)
+### 4.2. Cấu hình phần cứng & Chế độ năng lượng trên Jetson (Bắt buộc)
 
 Trước khi chạy, kích hoạt chế độ xung nhịp và năng lượng tối đa trên từng máy Jetson để đo lường độ trễ chuẩn xác:
 
@@ -295,7 +313,7 @@ Trước khi chạy, kích hoạt chế độ xung nhịp và năng lượng t�
   sudo jetson_clocks          # Khóa xung nhịp tối đa
   ```
 
-### 3.3. Giám sát tài nguyên phần cứng bằng `tegrastats` hoặc `jtop`
+### 4.3. Giám sát tài nguyên phần cứng bằng `tegrastats` hoặc `jtop`
 
 Thu thập dữ liệu tiêu thụ điện năng, mức chiếm dụng RAM, tải GPU/CPU trên Jetson:
 
@@ -310,7 +328,7 @@ jtop
 sudo pkill tegrastats
 ```
 
-### 3.4. Khởi động FL Server (chờ 10 clients)
+### 4.4. Khởi động FL Server (chờ 10 clients)
 
 Trên máy chủ Server (ví dụ IP: `192.168.1.15`):
 
@@ -327,7 +345,7 @@ python3 -m server.server --strategy fednova --min_clients 10 --rounds 50
 
 *(Mẹo: Dùng `tmux new -s fl_server` trên Linux Server để phiên chạy không bị gián đoạn).*
 
-### 3.5. Khởi động Client trên từng máy Jetson
+### 4.5. Khởi động Client trên từng máy Jetson
 
 Giả sử IP máy chủ là `192.168.1.15:8080`:
 
@@ -367,7 +385,7 @@ Giả sử IP máy chủ là `192.168.1.15:8080`:
   python3 -m client.client --client_id 9 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3
   ```
 
-### 3.6. Tự động hóa qua SSH Script (Chạy & Dừng toàn bộ cụm 10 Jetson từ xa)
+### 4.6. Tự động hóa qua SSH Script (Chạy & Dừng toàn bộ cụm 10 Jetson từ xa)
 
 Để không phải SSH thủ công vào 10 máy, tạo và chạy script điều khiển từ máy chủ Linux:
 

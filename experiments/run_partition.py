@@ -1,7 +1,7 @@
 """Script kiểm tra và chạy Dirichlet partition cho mọi tổ hợp num_clients × alpha."""
 import argparse
 import numpy as np
-from datasets.medmnist_code import get_bloodmnist_datasets
+from datasets.medmnist_code import get_bloodmnist_dataset
 from datasets.partition import (
     dirichlet_partition, save_partition, visualize_partition
 )
@@ -43,7 +43,7 @@ def main():
                         help="Chạy toàn bộ 9 tổ hợp theo plan")
     args = parser.parse_args()
     print("Loading BloodMNIST train dataset...")
-    train_dataset, _, _, _ = get_bloodmnist_datasets(download=True)
+    train_dataset, _ = get_bloodmnist_dataset("train", download=True)
     print(f"Train size: {len(train_dataset)} samples")
     if args.all or (args.num_clients is None and args.alpha is None):
         # Chạy toàn bộ matrix: 3 × 3 = 9 tổ hợp

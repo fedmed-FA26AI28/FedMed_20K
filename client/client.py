@@ -12,6 +12,7 @@ Usage:
 """
 
 import argparse
+import copy
 import json
 import sys
 import time
@@ -26,9 +27,21 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 import flwr as fl
 from flwr.common import NDArrays, Scalar
 
+from algorithms.coverage import (
+    count_client_classes,
+    coverage_head_penalty,
+    coverage_weights,
+    logit_adjustment,
+    snapshot_classifier_head,
+)
 from models.cnn import CNN, get_parameters, set_parameters
-from datasets.medmnist_code import get_bloodmnist_datasets
-from datasets.partition import load_partition, get_client_dataloader
+from datasets.medmnist_code import build_transform, get_bloodmnist_dataset
+from datasets.partition import (
+    get_client_dataloader,
+    load_partition,
+    load_partition_metadata,
+    stratified_validation_partition,
+)
 
 
 from monitoring.resource import get_resource_usage, get_device_type
@@ -49,6 +62,13 @@ def _local_train(
     global_params: list = None,
     min_lr: float = 1e-6,
     early_stop_patience: int = 5,
+    val_loader=None,
+    class_counts: torch.Tensor = None,
+    logit_tau: float = 0.0,
+    prior_smoothing: float = 1.0,
+    head_mu: float = 0.0,
+    coverage_kappa: float = 32.0,
+    global_head: dict = None,
 ):
     """Train locally and return rich metrics.
 
@@ -57,16 +77,24 @@ def _local_train(
         global_params: Global model parameters (list of tensors) for proximal term.
     """
     criterion = nn.CrossEntropyLoss()
+    adjustment = None
+    if class_counts is not None and logit_tau > 0:
+        adjustment = logit_adjustment(
+            class_counts, tau=logit_tau, smoothing=prior_smoothing
+        ).to(device)
     scheduler = ReduceLROnPlateau(
         optimizer, mode="min", factor=0.5, patience=2, min_lr=min_lr
     )
 
     best_loss = float("inf")
+    best_weights = None
     patience_counter = 0
     epoch_times = []
     epoch_losses = []
     epoch_accuracies = []
     epoch_lrs = []
+    epoch_val_losses = []
+    epoch_val_accuracies = []
     total_samples = 0
 
     for epoch in range(epochs):
@@ -82,7 +110,12 @@ def _local_train(
 
             optimizer.zero_grad()
             outputs = model(images)
-            loss = criterion(outputs, labels)
+            adjusted_outputs = (
+                outputs + adjustment.unsqueeze(0)
+                if adjustment is not None
+                else outputs
+            )
+            loss = criterion(adjusted_outputs, labels)
 
             # FedProx proximal term
             if proximal_mu > 0.0 and global_params is not None:
@@ -92,6 +125,20 @@ def _local_train(
                 ):
                     proximal_loss += ((local_p - global_p) ** 2).sum()
                 loss = loss + (proximal_mu / 2.0) * proximal_loss
+
+            if head_mu > 0.0:
+                if class_counts is None or global_head is None:
+                    raise ValueError(
+                        "Coverage head regularization requires local class counts "
+                        "and a global-head snapshot"
+                    )
+                loss = loss + coverage_head_penalty(
+                    model=model,
+                    global_head=global_head,
+                    class_counts=class_counts,
+                    head_mu=head_mu,
+                    kappa=coverage_kappa,
+                )
 
             loss.backward()
             optimizer.step()
@@ -112,22 +159,37 @@ def _local_train(
         epoch_lrs.append(current_lr)
         total_samples = total
 
+        val_loss = None
+        val_accuracy = None
+        if val_loader is not None:
+            val_loss, val_accuracy, _ = _evaluate_model(
+                model, val_loader, device
+            )
+            epoch_val_losses.append(val_loss)
+            epoch_val_accuracies.append(val_accuracy)
+
+        val_message = (
+            f" | Val Loss={val_loss:.4f} Val Acc={val_accuracy:.4f}"
+            if val_loss is not None
+            else ""
+        )
         print(
             f"  [Client] Epoch [{epoch+1}/{epochs}] "
             f"LR={current_lr:.6f} | Loss={epoch_loss:.4f} Acc={epoch_acc:.4f} "
-            f"| {epoch_time:.2f}s"
+            f"| {epoch_time:.2f}s{val_message}"
         )
 
-        # LR scheduling on train loss
+        # Validation drives local monitoring/model selection when available.
+        monitored_loss = val_loss if val_loss is not None else epoch_loss
         old_lr = current_lr
-        scheduler.step(epoch_loss)
+        scheduler.step(monitored_loss)
         new_lr = optimizer.param_groups[0]["lr"]
         if new_lr < old_lr:
             print(f"    -> LR reduced: {old_lr:.6f} -> {new_lr:.6f}")
 
-        # Early stopping on train loss
-        if epoch_loss < best_loss:
-            best_loss = epoch_loss
+        if monitored_loss < best_loss:
+            best_loss = monitored_loss
+            best_weights = copy.deepcopy(model.state_dict())
             patience_counter = 0
         else:
             patience_counter += 1
@@ -138,7 +200,18 @@ def _local_train(
                 )
                 break
 
-    return {
+    if best_weights is not None:
+        model.load_state_dict(best_weights)
+
+    final_val_loss = None
+    final_val_accuracy = None
+    num_val_samples = 0
+    if val_loader is not None:
+        final_val_loss, final_val_accuracy, num_val_samples = _evaluate_model(
+            model, val_loader, device
+        )
+
+    result = {
         "train_loss": epoch_loss,
         "train_accuracy": epoch_acc,
         "epoch_times": epoch_times,
@@ -148,8 +221,83 @@ def _local_train(
         "epoch_time_avg": float(np.mean(epoch_times)),
         "epoch_time_min": float(np.min(epoch_times)),
         "epoch_time_max": float(np.max(epoch_times)),
-        "num_samples": total_samples,
+        "num_samples": len(train_loader.dataset),
         "epochs_run": len(epoch_times),
+        "epoch_val_losses": epoch_val_losses,
+        "epoch_val_accuracies": epoch_val_accuracies,
+    }
+    if final_val_loss is not None:
+        result.update(
+            {
+                "val_loss": final_val_loss,
+                "val_accuracy": final_val_accuracy,
+                "num_val_samples": num_val_samples,
+            }
+        )
+    return result
+
+
+def _evaluate_model(model: nn.Module, data_loader, device: torch.device):
+    """Evaluate a model without changing its training/evaluation state."""
+    was_training = model.training
+    model.eval()
+    criterion = nn.CrossEntropyLoss()
+    total_loss = 0.0
+    correct = 0
+    total = 0
+
+    with torch.no_grad():
+        for images, labels in data_loader:
+            images = images.to(device)
+            labels = labels.squeeze().long().to(device)
+            outputs = model(images)
+            total_loss += criterion(outputs, labels).item() * images.size(0)
+            correct += (outputs.argmax(dim=1) == labels).sum().item()
+            total += labels.size(0)
+
+    if was_training:
+        model.train()
+    if total == 0:
+        raise ValueError("Cannot evaluate an empty client validation set")
+    return total_loss / total, correct / total, total
+
+
+def _evaluate_detailed(model: nn.Module, data_loader, device: torch.device):
+    """Return rare-class-aware validation metrics for FL monitoring."""
+    from sklearn.metrics import precision_recall_fscore_support
+
+    was_training = model.training
+    model.eval()
+    criterion = nn.CrossEntropyLoss()
+    total_loss = 0.0
+    y_true = []
+    y_pred = []
+    with torch.no_grad():
+        for images, labels in data_loader:
+            images = images.to(device)
+            labels = labels.squeeze().long().to(device)
+            outputs = model(images)
+            total_loss += criterion(outputs, labels).item() * images.size(0)
+            y_true.extend(labels.cpu().tolist())
+            y_pred.extend(outputs.argmax(dim=1).cpu().tolist())
+    if was_training:
+        model.train()
+    if not y_true:
+        raise ValueError("Cannot evaluate an empty client validation set")
+    _, recall, f1, _ = precision_recall_fscore_support(
+        y_true,
+        y_pred,
+        labels=list(range(model.fc.out_features)),
+        average=None,
+        zero_division=0,
+    )
+    return {
+        "loss": total_loss / len(y_true),
+        "accuracy": sum(int(a == b) for a, b in zip(y_true, y_pred)) / len(y_true),
+        "f1_macro": float(np.mean(f1)),
+        "balanced_accuracy": float(np.mean(recall)),
+        "worst_class_recall": float(np.min(recall)),
+        "num_samples": len(y_true),
     }
 
 
@@ -164,22 +312,35 @@ class FedMedAIClient(fl.client.NumPyClient):
         self,
         client_id: int,
         train_loader,
-        test_loader,
+        val_loader,
         num_classes: int = 8,
         local_epochs: int = 5,
         learning_rate: float = 0.001,
         device_type: str = None,
         save_local_metrics: bool = True,
         server_address: str = "127.0.0.1:8080",
+        model_name: str = "legacy",
+        seed: int = 42,
+        use_gpu=None,
     ):
         self.client_id = client_id
-        self.train_loader = train_loader
-        self.test_loader = test_loader
+        self.client_train = train_loader
+        self.client_val = val_loader
+        # Backward-compatible aliases for existing monitoring/integration code.
+        self.train_loader = self.client_train
+        self.val_loader = self.client_val
         self.local_epochs = local_epochs
         self.learning_rate = learning_rate
+        self.num_classes = num_classes
+        # These counts remain local and are derived from client_train only.
+        self.class_counts = count_client_classes(
+            self.client_train.dataset, num_classes=num_classes
+        )
         self.device_type = str(device_type).strip() if device_type else get_device_type(client_id)
         self.save_local_metrics = save_local_metrics
         self.server_address = server_address
+        self.model_name = model_name
+        self.seed = seed
 
         self.round_history = []
         self.epoch_history = []
@@ -196,16 +357,18 @@ class FedMedAIClient(fl.client.NumPyClient):
         self.ping_logger.log_ping(server_round=0, event="init")
 
         self.device = torch.device(
-            "cuda" if torch.cuda.is_available() else "cpu"
+            "cuda" if torch.cuda.is_available() and use_gpu is not False else "cpu"
         )
-        self.model = CNN(num_classes=num_classes).to(self.device)
+        from models.cnn import build_model
+        self.model = build_model(model_name, num_classes=num_classes).to(self.device)
         self.optimizer = optim.Adam(
             self.model.parameters(), lr=self.learning_rate
         )
 
         print(
             f"[Client {self.client_id}] Initialized on {self.device} ({self.device_type}) | "
-            f"train_samples={len(train_loader.dataset)}"
+            f"train_samples={len(train_loader.dataset)} | "
+            f"val_samples={len(val_loader.dataset)}"
         )
 
     def get_parameters(self, config) -> NDArrays:
@@ -214,6 +377,9 @@ class FedMedAIClient(fl.client.NumPyClient):
 
     def fit(self, parameters: NDArrays, config: dict):
         """Receive global model, train locally, return updated weights + metrics."""
+        round_seed = self.seed + 1009 * int(config.get("server_round", 0)) + self.client_id
+        torch.manual_seed(round_seed)
+        np.random.seed(round_seed % (2 ** 32 - 1))
         # Load global parameters
         set_parameters(self.model, parameters)
 
@@ -221,6 +387,10 @@ class FedMedAIClient(fl.client.NumPyClient):
         server_round = int(config.get("server_round", len(self.round_history) + 1))
         local_epochs = int(config.get("local_epochs", self.local_epochs))
         proximal_mu = float(config.get("proximal_mu", 0.0))
+        logit_tau = float(config.get("logit_tau", 0.0))
+        prior_smoothing = float(config.get("prior_smoothing", 1.0))
+        head_mu = float(config.get("head_mu", 0.0))
+        coverage_kappa = float(config.get("coverage_kappa", 32.0))
         lr_override = config.get("learning_rate")
         if lr_override is not None:
             for pg in self.optimizer.param_groups:
@@ -236,17 +406,34 @@ class FedMedAIClient(fl.client.NumPyClient):
             global_params = [
                 p.clone().detach() for p in self.model.parameters()
             ]
+        global_head = (
+            snapshot_classifier_head(self.model) if head_mu > 0.0 else None
+        )
 
         # Train
         train_start = time.time()
+        train_loader = self.client_train
+        if bool(config.get("balanced_sampling", False)):
+            from datasets.sampling import balanced_loader
+            train_loader = balanced_loader(
+                self.client_train, self.class_counts,
+                seed=self.seed + 1009 * server_round + self.client_id,
+            )
         train_metrics = _local_train(
             model=self.model,
-            train_loader=self.train_loader,
+            train_loader=train_loader,
             optimizer=self.optimizer,
             device=self.device,
             epochs=local_epochs,
             proximal_mu=proximal_mu,
             global_params=global_params,
+            val_loader=self.client_val,
+            class_counts=self.class_counts,
+            logit_tau=logit_tau,
+            prior_smoothing=prior_smoothing,
+            head_mu=head_mu,
+            coverage_kappa=coverage_kappa,
+            global_head=global_head,
         )
         training_time = time.time() - train_start
 
@@ -284,7 +471,22 @@ class FedMedAIClient(fl.client.NumPyClient):
             "ram_percent": float(res["ram_percent"]),
             "ram_used_mb": float(res["ram_used_mb"]),
             "gpu_memory_mb": float(res["gpu_memory_allocated_mb"]),
+            "num_classes_present": int((self.class_counts > 0).sum().item()),
+            "logit_tau": float(logit_tau),
+            "head_mu": float(head_mu),
         }
+        if head_mu > 0.0:
+            metrics["coverage_weight_mean"] = float(
+                coverage_weights(self.class_counts, coverage_kappa).mean().item()
+            )
+        if "val_loss" in train_metrics:
+            metrics.update(
+                {
+                    "val_loss": float(train_metrics["val_loss"]),
+                    "val_accuracy": float(train_metrics["val_accuracy"]),
+                    "num_val_samples": int(train_metrics["num_val_samples"]),
+                }
+            )
 
         # Track history locally
         self.round_history.append(metrics)
@@ -301,6 +503,16 @@ class FedMedAIClient(fl.client.NumPyClient):
                 "train_loss": round(train_metrics["epoch_losses"][ep_idx], 6),
                 "train_accuracy": round(train_metrics["epoch_accuracies"][ep_idx], 6),
                 "learning_rate": train_metrics["epoch_lrs"][ep_idx],
+                "val_loss": (
+                    round(train_metrics["epoch_val_losses"][ep_idx], 6)
+                    if train_metrics["epoch_val_losses"]
+                    else None
+                ),
+                "val_accuracy": (
+                    round(train_metrics["epoch_val_accuracies"][ep_idx], 6)
+                    if train_metrics["epoch_val_accuracies"]
+                    else None
+                ),
             })
 
         if self.save_local_metrics:
@@ -313,7 +525,8 @@ class FedMedAIClient(fl.client.NumPyClient):
             f"| weights={weight_size_kb:.1f}KB"
         )
 
-        return updated_params, train_metrics["num_samples"], metrics
+        # Flower/FedAvg uses this training-sample count to weight model updates.
+        return updated_params, len(self.client_train.dataset), metrics
 
     def _save_client_csvs(self):
         """Export local client CSV metrics for on-device inspection."""
@@ -326,7 +539,8 @@ class FedMedAIClient(fl.client.NumPyClient):
             r_cols = [
                 "server_round", "client_id", "device_type", "num_samples", "local_epochs",
                 "learning_rate", "training_time", "epoch_time_avg", "epoch_time_min",
-                "epoch_time_max", "train_loss", "train_accuracy", "ping_ms", "weight_size_kb",
+                "epoch_time_max", "train_loss", "train_accuracy", "val_loss", "val_accuracy",
+                "num_val_samples", "ping_ms", "weight_size_kb",
                 "cpu_percent", "ram_percent", "ram_used_mb", "gpu_memory_mb"
             ]
             import csv
@@ -339,7 +553,8 @@ class FedMedAIClient(fl.client.NumPyClient):
             ep_path = client_dir / f"client_{self.client_id}_epoch_metrics.csv"
             ep_cols = [
                 "round", "client_id", "device_type", "epoch", "epoch_time_seconds",
-                "cumulative_epoch_time_seconds", "train_loss", "train_accuracy", "learning_rate"
+                "cumulative_epoch_time_seconds", "train_loss", "train_accuracy", "val_loss",
+                "val_accuracy", "learning_rate"
             ]
             with open(ep_path, "w", newline="", encoding="utf-8") as f:
                 writer = csv.DictWriter(f, fieldnames=ep_cols, extrasaction="ignore")
@@ -349,39 +564,28 @@ class FedMedAIClient(fl.client.NumPyClient):
             print(f"[Client {self.client_id}] Warning: could not write local CSV: {e}")
 
     def evaluate(self, parameters: NDArrays, config: dict):
-        """Evaluate the global model on the local test set."""
+        """Evaluate the global model on this client's validation subset."""
         eval_round = config.get("server_round")
         if eval_round is not None:
             self.ping_logger.log_ping(server_round=int(eval_round), event="evaluate")
 
         set_parameters(self.model, parameters)
-        self.model.eval()
-
-        criterion = nn.CrossEntropyLoss()
-        total_loss = 0.0
-        correct = 0
-        total = 0
-
-        with torch.no_grad():
-            for images, labels in self.test_loader:
-                images = images.to(self.device)
-                labels = labels.squeeze().long().to(self.device)
-                outputs = self.model(images)
-                loss = criterion(outputs, labels)
-                total_loss += loss.item() * images.size(0)
-                _, predicted = torch.max(outputs.data, 1)
-                total += labels.size(0)
-                correct += (predicted == labels).sum().item()
-
-        avg_loss = total_loss / total
-        accuracy = correct / total
+        detailed = _evaluate_detailed(self.model, self.client_val, self.device)
+        avg_loss = detailed["loss"]
+        accuracy = detailed["accuracy"]
+        total = detailed["num_samples"]
 
         print(
-            f"[Client {self.client_id}] evaluate | "
+            f"[Client {self.client_id}] validation | "
             f"loss={avg_loss:.4f} acc={accuracy:.4f}"
         )
 
-        return float(avg_loss), total, {"accuracy": float(accuracy)}
+        return float(avg_loss), total, {
+            "accuracy": float(accuracy),
+            "f1_macro": float(detailed["f1_macro"]),
+            "balanced_accuracy": float(detailed["balanced_accuracy"]),
+            "worst_class_recall": float(detailed["worst_class_recall"]),
+        }
 
 
 # ──────────────────────────────────────────────────────────────
@@ -420,6 +624,9 @@ def main():
     parser.add_argument(
         "--batch_size", type=int, default=None, help="Override batch size from config"
     )
+    parser.add_argument("--size", type=int, choices=[28, 64], default=28)
+    parser.add_argument("--model", choices=["legacy", "tiny_cnn", "mobilenet_v3_small"], default="legacy")
+    parser.add_argument("--augment", action="store_true")
     parser.add_argument(
         "--device_type",
         type=str,
@@ -451,10 +658,11 @@ def main():
     print(f"[Client {args.client_id}] Loading partition from {partition_path}")
 
     # Load dataset and partition
-    train_dataset, _, test_dataset, num_classes = get_bloodmnist_datasets(
-        download=True
-    )
+    train_dataset, num_classes = get_bloodmnist_dataset("train", download=True, size=args.size)
+    train_dataset.transform = build_transform("train", augment=args.augment)
+    val_dataset, _ = get_bloodmnist_dataset("val", download=True, size=args.size)
     client_indices = load_partition(partition_path)
+    partition_metadata = load_partition_metadata(partition_path)
 
     if args.client_id >= len(client_indices):
         print(
@@ -464,7 +672,19 @@ def main():
         sys.exit(1)
 
     my_indices = client_indices[args.client_id]
-    print(f"[Client {args.client_id}] Assigned {len(my_indices)} training samples")
+    if any(index < 0 or index >= len(train_dataset) for index in my_indices):
+        raise ValueError("Training partition contains an out-of-range index")
+
+    val_partitions = stratified_validation_partition(
+        val_dataset,
+        num_clients=len(client_indices),
+        seed=int(partition_metadata.get("seed", 42)),
+    )
+    my_val_indices = val_partitions[args.client_id]
+    print(
+        f"[Client {args.client_id}] Assigned {len(my_indices)} training samples "
+        f"and {len(my_val_indices)} validation samples"
+    )
 
     # Create data loaders
     train_loader = get_client_dataloader(
@@ -476,23 +696,28 @@ def main():
         shuffle=True,
     )
 
-    from torch.utils.data import DataLoader
-
-    test_loader = DataLoader(
-        test_dataset, batch_size=32, shuffle=False, num_workers=0
+    val_loader = get_client_dataloader(
+        val_dataset,
+        my_val_indices,
+        client_id=args.client_id,
+        device_type=args.device_type,
+        batch_size=args.batch_size,
+        shuffle=False,
     )
 
     # Create client and start
     client = FedMedAIClient(
         client_id=args.client_id,
         train_loader=train_loader,
-        test_loader=test_loader,
+        val_loader=val_loader,
         num_classes=num_classes,
         local_epochs=args.local_epochs,
         learning_rate=args.learning_rate,
         device_type=args.device_type,
         save_local_metrics=args.save_metrics,
         server_address=args.server_address,
+        model_name=args.model,
+        seed=int(partition_metadata.get("seed", 42)),
     )
 
     print(f"[Client {args.client_id}] Connecting to {args.server_address}...")

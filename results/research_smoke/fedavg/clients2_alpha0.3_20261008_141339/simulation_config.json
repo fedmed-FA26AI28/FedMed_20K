@@ -1,0 +1,173 @@
+{
+  "mode": "single_machine_simulation",
+  "strategy": "fedavg",
+  "model": "tiny_cnn",
+  "size": 64,
+  "augment": true,
+  "normalization": "train",
+  "normalization_stats": [
+    [
+      0.796857503255462,
+      0.6625790225749688,
+      0.7020217596302131
+    ],
+    [
+      0.22402458167172754,
+      0.2547177311056709,
+      0.09696315919147577
+    ]
+  ],
+  "final_test_enabled": false,
+  "num_virtual_clients": 2,
+  "clients_per_round": 2,
+  "client_fraction": 1.0,
+  "rounds": 1,
+  "local_epochs": 1,
+  "batch_size": 32,
+  "learning_rate": 0.001,
+  "alpha": 0.3,
+  "seed": 42,
+  "train_samples_requested": 80,
+  "train_samples_used": 80,
+  "local_validation_samples": 855,
+  "calibration_samples": 857,
+  "calibration_fraction": 0.5,
+  "conformal_alpha": 0.1,
+  "coverage_objective": {
+    "enabled": false,
+    "logit_tau": 0.0,
+    "prior_smoothing": 1.0,
+    "head_mu": 0.0,
+    "coverage_kappa": 32.0
+  },
+  "client_resources": {
+    "num_cpus": 1.0,
+    "num_gpus": 0.5
+  },
+  "train_partition_sizes": [
+    44,
+    36
+  ],
+  "train_partition_hashes": [
+    "5148cd70b2c1fa5e2339bd9f1a4b43cd54d8c7e4f9ac1bb5f6face3fe605022e",
+    "fbfebcda7e26d943fd92e9aa06bde94966961926924bd826e4aa087313a5b41c"
+  ],
+  "local_validation_hash": "66372b6a7c6dc5ddcae37cd663c5dd30b65f5a14e6240fd15771ffa1c7ee15d2",
+  "calibration_hash": "2a6ba8e516438051682ca3481bee62354c93a98ba67926597f6531051b347bf4",
+  "elapsed_seconds": 11.411,
+  "final_test_metrics": null,
+  "final_validation_metrics": {
+    "split": "val_monitor",
+    "num_samples": 855,
+    "accuracy": 0.16959063708782196,
+    "f1_macro": 0.036468812877263584,
+    "worst_class_recall": 0.0,
+    "per_class_f1": [
+      0.0,
+      0.0,
+      0.0,
+      0.2917505030181087,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "per_class_recall": [
+      0.0,
+      0.0,
+      0.0,
+      1.0,
+      0.0,
+      0.0,
+      0.0,
+      0.0
+    ],
+    "confusion_matrix": [
+      [
+        0,
+        0,
+        0,
+        61,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        156,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        75,
+        0,
+        0,
+        0,
+        2
+      ],
+      [
+        0,
+        0,
+        0,
+        145,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        59,
+        0,
+        0,
+        0,
+        2
+      ],
+      [
+        0,
+        0,
+        0,
+        71,
+        0,
+        0,
+        0,
+        0
+      ],
+      [
+        0,
+        0,
+        0,
+        165,
+        0,
+        0,
+        0,
+        2
+      ],
+      [
+        0,
+        0,
+        0,
+        117,
+        0,
+        0,
+        0,
+        0
+      ]
+    ],
+    "calibration": {
+      "nll": 2.062041997909546,
+      "brier": 0.8704528212547302,
+      "ece": 0.012811258435249329
+    }
+  }
+}

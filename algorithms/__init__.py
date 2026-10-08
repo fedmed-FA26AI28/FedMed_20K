@@ -15,6 +15,11 @@ from algorithms.fednova import FedNovaStrategy
 
 STRATEGY_REGISTRY = {
     "fedavg": FedAvgStrategy,
+    # Coverage-aware learning changes the client objective, not aggregation.
+    "coverage": FedAvgStrategy,
+    "balanced": FedAvgStrategy,
+    "logit_only": FedAvgStrategy,
+    "head_only": FedAvgStrategy,
     "fedprox": FedProxStrategy,
     "fednova": FedNovaStrategy,
 }

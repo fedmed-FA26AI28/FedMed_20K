@@ -165,6 +165,7 @@ class FedNovaStrategy(FlwrFedAvg):
             aggregated_ndarrays = aggregate(weights_results)
 
         parameters_aggregated = ndarrays_to_parameters(aggregated_ndarrays)
+        self.latest_parameters = parameters_aggregated
 
         # Aggregate custom metrics
         metrics_aggregated: Dict[str, Scalar] = {}

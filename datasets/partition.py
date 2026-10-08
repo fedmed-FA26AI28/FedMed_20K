@@ -5,7 +5,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 from torch.utils.data import DataLoader, Subset
-from typing import List, Dict
+from typing import List, Dict, Any
 
 # Duong dan mac dinh den file config
 _CONFIG_DIR = Path(__file__).resolve().parent.parent / "configs"
@@ -101,7 +101,77 @@ def load_hardware_config(client_id: int = None, device_type: str = None) -> Dict
 # Partition
 # ─────────────────────────────────────────────────────────────
 
-def dirichlet_partition(dataset, num_clients: int, alpha: float, seed: int = 42) -> List[List[int]]:
+def _dataset_labels(dataset) -> np.ndarray:
+    """Return integer labels without assuming a particular dataset class."""
+    return np.asarray(
+        [int(np.asarray(dataset[index][1]).squeeze()) for index in range(len(dataset))],
+        dtype=np.int64,
+    )
+
+
+def stratified_subsample_indices(
+    dataset, num_samples: int = None, seed: int = 42
+) -> List[int]:
+    """Select a reproducible, class-stratified training-data budget.
+
+    The returned indices still refer to ``dataset``.  Passing ``None`` or a
+    budget at least as large as the dataset selects every sample.
+    """
+    if num_samples is None or num_samples >= len(dataset):
+        return list(range(len(dataset)))
+    if num_samples <= 0:
+        raise ValueError("num_samples must be greater than zero")
+
+    labels = _dataset_labels(dataset)
+    rng = np.random.default_rng(seed)
+    selected: List[int] = []
+    classes, counts = np.unique(labels, return_counts=True)
+    raw_targets = counts / counts.sum() * num_samples
+    targets = np.floor(raw_targets).astype(int)
+    remainder = num_samples - int(targets.sum())
+    order = np.argsort(-(raw_targets - targets))
+    for position in order[:remainder]:
+        targets[position] += 1
+
+    for class_id, target in zip(classes, targets):
+        class_indices = np.flatnonzero(labels == class_id)
+        rng.shuffle(class_indices)
+        selected.extend(class_indices[:target].tolist())
+    rng.shuffle(selected)
+    return selected
+
+
+def stratified_holdout_indices(
+    dataset, holdout_fraction: float, seed: int = 42
+) -> tuple[List[int], List[int]]:
+    """Split indices into stratified monitor and calibration subsets."""
+    if not 0.0 < holdout_fraction < 1.0:
+        raise ValueError("holdout_fraction must be in (0, 1)")
+
+    labels = _dataset_labels(dataset)
+    rng = np.random.default_rng(seed)
+    monitor: List[int] = []
+    holdout: List[int] = []
+    for class_id in np.unique(labels):
+        class_indices = np.flatnonzero(labels == class_id)
+        rng.shuffle(class_indices)
+        holdout_size = max(1, int(round(len(class_indices) * holdout_fraction)))
+        if holdout_size >= len(class_indices):
+            holdout_size = len(class_indices) - 1
+        holdout.extend(class_indices[:holdout_size].tolist())
+        monitor.extend(class_indices[holdout_size:].tolist())
+    rng.shuffle(monitor)
+    rng.shuffle(holdout)
+    return monitor, holdout
+
+
+def dirichlet_partition(
+    dataset,
+    num_clients: int,
+    alpha: float,
+    seed: int = 42,
+    eligible_indices: List[int] = None,
+) -> List[List[int]]:
     """
     Phan chia dataset theo phan phoi Dirichlet (non-IID).
 
@@ -114,20 +184,34 @@ def dirichlet_partition(dataset, num_clients: int, alpha: float, seed: int = 42)
     Returns:
         List gom num_clients danh sach, moi danh sach chua cac sample index.
     """
-    np.random.seed(seed)
+    if num_clients <= 0:
+        raise ValueError("num_clients must be greater than zero")
+    if alpha <= 0:
+        raise ValueError("alpha must be greater than zero")
+    rng = np.random.default_rng(seed)
 
-    labels = np.array([dataset[i][1] for i in range(len(dataset))]).squeeze()
+    labels = _dataset_labels(dataset)
+    eligible = np.asarray(
+        list(range(len(dataset))) if eligible_indices is None else eligible_indices,
+        dtype=np.int64,
+    )
+    if len(eligible) == 0:
+        raise ValueError("eligible_indices must not be empty")
+    if len(np.unique(eligible)) != len(eligible):
+        raise ValueError("eligible_indices must be unique")
+    if eligible.min() < 0 or eligible.max() >= len(dataset):
+        raise ValueError("eligible_indices contains an out-of-range index")
     num_classes = len(np.unique(labels))
 
     # danh sach cac client
     client_indices = [[] for _ in range(num_clients)]
 
     for class_id in range(num_classes):
-        class_indices = np.where(labels == class_id)[0]
-        np.random.shuffle(class_indices)
+        class_indices = eligible[labels[eligible] == class_id]
+        rng.shuffle(class_indices)
 
         # ty le phan phoi theo dirichlet
-        proportions = np.random.dirichlet(alpha * np.ones(num_clients))
+        proportions = rng.dirichlet(alpha * np.ones(num_clients))
 
         # tinh so luong sample base on alpha
         proportions = (proportions * len(class_indices)).astype(int)
@@ -142,6 +226,44 @@ def dirichlet_partition(dataset, num_clients: int, alpha: float, seed: int = 42)
             end = start + count
             client_indices[cid].extend(class_indices[start:end].tolist())
             start = end
+
+    return client_indices
+
+
+def stratified_validation_partition(
+    dataset,
+    num_clients: int,
+    seed: int = 42,
+    eligible_indices: List[int] = None,
+) -> List[List[int]]:
+    """Split the validation set into disjoint, approximately IID client subsets.
+
+    The Dirichlet/non-IID strategy is intentionally reserved for the training
+    split. Validation samples are assigned deterministically and never mixed
+    with training indices.
+    """
+    if num_clients <= 0:
+        raise ValueError("num_clients must be greater than zero")
+
+    labels = _dataset_labels(dataset)
+    eligible = np.asarray(
+        list(range(len(dataset))) if eligible_indices is None else eligible_indices,
+        dtype=np.int64,
+    )
+    rng = np.random.default_rng(seed)
+    client_indices: List[List[int]] = [[] for _ in range(num_clients)]
+
+    for class_id in np.unique(labels):
+        class_indices = eligible[labels[eligible] == class_id]
+        rng.shuffle(class_indices)
+        for client_id, split_indices in enumerate(
+            np.array_split(class_indices, num_clients)
+        ):
+            client_indices[client_id].extend(split_indices.tolist())
+
+    # Avoid class-ordering effects while preserving reproducibility.
+    for indices in client_indices:
+        rng.shuffle(indices)
 
     return client_indices
 
@@ -174,6 +296,7 @@ def save_partition(client_indices: List[List[int]], dataset,
 
     result = {
         "dataset": "bloodmnist",
+        "split": "train",
         "alpha": alpha,
         "seed": seed,
         "num_clients": num_clients,
@@ -189,10 +312,22 @@ def save_partition(client_indices: List[List[int]], dataset,
     return filepath
 
 
-def load_partition(json_path: str) -> List[List[int]]:
-    """Load partition tu file JSON da luu."""
+def load_partition_metadata(json_path: str) -> Dict[str, Any]:
+    """Load and validate the metadata stored in a partition JSON file."""
     with open(json_path, "r", encoding="utf-8") as f:
         data = json.load(f)
+
+    if data.get("split", "train") != "train":
+        raise ValueError(
+            f"Partition {json_path} is for split={data.get('split')!r}; "
+            "federated partitions must contain training indices only."
+        )
+    return data
+
+
+def load_partition(json_path: str) -> List[List[int]]:
+    """Load training-set client indices from a saved partition."""
+    data = load_partition_metadata(json_path)
 
     num_clients = data["num_clients"]
     client_indices = []
@@ -223,7 +358,9 @@ def get_client_dataloader(dataset, client_indices: List[int],
     hw_cfg      = load_hardware_config(client_id=client_id, device_type=device_type)
     batch_size  = batch_size  if batch_size  is not None else hw_cfg["batch_size"]
     num_workers = num_workers if num_workers is not None else hw_cfg["num_workers"]
-    pin_memory  = hw_cfg.get("pin_memory", False)
+    # Pinned memory only helps when this client process can actually use CUDA.
+    import torch
+    pin_memory = bool(hw_cfg.get("pin_memory", False)) and torch.cuda.is_available()
 
     subset = Subset(dataset, client_indices)
     return DataLoader(

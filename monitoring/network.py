@@ -252,6 +252,14 @@ class ClientPingLogger:
         Returns:
             Dict containing ping measurements and status.
         """
+        if not self.enabled:
+            return {
+                "ping_ms": None,
+                "icmp_ms": None,
+                "tcp_ms": None,
+                "status": "disabled",
+            }
+
         ping_res = measure_ping(
             host=self.host,
             port=self.port,

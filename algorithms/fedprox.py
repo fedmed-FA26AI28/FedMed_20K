@@ -94,6 +94,8 @@ class FedProxStrategy(FlwrFedProx):
         parameters_aggregated, metrics_aggregated = super().aggregate_fit(
             server_round, results, failures
         )
+        if parameters_aggregated is not None:
+            self.latest_parameters = parameters_aggregated
 
         round_time = time.time() - self._round_start
         self._round_times.append(round_time)
