@@ -2,26 +2,33 @@
 # FedMedAI: Multi-Strategy & Multi-Partition Simulation Configuration
 # ==============================================================================
 # This configuration file specifies settings for running automated FL simulations
-# across multiple aggregation strategies and Dirichlet data partition levels (alphas).
+# across multiple aggregation strategies and non-IID data partition modes.
 #
 # Execution Command:
 #     python -m experiments.run_simulation
 #     python -m experiments.run_simulation --config configs/simulation.yaml
-#     python -m experiments.run_simulation --rounds 10 --strategies fedavg fedprox
 # ==============================================================================
 
 # --- Simulation Topology & Matrix Grid ---
 # Number of simulated clients participating in federated training
-num_clients: 10
+num_clients: 12
 
-# Non-IID Dirichlet concentration alpha values to benchmark:
-#   1.0: Near-IID (balanced distribution across clients)
-#   0.3: Moderately non-IID (label skew typical in real-world hospitals)
-#   0.1: Highly non-IID (extreme label skew / severe heterogeneity)
-alphas:
-  - 1.0
-  - 0.3
-  - 0.1
+# Datasets to benchmark:
+# Options: 'bloodmnist', 'pathmnist', 'organamnist'
+datasets:
+  - bloodmnist
+  - pathmnist
+  - organamnist
+
+# Non-IID data partition modes to benchmark:
+# Options:
+#   - 'dirichlet_X.X': e.g., dirichlet_1.0, dirichlet_0.3, dirichlet_0.1
+#   - 'pathological': Each client randomly gets 2 classes (FedSLD)
+#   - 'practical': 12 shards (10x1%, 1x10%, 1x80%) distributed across 12 clients (FedSLD)
+partitions:
+  - dirichlet_0.3
+  - pathological
+  - practical
 
 # FL aggregation strategies to benchmark across all partition levels
 # Available: 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold'
@@ -61,8 +68,8 @@ lr_decay_gamma: 0.5           # Multiplicative decay factor
 proximal_mu: 0.01
 
 # --- Server Evaluation & Early Stopping ---
-server_eval: true             # Centralized evaluation on global test set (3,421 BloodMNIST images)
-early_stop_patience: 6        # Rounds without metric improvement before stopping (0 = disabled)
+server_eval: true             # Centralized evaluation on global test set
+early_stop_patience: 0        # Rounds without metric improvement before stopping (0 = disabled)
 early_stop_metric: accuracy   # Target metric to monitor: 'accuracy' or 'loss'
 
 # --- Hardware & System Execution ---
@@ -70,11 +77,12 @@ device: auto                  # 'auto', 'cuda', or 'cpu'
 device_type: pc               # Hardware profile for client monitoring ('pc', 'jetson_orin', 'jetson_nano')
 pin_memory: true              # Pinned memory for CUDA transfer acceleration
 num_workers: 0                # DataLoader workers (0 is safest for multi-process simulation on Windows)
+client_cpu_threads: 1         # Limit PyTorch CPU threads per subprocess (reduces memory/OOM on Windows)
 
 # --- Network & Execution Control ---
 server_host: "127.0.0.1"      # Host address for FL server socket
-timeout_per_run: 1800         # Maximum timeout in seconds per (strategy, alpha) run (30 minutes)
-auto_partition: true          # Automatically generate missing partition JSON files using Dirichlet distribution
+timeout_per_run: 0            # Maximum timeout in seconds per run (0 or <=0 to disable timeout)
+auto_partition: true          # Automatically generate missing partition JSON files
 save_client_metrics: true     # Record per-client ping and epoch metrics CSVs
 
 # --- Output & Logging ---

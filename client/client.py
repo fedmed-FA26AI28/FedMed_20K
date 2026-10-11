@@ -29,7 +29,7 @@ import flwr as fl
 from flwr.common import NDArrays, Scalar
 
 from models.cnn import CNN, get_parameters, set_parameters, set_parameters_fedbn
-from datasets.medmnist_code import get_bloodmnist_datasets
+from datasets.medmnist_code import get_medmnist_datasets
 from datasets.partition import load_partition, get_client_dataloader
 
 
@@ -632,7 +632,10 @@ def main():
         help="Path to partition JSON. If None, auto-detect from data/partitions/",
     )
     parser.add_argument(
-        "--alpha", type=float, default=0.3, help="Dirichlet alpha (default: 0.3)"
+        "--dataset", type=str, default=yaml_cfg.get("dataset", "bloodmnist"), help=f"Dataset name (default: {yaml_cfg.get('dataset', 'bloodmnist')})"
+    )
+    parser.add_argument(
+        "--partition_mode", type=str, default=yaml_cfg.get("partition_mode", "dirichlet_0.3"), help=f"Partition mode (default: {yaml_cfg.get('partition_mode', 'dirichlet_0.3')})"
     )
     parser.add_argument(
         "--num_clients", type=int, default=default_num_clients, help=f"Total number of clients (default: {default_num_clients})"
@@ -722,7 +725,7 @@ def main():
         partition_path = args.partition_path
     else:
         partition_path = (
-            f"data/partitions/partition_seed42_alpha{args.alpha}_clients{args.num_clients}.json"
+            f"data/partitions/partition_{args.dataset}_{args.partition_mode}_seed42_clients{args.num_clients}.json"
         )
 
     if not Path(partition_path).exists():
@@ -733,8 +736,8 @@ def main():
     print(f"[Client {args.client_id}] Loading partition from {partition_path}")
 
     # Load dataset and partition
-    train_dataset, _, test_dataset, num_classes = get_bloodmnist_datasets(
-        download=True
+    train_dataset, _, test_dataset, num_classes = get_medmnist_datasets(
+        args.dataset, download=True
     )
     client_indices = load_partition(partition_path)
 

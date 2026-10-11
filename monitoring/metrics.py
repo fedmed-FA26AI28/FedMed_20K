@@ -44,6 +44,26 @@ except ImportError:
 
 from monitoring.resource import get_device_type
 
+try:
+    from flwr.common import parameters_to_ndarrays, Parameters
+except ImportError:
+    parameters_to_ndarrays = None
+    Parameters = None
+
+
+def _to_ndarrays(params: Any) -> Optional[List[np.ndarray]]:
+    """Safely convert Flower Parameters or array sequences into List[np.ndarray]."""
+    if params is None:
+        return None
+    if isinstance(params, (list, tuple)):
+        return [np.asarray(p) for p in params]
+    if parameters_to_ndarrays is not None:
+        try:
+            return parameters_to_ndarrays(params)
+        except Exception:
+            pass
+    return None
+
 
 def parse_json_or_list(val: Any) -> List[float]:
     """Safely parse JSON-encoded string, comma-separated string, or list into List[float]."""
@@ -92,6 +112,10 @@ class FLMetricsRecorder:
         self.best_eval_accuracy: float = 0.0
         self.best_eval_round: int = 0
         self.best_eval_loss: float = float("inf")
+
+        self.parameter_round_records: List[Dict[str, Any]] = []
+        self.parameter_client_records: List[Dict[str, Any]] = []
+        self.parameter_layer_records: List[Dict[str, Any]] = []
 
     # ───────────────────────────────────────────────────────────
     # Recording Hooks
@@ -314,6 +338,108 @@ class FLMetricsRecorder:
                 r["eval_accuracy"] = round(acc_val, 6) if acc_val is not None else None
                 break
 
+    def record_parameter_dynamics(
+        self,
+        server_round: int,
+        previous_parameters: Any,
+        aggregated_parameters: Any,
+        results: List[Tuple[Any, Any]],
+    ):
+        """Compute and record global model parameter updates, layer norms, and client drift/divergence."""
+        agg_ndarrays = _to_ndarrays(aggregated_parameters)
+        if agg_ndarrays is None or len(agg_ndarrays) == 0:
+            return
+
+        prev_ndarrays = _to_ndarrays(previous_parameters)
+        has_prev = prev_ndarrays is not None and len(prev_ndarrays) == len(agg_ndarrays)
+
+        # 1. Global weight vector L2 norm
+        global_l2 = float(np.sqrt(sum(np.sum(np.square(w.astype(np.float64))) for w in agg_ndarrays)))
+
+        # 2. Global parameter update delta (step magnitude)
+        if has_prev:
+            delta_l2 = float(np.sqrt(sum(np.sum(np.square((w_agg - w_prev).astype(np.float64))) for w_agg, w_prev in zip(agg_ndarrays, prev_ndarrays))))
+            prev_l2 = float(np.sqrt(sum(np.sum(np.square(w.astype(np.float64))) for w in prev_ndarrays)))
+            delta_rel = float(delta_l2 / max(prev_l2, 1e-8))
+        else:
+            delta_l2 = 0.0
+            delta_rel = 0.0
+
+        # 3. Layer-wise norms and deltas
+        for idx, w_agg in enumerate(agg_ndarrays):
+            l_norm = float(np.linalg.norm(w_agg.astype(np.float64)))
+            l_delta = float(np.linalg.norm((w_agg - prev_ndarrays[idx]).astype(np.float64))) if has_prev else 0.0
+            self.parameter_layer_records.append({
+                "round": server_round,
+                "layer_idx": idx,
+                "layer_l2_norm": round(l_norm, 6),
+                "layer_delta_l2": round(l_delta, 6),
+            })
+
+        # 4. Client-wise drift from previous global model & divergence from consensus
+        client_drifts = []
+        client_divergences = []
+        for client_proxy, fit_res in results:
+            m = getattr(fit_res, "metrics", {}) or {}
+            raw_cid = m.get("client_id")
+            if raw_cid is None:
+                try:
+                    raw_cid = int(client_proxy.cid)
+                except Exception:
+                    raw_cid = len(client_drifts)
+            cid = int(raw_cid)
+            device_type = str(m.get("device_type") or get_device_type(cid))
+
+            c_ndarrays = _to_ndarrays(getattr(fit_res, "parameters", None))
+            if c_ndarrays is None or len(c_ndarrays) != len(agg_ndarrays):
+                continue
+
+            c_norm = float(np.sqrt(sum(np.sum(np.square(w.astype(np.float64))) for w in c_ndarrays)))
+
+            # Drift from previous global model
+            if has_prev:
+                drift_l2 = float(np.sqrt(sum(np.sum(np.square((w_c - w_prev).astype(np.float64))) for w_c, w_prev in zip(c_ndarrays, prev_ndarrays))))
+                rel_drift = float(drift_l2 / max(prev_l2, 1e-8))
+            else:
+                drift_l2 = 0.0
+                rel_drift = 0.0
+
+            # Divergence from newly aggregated consensus
+            divergence_l2 = float(np.sqrt(sum(np.sum(np.square((w_c - w_agg).astype(np.float64))) for w_c, w_agg in zip(c_ndarrays, agg_ndarrays))))
+
+            client_drifts.append(drift_l2)
+            client_divergences.append(divergence_l2)
+
+            self.parameter_client_records.append({
+                "round": server_round,
+                "client_id": cid,
+                "device_type": device_type,
+                "client_weight_norm": round(c_norm, 6),
+                "drift_from_global_l2": round(drift_l2, 6),
+                "divergence_from_consensus_l2": round(divergence_l2, 6),
+                "relative_drift": round(rel_drift, 6),
+            })
+
+        avg_drift = float(np.mean(client_drifts)) if client_drifts else 0.0
+        max_drift = float(np.max(client_drifts)) if client_drifts else 0.0
+        min_drift = float(np.min(client_drifts)) if client_drifts else 0.0
+        avg_div = float(np.mean(client_divergences)) if client_divergences else 0.0
+        max_div = float(np.max(client_divergences)) if client_divergences else 0.0
+
+        round_entry = {
+            "round": server_round,
+            "global_l2_norm": round(global_l2, 6),
+            "global_delta_l2": round(delta_l2, 6),
+            "global_delta_relative": round(delta_rel, 6),
+            "avg_client_drift_l2": round(avg_drift, 6),
+            "max_client_drift_l2": round(max_drift, 6),
+            "min_client_drift_l2": round(min_drift, 6),
+            "avg_client_divergence_l2": round(avg_div, 6),
+            "max_client_divergence_l2": round(max_div, 6),
+            "num_clients": len(results),
+        }
+        self.parameter_round_records.append(round_entry)
+
     # ───────────────────────────────────────────────────────────
     # Summary Helper
     # ───────────────────────────────────────────────────────────
@@ -462,6 +588,52 @@ class FLMetricsRecorder:
             with open(round_csv_path, "w", encoding="utf-8") as f:
                 f.write(",".join(round_columns) + "\n")
         paths["round_metrics_csv"] = round_csv_path
+
+        # 4. parameters_changes.csv (Global round-level parameter changes)
+        param_csv_path = os.path.join(save_dir, "parameters_changes.csv")
+        param_columns = [
+            "round",
+            "global_l2_norm",
+            "global_delta_l2",
+            "global_delta_relative",
+            "avg_client_drift_l2",
+            "max_client_drift_l2",
+            "min_client_drift_l2",
+            "avg_client_divergence_l2",
+            "max_client_divergence_l2",
+            "num_clients",
+        ]
+        if self.parameter_round_records:
+            if pd is not None:
+                pd.DataFrame(self.parameter_round_records).to_csv(param_csv_path, index=False)
+            else:
+                import csv
+                with open(param_csv_path, "w", newline="", encoding="utf-8") as f:
+                    writer = csv.DictWriter(f, fieldnames=param_columns)
+                    writer.writeheader()
+                    writer.writerows(self.parameter_round_records)
+            paths["parameters_changes_csv"] = param_csv_path
+
+        # 5. client_parameters_drift.csv (Per-client drift records)
+        client_drift_csv_path = os.path.join(save_dir, "client_parameters_drift.csv")
+        if self.parameter_client_records:
+            if pd is not None:
+                pd.DataFrame(self.parameter_client_records).to_csv(client_drift_csv_path, index=False)
+            else:
+                import csv
+                c_drift_cols = ["round", "client_id", "device_type", "client_weight_norm", "drift_from_global_l2", "divergence_from_consensus_l2", "relative_drift"]
+                with open(client_drift_csv_path, "w", newline="", encoding="utf-8") as f:
+                    writer = csv.DictWriter(f, fieldnames=c_drift_cols)
+                    writer.writeheader()
+                    writer.writerows(self.parameter_client_records)
+            paths["client_parameters_drift_csv"] = client_drift_csv_path
+
+        # 6. layer_parameters_changes.csv (Layer-wise norms & deltas)
+        layer_csv_path = os.path.join(save_dir, "layer_parameters_changes.csv")
+        if self.parameter_layer_records:
+            if pd is not None:
+                pd.DataFrame(self.parameter_layer_records).to_csv(layer_csv_path, index=False)
+            paths["layer_parameters_changes_csv"] = layer_csv_path
 
         return paths
 
@@ -697,6 +869,32 @@ class FLMetricsRecorder:
                 "plots": [os.path.basename(p) for p in (plot_files or [])],
             },
         }
+
+        if self.parameter_round_records:
+            full_results["parameter_dynamics"] = {
+                "summary": {
+                    "initial_global_l2_norm": self.parameter_round_records[0]["global_l2_norm"],
+                    "final_global_l2_norm": self.parameter_round_records[-1]["global_l2_norm"],
+                    "total_parameter_update_distance": round(float(sum(r["global_delta_l2"] for r in self.parameter_round_records)), 6),
+                    "avg_client_drift_l2": round(float(np.mean([r["avg_client_drift_l2"] for r in self.parameter_round_records])), 6),
+                    "max_client_drift_l2": round(float(max(r["max_client_drift_l2"] for r in self.parameter_round_records)), 6),
+                    "avg_client_divergence_l2": round(float(np.mean([r["avg_client_divergence_l2"] for r in self.parameter_round_records])), 6),
+                },
+                "rounds": self.parameter_round_records,
+            }
+            param_json_path = os.path.join(save_dir, "parameters_records.json")
+            param_payload = {
+                "strategy": self.strategy_name,
+                "total_rounds": len(self.parameter_round_records),
+                "round_dynamics": self.parameter_round_records,
+                "client_drift": self.parameter_client_records,
+                "layer_dynamics": self.parameter_layer_records,
+            }
+            with open(param_json_path, "w", encoding="utf-8") as pf:
+                json.dump(param_payload, pf, indent=4, ensure_ascii=False)
+            full_results["artifacts"]["parameters_records_json"] = "parameters_records.json"
+            full_results["artifacts"]["parameters_changes_csv"] = "parameters_changes.csv"
+            full_results["artifacts"]["client_parameters_drift_csv"] = "client_parameters_drift.csv"
 
         json_path = os.path.join(save_dir, "fl_results.json")
         with open(json_path, "w", encoding="utf-8") as f:
@@ -1367,7 +1565,76 @@ class FLMetricsRecorder:
         except Exception as e:
             print(f"[MetricsRecorder] Error plotting summary card: {e}")
 
+        # Parameter Dynamics and Weight Changes Diagnostic Plot
+        if self.parameter_round_records:
+            try:
+                param_plot_p = self.plot_parameter_changes(save_dir)
+                if param_plot_p:
+                    generated_plots.append(param_plot_p)
+            except Exception as e:
+                print(f"[MetricsRecorder] Error plotting parameter dynamics: {e}")
+
         return generated_plots
+
+    def plot_parameter_changes(self, save_dir: str) -> Optional[str]:
+        """Generate a 4-panel publication-grade plot of parameter updates and client weight drift."""
+        if not self.parameter_round_records:
+            return None
+
+        fig, axes = plt.subplots(2, 2, figsize=(13, 9))
+        rounds = [r["round"] for r in self.parameter_round_records]
+
+        # 1. Global Model Update Step Size (L2 Delta)
+        ax = axes[0, 0]
+        deltas = [r["global_delta_l2"] for r in self.parameter_round_records]
+        ax.plot(rounds, deltas, marker="o", color="#2563eb", linewidth=2.0, label=r"$\|\Delta W_{global}\|_2$")
+        ax.set_title("Global Model Update Step Magnitude per Round", fontsize=11, fontweight="bold")
+        ax.set_xlabel("Federated Round", fontsize=10)
+        ax.set_ylabel(r"L2 Norm of Update $\|\Delta W\|_2$", fontsize=10)
+        ax.grid(True, linestyle="--", alpha=0.5)
+        ax.legend(frameon=True, fontsize=9)
+
+        # 2. Client Parameter Drift from Global Model
+        ax = axes[0, 1]
+        avg_drift = [r["avg_client_drift_l2"] for r in self.parameter_round_records]
+        max_drift = [r["max_client_drift_l2"] for r in self.parameter_round_records]
+        min_drift = [r["min_client_drift_l2"] for r in self.parameter_round_records]
+        ax.plot(rounds, avg_drift, marker="s", color="#16a34a", linewidth=2.0, label="Mean Client Drift")
+        ax.fill_between(rounds, min_drift, max_drift, color="#16a34a", alpha=0.2, label="Min-Max Client Range")
+        ax.set_title(r"Client Parameter Drift from Global ($\|W_{client} - W_{global}^{t-1}\|_2$)", fontsize=11, fontweight="bold")
+        ax.set_xlabel("Federated Round", fontsize=10)
+        ax.set_ylabel("Drift Distance (L2)", fontsize=10)
+        ax.grid(True, linestyle="--", alpha=0.5)
+        ax.legend(frameon=True, fontsize=9)
+
+        # 3. Global Model Parameter Vector L2 Norm
+        ax = axes[1, 0]
+        norms = [r["global_l2_norm"] for r in self.parameter_round_records]
+        ax.plot(rounds, norms, marker="^", color="#9333ea", linewidth=2.0, label=r"$\|W_{global}\|_2$")
+        ax.set_title("Global Model Total Weight L2 Norm", fontsize=11, fontweight="bold")
+        ax.set_xlabel("Federated Round", fontsize=10)
+        ax.set_ylabel(r"Parameter Vector Norm $\|W\|_2$", fontsize=10)
+        ax.grid(True, linestyle="--", alpha=0.5)
+        ax.legend(frameon=True, fontsize=9)
+
+        # 4. Client Divergence from Consensus Model
+        ax = axes[1, 1]
+        avg_div = [r["avg_client_divergence_l2"] for r in self.parameter_round_records]
+        max_div = [r["max_client_divergence_l2"] for r in self.parameter_round_records]
+        ax.plot(rounds, avg_div, marker="d", color="#ea580c", linewidth=2.0, label="Mean Divergence from Consensus")
+        ax.plot(rounds, max_div, linestyle="--", color="#dc2626", linewidth=1.5, label="Max Client Divergence")
+        ax.set_title(r"Client Divergence from Aggregated Model ($\|W_{client} - W_{agg}^{t}\|_2$)", fontsize=11, fontweight="bold")
+        ax.set_xlabel("Federated Round", fontsize=10)
+        ax.set_ylabel("Divergence Distance (L2)", fontsize=10)
+        ax.grid(True, linestyle="--", alpha=0.5)
+        ax.legend(frameon=True, fontsize=9)
+
+        fig.suptitle(f"Parameter Dynamics & Weight Changes Diagnostic ({self.strategy_name.upper()})", fontsize=13, fontweight="bold", y=0.995)
+        plt.tight_layout()
+        out_p = os.path.join(save_dir, "parameter_changes_plot.png")
+        plt.savefig(out_p, dpi=200, bbox_inches="tight")
+        plt.close(fig)
+        return out_p
 
     # ───────────────────────────────────────────────────────────
     # Master Save Method

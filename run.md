@@ -119,8 +119,8 @@ Flower giao tiếp qua **gRPC trên socket TCP**, hoàn toàn tương thích ch�
 Tạo file phân vùng Dirichlet Non-IID trên máy chủ (hoặc trên từng máy):
 
 * **Tạo phân vùng cho 3 máy PC (ví dụ: $\alpha = 0.3$, seed 42):**
-  * Windows: `python -m experiments.run_partition --num_clients 3 --alpha 0.3 --seed 42`
-  * Linux: `python3 -m experiments.run_partition --num_clients 3 --alpha 0.3 --seed 42`
+  * Windows: `python -m experiments.run_partition --num_clients 3 --dataset bloodmnist --partition_mode dirichlet_0.3 --seed 42`
+  * Linux: `python3 -m experiments.run_partition --num_clients 3 --dataset bloodmnist --partition_mode dirichlet_0.3 --seed 42`
 
 * **Sao chép file phân vùng:** Copy file vừa tạo trong `data/partitions/` sang các máy PC client (hoặc chạy lệnh trên với cùng `--seed 42` ở mỗi máy). Tập dữ liệu MedMNIST sẽ tự động tải về khi client chạy lần đầu.
 
@@ -183,21 +183,21 @@ Giả sử IP của PC Server là `192.168.1.50`:
 * **Trên PC Client 1 (Client ID = 0):**
   * Windows:
     ```powershell
-    python -m client.client --client_id 0 --server_address 192.168.1.50:8080 --num_clients 2 --alpha 0.3 --strategy fedavg --lr_mode client_loss
+    python -m client.client --client_id 0 --server_address 192.168.1.50:8080 --num_clients 2 --partition_mode dirichlet_0.3 --dataset bloodmnist --strategy fedavg --lr_mode client_loss
     ```
   * Linux:
     ```bash
-    python3 -m client.client --client_id 0 --server_address 192.168.1.50:8080 --num_clients 2 --alpha 0.3 --strategy fedavg --lr_mode client_loss
+    python3 -m client.client --client_id 0 --server_address 192.168.1.50:8080 --num_clients 2 --partition_mode dirichlet_0.3 --dataset bloodmnist --strategy fedavg --lr_mode client_loss
     ```
 
 * **Trên PC Client 2 (Client ID = 1):**
   * Windows:
     ```powershell
-    python -m client.client --client_id 1 --server_address 192.168.1.50:8080 --num_clients 2 --alpha 0.3 --strategy fedavg --lr_mode client_loss
+    python -m client.client --client_id 1 --server_address 192.168.1.50:8080 --num_clients 2 --partition_mode dirichlet_0.3 --dataset bloodmnist --strategy fedavg --lr_mode client_loss
     ```
   * Linux:
     ```bash
-    python3 -m client.client --client_id 1 --server_address 192.168.1.50:8080 --num_clients 2 --alpha 0.3 --strategy fedavg --lr_mode client_loss
+    python3 -m client.client --client_id 1 --server_address 192.168.1.50:8080 --num_clients 2 --partition_mode dirichlet_0.3 --dataset bloodmnist --strategy fedavg --lr_mode client_loss
     ```
 
 *(Nếu chạy 1 client ngay trên chính máy chủ, có thể dùng `--server_address 127.0.0.1:8080`).*
@@ -232,7 +232,8 @@ Giả sử IP của PC Server là `192.168.1.50`:
 | `--client_id` | `int` | *(Bắt buộc)* | ID đại diện của máy client (0, 1, 2, ...). **Mỗi PC phải có ID riêng biệt**. |
 | `--server_address` | `str` | `127.0.0.1:8080` | Địa chỉ `<IP_SERVER>:<PORT>` của PC Server trong mạng LAN. |
 | `--num_clients` | `int` | `3` (YAML) | Tổng số client tương ứng với file phân vùng dữ liệu. |
-| `--alpha` | `float` | `0.3` | Hệ số Dirichlet $\alpha$ để tìm đúng file phân vùng (`0.1`, `0.3`, `1.0`). |
+| `--partition_mode` | `str` | `dirichlet_0.3` | Chế độ phân vùng (`dirichlet_0.1`, `dirichlet_0.3`, `dirichlet_1.0`, `pathological`, `practical`). |
+| `--dataset` | `str` | `bloodmnist` | Tập dữ liệu (`bloodmnist`, `pathmnist`, `organamnist`). |
 | `--partition_path` | `str` | `None` | Đường dẫn trực tiếp đến file JSON phân vùng (nếu không dùng đường dẫn mặc định). |
 | `--strategy` | `str` | `fedavg` (YAML) | Tên chiến lược để client kích hoạt cơ chế tương ứng (`scaffold`, `fedbn`, `fedprox`, `fednova`, `fedavg`). |
 | `--local_epochs` | `int` | `5` (YAML) | Số epoch train cục bộ (sẽ bị Server ghi đè nếu Server chỉ định). |
@@ -251,7 +252,7 @@ Giả sử IP của PC Server là `192.168.1.50`:
 python -m server.server --strategy scaffold --lr_mode client_loss --rounds 30 --min_clients 3 --server_eval
 
 # Client PC (ID 0, kết nối tới 192.168.1.50, batch 32, strategy scaffold):
-python -m client.client --client_id 0 --server_address 192.168.1.50:8080 --num_clients 3 --alpha 0.3 --strategy scaffold --batch_size 32
+python -m client.client --client_id 0 --server_address 192.168.1.50:8080 --num_clients 3 --partition_mode dirichlet_0.3 --dataset bloodmnist --strategy scaffold --batch_size 32
 ```
 
 
@@ -262,16 +263,21 @@ python -m client.client --client_id 0 --server_address 192.168.1.50:8080 --num_c
 >    - `client_round_metrics.csv`: Chi tiết từng client qua từng round (round, client_id, device_type, num_samples, local_epochs, training_time_seconds, epoch_time_avg, min/max epoch time, train_loss, train_accuracy, weight_size_kb, cpu_percent, ram_percent, ram_used_mb, gpu_memory_mb).
 >    - `client_epoch_metrics.csv`: Bóc tách chi tiết đến từng epoch của từng client (round, client_id, device_type, epoch, epoch_time_seconds, cumulative_epoch_time_seconds, train_loss, train_accuracy, learning_rate).
 >    - `round_metrics.csv`: Tổng hợp cấp hệ thống cho từng round (round, round_time_seconds, total_elapsed_seconds, num_clients_reporting, train_loss_avg, train_accuracy_avg, eval_loss, eval_accuracy, client_train_time_avg, client_train_time_min, client_train_time_max, straggler_time_seconds, epoch_time_avg, total_weight_size_kb, server_overhead_seconds).
+>    - `parameters_changes.csv`: Theo dõi động thái tham số toàn cục qua từng round (round, global_l2_norm, step_update_norm ||ΔW_global||, step_update_relative_change, mean_client_drift ||W_k - W_global^{t-1}||, max_client_drift, mean_consensus_divergence ||W_k - W_agg^t||, max_consensus_divergence).
+>    - `client_parameters_drift.csv`: Chi tiết độ dịch chuyển tham số cục bộ của từng client so với mô hình toàn cục trước và sau tổng hợp.
+>    - `layer_parameters_changes.csv`: Phân rã độ biến thiên L2 norm và delta update theo từng layer/tensor riêng lẻ của mô hình.
 >
 > 2. **Các biểu đồ trực quan so sánh (.png):**
 >    - `client_training_time_comparison.png`: Đồ thị so sánh thời gian huấn luyện per-round giữa các client, biểu đồ cột thời gian trung bình kèm sai số, và biểu đồ độ trễ trễ hạn (straggler latency penalty = max_time - min_time).
 >    - `client_epoch_time_comparison.png`: Biểu đồ hộp (Boxplot) phân phối thời gian tính toán mỗi epoch của từng client và biểu đồ so sánh thời gian epoch trung bình giữa các lớp phần cứng (PC vs Orin vs Nano).
 >    - `fl_training_curves.png`: Đường cong hội tụ Loss & Accuracy qua các round (Weighted Client Train vs Global Centralized Test) và biểu đồ phân tán độ chính xác của từng client.
 >    - `round_time_breakdown.png`: Biểu đồ cột xếp chồng phân rã thời gian mỗi round thành 3 thành phần: Thời gian tính toán client nhanh nhất, thời gian chờ do straggler, và overhead truyền thông mạng / tổng hợp server.
+>    - `parameter_changes_plot.png`: Báo cáo chẩn đoán 4 bảng (4-panel) về động thái tham số: (1) Chuẩn L2 mô hình toàn cục qua các round, (2) Biên độ cập nhật bước ||ΔW_global|| và biến thiên tương đối %, (3) Độ lệch client drift trung bình & cực đại, (4) Phân rã biến thiên theo từng layer.
 >    - `fl_summary_card.png`: Thẻ tóm tắt trực quan (Dashboard Summary Card) tổng kết siêu tham số, hiệu năng mô hình, tài nguyên và độ chênh lệch tính toán phần cứng.
 >
 > 3. **Báo cáo định dạng JSON chi tiết (.json):**
->    - `fl_results.json`: Chứa toàn bộ metadata, executive summary, thống kê tổng hợp của từng client, phân tích độ trễ phần cứng dị thể (hardware heterogeneity analysis), lịch sử huấn luyện round-by-round đầy đủ và đường dẫn đến các artifacts.
+>    - `fl_results.json`: Chứa toàn bộ metadata, executive summary, thống kê tổng hợp của từng client, phân tích độ trễ phần cứng dị thể (hardware heterogeneity analysis), lịch sử huấn luyện round-by-round đầy đủ, thông số thống kê biến thiên trọng số `parameter_dynamics` và đường dẫn đến các artifacts.
+>    - `parameters_records.json`: Bản ghi chi tiết đầy đủ của toàn bộ chuỗi lịch sử tham số toàn cục và tham số client qua tất cả các round.
 >
 > 4. **Số liệu cục bộ lưu tại từng Client:**  
 >    Tự động ghi tại `results/clients/client_<id>/` gồm:
@@ -308,8 +314,8 @@ Kịch bản này triển khai hệ thống Federated Learning thực tế trên
 Từ máy tính chủ (đã có thư mục `data/partitions/`), phân phối phân vùng 10 clients:
 
 * **Tự động gửi qua script:**
-  * Windows: `python -m scripts.distribute_data --alpha 0.3 --num_clients 10`
-  * Linux: `python3 -m scripts.distribute_data --alpha 0.3 --num_clients 10`
+  * Windows: `python -m scripts.distribute_data --partition_mode dirichlet_0.3 --dataset bloodmnist --num_clients 10`
+  * Linux: `python3 -m scripts.distribute_data --partition_mode dirichlet_0.3 --dataset bloodmnist --num_clients 10`
 * **Hoặc gửi thủ công bằng `scp`:**
   ```bash
   # Gửi sang Orin 0:
@@ -388,37 +394,37 @@ Giả sử IP máy chủ là `192.168.1.15:8080`:
 * **Trên 5 máy Jetson Orin (Client 0 → 4):**
   ```bash
   # Orin 0:
-  python3 -m client.client --client_id 0 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3 --strategy fedavg --lr_mode client_loss
+  python3 -m client.client --client_id 0 --server_address 192.168.1.15:8080 --num_clients 10 --partition_mode dirichlet_0.3 --dataset bloodmnist --strategy fedavg --lr_mode client_loss
 
   # Orin 1:
-  python3 -m client.client --client_id 1 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3 --strategy fedavg --lr_mode client_loss
+  python3 -m client.client --client_id 1 --server_address 192.168.1.15:8080 --num_clients 10 --partition_mode dirichlet_0.3 --dataset bloodmnist --strategy fedavg --lr_mode client_loss
 
   # Orin 2:
-  python3 -m client.client --client_id 2 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3 --strategy fedavg --lr_mode client_loss
+  python3 -m client.client --client_id 2 --server_address 192.168.1.15:8080 --num_clients 10 --partition_mode dirichlet_0.3 --dataset bloodmnist --strategy fedavg --lr_mode client_loss
 
   # Orin 3:
-  python3 -m client.client --client_id 3 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3 --strategy fedavg --lr_mode client_loss
+  python3 -m client.client --client_id 3 --server_address 192.168.1.15:8080 --num_clients 10 --partition_mode dirichlet_0.3 --dataset bloodmnist --strategy fedavg --lr_mode client_loss
 
   # Orin 4:
-  python3 -m client.client --client_id 4 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3 --strategy fedavg --lr_mode client_loss
+  python3 -m client.client --client_id 4 --server_address 192.168.1.15:8080 --num_clients 10 --partition_mode dirichlet_0.3 --dataset bloodmnist --strategy fedavg --lr_mode client_loss
   ```
 
 * **Trên 5 máy Jetson Nano (Client 5 → 9):**
   ```bash
   # Nano 5:
-  python3 -m client.client --client_id 5 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3 --strategy fedavg --lr_mode client_loss
+  python3 -m client.client --client_id 5 --server_address 192.168.1.15:8080 --num_clients 10 --partition_mode dirichlet_0.3 --dataset bloodmnist --strategy fedavg --lr_mode client_loss
 
   # Nano 6:
-  python3 -m client.client --client_id 6 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3 --strategy fedavg --lr_mode client_loss
+  python3 -m client.client --client_id 6 --server_address 192.168.1.15:8080 --num_clients 10 --partition_mode dirichlet_0.3 --dataset bloodmnist --strategy fedavg --lr_mode client_loss
 
   # Nano 7:
-  python3 -m client.client --client_id 7 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3 --strategy fedavg --lr_mode client_loss
+  python3 -m client.client --client_id 7 --server_address 192.168.1.15:8080 --num_clients 10 --partition_mode dirichlet_0.3 --dataset bloodmnist --strategy fedavg --lr_mode client_loss
 
   # Nano 8:
-  python3 -m client.client --client_id 8 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3 --strategy fedavg --lr_mode client_loss
+  python3 -m client.client --client_id 8 --server_address 192.168.1.15:8080 --num_clients 10 --partition_mode dirichlet_0.3 --dataset bloodmnist --strategy fedavg --lr_mode client_loss
 
   # Nano 9:
-  python3 -m client.client --client_id 9 --server_address 192.168.1.15:8080 --num_clients 10 --alpha 0.3 --strategy fedavg --lr_mode client_loss
+  python3 -m client.client --client_id 9 --server_address 192.168.1.15:8080 --num_clients 10 --partition_mode dirichlet_0.3 --dataset bloodmnist --strategy fedavg --lr_mode client_loss
   ```
 
 ### 3.6. Tự động hóa qua SSH Script (Chạy & Dừng toàn bộ cụm 10 Jetson từ xa)
@@ -438,7 +444,7 @@ Giả sử IP máy chủ là `192.168.1.15:8080`:
   for i in {0..4}; do
     IP=${ORIN_IPS[$i]}
     echo "Khởi động Client $i trên Orin ($IP)..."
-    ssh -n jetson@$IP "cd ~/FedMedAI && nohup python3 -m client.client --client_id $i --server_address $SERVER_IP --num_clients 10 --alpha 0.3 --strategy $STRATEGY --lr_mode $LR_MODE > ~/FedMedAI/client_$i.log 2>&1 &"
+    ssh -n jetson@$IP "cd ~/FedMedAI && nohup python3 -m client.client --client_id $i --server_address $SERVER_IP --num_clients 10 --partition_mode dirichlet_0.3 --dataset bloodmnist --strategy $STRATEGY --lr_mode $LR_MODE > ~/FedMedAI/client_$i.log 2>&1 &"
   done
 
   echo "=== Kích hoạt 5 Jetson Nano ==="
@@ -446,7 +452,7 @@ Giả sử IP máy chủ là `192.168.1.15:8080`:
     CID=$((i + 5))
     IP=${NANO_IPS[$i]}
     echo "Khởi động Client $CID trên Nano ($IP)..."
-    ssh -n nano@$IP "cd ~/FedMedAI && nohup python3 -m client.client --client_id $CID --server_address $SERVER_IP --num_clients 10 --alpha 0.3 --strategy $STRATEGY --lr_mode $LR_MODE > ~/FedMedAI/client_$CID.log 2>&1 &"
+    ssh -n nano@$IP "cd ~/FedMedAI && nohup python3 -m client.client --client_id $CID --server_address $SERVER_IP --num_clients 10 --partition_mode dirichlet_0.3 --dataset bloodmnist --strategy $STRATEGY --lr_mode $LR_MODE > ~/FedMedAI/client_$CID.log 2>&1 &"
   done
   echo "Tất cả 10 Jetson clients đã được kích hoạt!"
   ```
@@ -478,7 +484,8 @@ Hệ thống tự động tra cứu ID trong [`configs/jetson.yaml`](file:///D:/
 | `--client_id` | `int` | *(Bắt buộc)* | ID thiết bị: `0..4` cho Orin, `5..9` cho Nano. |
 | `--server_address` | `str` | `127.0.0.1:8080` | Địa chỉ IP:Port của FL Server trong mạng LAN (ví dụ `192.168.1.15:8080`). |
 | `--num_clients` | `int` | `10` (YAML) | Tổng số client trong cụm (mặc định cho cụm Jetson là 10). |
-| `--alpha` | `float` | `0.3` | Tham số Dirichlet $\alpha$ của phân vùng (`0.1`, `0.3`, `1.0`). |
+| `--partition_mode` | `str` | `dirichlet_0.3` | Tham số phân vùng (`dirichlet_0.3`, `pathological`, `practical`). |
+| `--dataset` | `str` | `bloodmnist` | Tập dữ liệu. |
 | `--partition_path` | `str` | `None` | Chỉ định file phân vùng cụ thể nếu lưu ở vị trí khác. |
 | `--strategy` | `str` | `fedavg` (YAML) | Thuật toán client tham gia: `fedavg`, `fedprox`, `fednova`, `fedbn`, `scaffold`. |
 | `--batch_size` | `int` | Tự động | Ghi đè kích thước batch nếu không muốn dùng giá trị tự động từ config. |
@@ -516,6 +523,7 @@ Kịch bản này cung cấp công cụ tự động hóa **100% cục bộ trê
 > 3. **Tự động kiểm tra & sinh phân hoạch Dirichlet:** Nếu thiếu file phân hoạch `partition_seed42_alpha{alpha}_clients{num_clients}.json`, hệ thống tự động phân chia tập BloodMNIST và vẽ biểu đồ phân bố lưu vào `data/partitions/`.
 > 4. **Giám sát đa tiến trình chủ động (Watchdog Monitor):** Theo dõi liên tục cả Server và toàn bộ Client; nếu có lỗi ở bất kỳ client nào, hệ thống lập tức trích xuất log lỗi và thu hồi tiến trình, tránh bị treo vô tận.
 > 5. **Tự động tổng hợp kết quả & biểu đồ so sánh xuất bản:** Xuất 5 biểu đồ so sánh chất lượng cao (300 DPI), 2 file CSV tổng hợp, file JSON benchmark và báo cáo tóm tắt Markdown.
+> 6. **Quản trị tài nguyên an toàn trên Windows:** Khả năng giới hạn luồng CPU của PyTorch (`client_cpu_threads`) nhằm tránh lỗi kiệt quệ tài nguyên (Insufficient System Resources) khi chạy song song số lượng lớn tiến trình mô phỏng.
 
 ---
 
@@ -540,17 +548,17 @@ Bạn có thể dễ dàng chạy thử nhanh một tập con các chiến lư�
 
 * **Ví dụ 1: Chạy kiểm thử nhanh (Fast Verification) với 1 round, 2 clients, FedAvg:**
   ```powershell
-  python -m experiments.run_simulation --rounds 1 --local_epochs 1 --num_clients 2 --batch_size 128 --strategies fedavg --alphas 1.0
+  python -m experiments.run_simulation --rounds 1 --local_epochs 1 --num_clients 2 --batch_size 128 --strategies fedavg --partitions dirichlet_1.0
   ```
 
 * **Ví dụ 2: So sánh FedAvg vs FedProx trên dữ liệu dị thể trung bình và cao ($\alpha = 0.3, 0.1$):**
   ```powershell
-  python -m experiments.run_simulation --rounds 20 --num_clients 5 --strategies fedavg fedprox --alphas 0.3 0.1
+  python -m experiments.run_simulation --rounds 20 --num_clients 5 --strategies fedavg fedprox --partitions dirichlet_0.3 dirichlet_0.1
   ```
 
 * **Ví dụ 3: Đổi chế độ quản lý Learning Rate sang `server_decay`:**
   ```powershell
-  python -m experiments.run_simulation --rounds 15 --lr_mode server_decay --strategies fedavg fednova scaffold --alphas 0.3
+  python -m experiments.run_simulation --rounds 15 --lr_mode server_decay --strategies fedavg fednova scaffold --partitions dirichlet_0.3
   ```
 
 ---
@@ -570,10 +578,18 @@ results/simulation/<timestamp>/
 ├── compare_accuracy_barchart.png     # Biểu đồ cột so sánh Best Test Accuracy của các thuật toán
 ├── compare_runtime_barchart.png      # Biểu đồ cột so sánh tổng thời gian huấn luyện và thời gian/round
 ├── compare_accuracy_heatmap.png      # Ma trận Heatmap 2D (Strategy x Alpha) làm nổi bật thuật toán tối ưu
-└── alpha_<alpha>/                    # Thư mục chi tiết từng lần chạy
-    └── <strategy>/                   # Artifacts chi tiết: fl_results.json, round_metrics.csv,
-        ├── clients/                  # Log và metrics của từng client cục bộ
-        └── best_model.pth            # Trọng số tốt nhất đạt được của chiến lược đó
+└── <dataset>/                    # Thư mục dữ liệu (hoặc alpha_<alpha>/)
+    └── <partition>/
+        └── <strategy>/           # Artifacts chi tiết:
+            ├── parameters_changes.csv      # Bảng biến thiên tham số toàn cục & client drift
+            ├── client_parameters_drift.csv # Bảng drift chi tiết từng client
+            ├── layer_parameters_changes.csv# Bảng biến thiên chi tiết theo layer
+            ├── parameters_records.json     # Bản ghi dữ liệu tham số máy đọc
+            ├── parameter_changes_plot.png  # Đồ thị 4-panel chẩn đoán động thái trọng số
+            ├── fl_results.json             # Báo cáo tổng hợp số liệu
+            ├── round_metrics.csv           # Chỉ số per-round
+            ├── clients/                    # Log và metrics của từng client cục bộ
+            └── best_model.pth              # Trọng số tốt nhất đạt được của chiến lược đó
 ```
 
 ---
@@ -584,12 +600,14 @@ results/simulation/<timestamp>/
 | :--- | :--- | :---: | :---: | :--- |
 | `--config` | *(đường dẫn)* | `str` | `configs/simulation.yaml` | Đường dẫn file YAML cấu hình mô phỏng. |
 | `--num_clients` | `num_clients` | `int` | `3` | Số lượng client ảo mô phỏng cùng chạy cục bộ trên PC. |
-| `--alphas` | `alphas` | `list[float]` | `[1.0, 0.3, 0.1]` | Danh sách mức độ phân tán nhãn Dirichlet $\alpha$ cần kiểm nghiệm. |
+| `--partitions` | `partitions` | `list[str]` | `[dirichlet_0.3, pathological, practical]` | Danh sách mức độ phân tán nhãn cần kiểm nghiệm. |
+| `--datasets` | `datasets` | `list[str]` | `[bloodmnist]` | Danh sách tập dữ liệu cần mô phỏng. |
 | `--strategies` | `strategies` | `list[str]` | `[fedavg, fedprox, fednova, fedbn, scaffold]` | Danh sách các thuật toán tổng hợp cần chạy benchmark. |
 | `--rounds` | `rounds` | `int` | `10` | Số vòng giao tiếp FL (rounds) cho mỗi lượt chạy. |
 | `--local_epochs` | `local_epochs` | `int` | `3` | Số epoch huấn luyện cục bộ tại mỗi client trong 1 round. |
 | `--batch_size` | `batch_size` | `int` | `32` | Kích thước mini-batch của DataLoader trên client. |
 | `--num_workers` | `num_workers` | `int` | `0` | Số tiến trình con nạp dữ liệu cho DataLoader (mặc định an toàn trên Windows là `0` để tránh lỗi IPC/multiprocessing). |
+| `--client_cpu_threads` | `client_cpu_threads` | `int` | `1` | Giới hạn số luồng (threads) CPU của PyTorch cho mỗi tiến trình. Cực kỳ quan trọng trên Windows: nên đặt là `1` hoặc `2` để tránh lỗi tràn tài nguyên hệ thống (Insufficient System Resources / OOM) khi mô phỏng đồng thời hàng chục client (vd: 12 clients). |
 | `--lr` hoặc `--learning_rate` | `learning_rate` | `float` | `0.001` | Tốc độ học khởi tạo cho Optimizer. |
 | `--lr_mode` | `lr_mode` | `str` | `client_loss` | Chế độ quản lý LR: `client_loss` (tự giảm theo loss cục bộ), `server_decay` (giảm toàn cục theo chu kỳ round), hoặc `fixed` (cố định). |
 | *(YAML)* | `client_lr_patience` | `int` | `2` | Số epoch loss đi ngang trước khi client tự giảm LR (chế độ `client_loss`). |
@@ -598,5 +616,6 @@ results/simulation/<timestamp>/
 | *(YAML)* | `proximal_mu` | `float` | `0.01` | Trọng số ràng buộc proximal $\mu$ cho thuật toán FedProx. |
 | `--server_eval` | `server_eval` | `bool` | `True` | Đánh giá mô hình toàn cục sau mỗi round trên 3,421 ảnh test set BloodMNIST. |
 | `--output_dir` | `output_dir` | `str` | `results/simulation/<timestamp>` | Thư mục lưu trữ kết quả và các biểu đồ so sánh. |
-| `--timeout_per_run` | `timeout_per_run` | `int` | `1800` | Thời gian chờ tối đa (giây) cho 1 lượt chạy trước khi tự hủy để tránh treo. |
+| `--timeout_per_run` | `timeout_per_run` | `int` | `0` | Thời gian chờ tối đa (giây) cho 1 lượt chạy. Đặt `0` hoặc số âm để **tắt hoàn toàn timeout** (chạy vô hạn đến khi hoàn thành). |
+| `--no_timeout` | *(CLI flag)* | `flag` | `False` | Cờ dòng lệnh trực tiếp tắt bỏ timeout watchdog (tương đương `--timeout_per_run 0`). |
 
