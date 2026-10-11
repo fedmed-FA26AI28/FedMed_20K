@@ -206,6 +206,7 @@ class FedAvgStrategy(FlwrFedAvg):
             log(INFO, "[EarlyStop] Training halted: configure_fit returning 0 clients.")
             return []
         self._round_start = time.time()
+        self._current_global_params = parameters
         self.recorder.record_round_start(server_round)
         return super().configure_fit(server_round, parameters, client_manager)
 
@@ -220,6 +221,13 @@ class FedAvgStrategy(FlwrFedAvg):
             server_round, results, failures
         )
         if parameters_aggregated is not None:
+            if hasattr(self.recorder, "record_parameter_dynamics"):
+                self.recorder.record_parameter_dynamics(
+                    server_round=server_round,
+                    previous_parameters=getattr(self, "_current_global_params", None),
+                    aggregated_parameters=parameters_aggregated,
+                    results=results,
+                )
             self.latest_parameters = parameters_aggregated
 
         round_time = time.time() - self._round_start

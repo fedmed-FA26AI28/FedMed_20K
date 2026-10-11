@@ -208,12 +208,12 @@ class FedMedAIServer(fl.server.Server):
 # Server-side evaluate function (centralized evaluation)
 # ──────────────────────────────────────────────────────────────
 
-def _get_evaluate_fn(num_classes: int = 8, recorder: Optional[FLMetricsRecorder] = None):
+def _get_evaluate_fn(dataset_name: str = "bloodmnist", num_classes: int = 8, recorder: Optional[FLMetricsRecorder] = None):
     """Return a server-side evaluation function for centralized evaluation on test set."""
-    from datasets.medmnist_code import get_bloodmnist_datasets
+    from datasets.medmnist_code import get_medmnist_datasets
     from torch.utils.data import DataLoader
 
-    _, _, test_dataset, _ = get_bloodmnist_datasets(download=True)
+    _, _, test_dataset, _ = get_medmnist_datasets(dataset_name, download=True)
     test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False, num_workers=0)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -396,6 +396,12 @@ def main():
         parents=[pre_parser],
     )
     parser.add_argument(
+        "--dataset",
+        type=str,
+        default=yaml_cfg.get("dataset", "bloodmnist"),
+        help=f"Dataset name (default: {yaml_cfg.get('dataset', 'bloodmnist')})",
+    )
+    parser.add_argument(
         "--strategy",
         type=str,
         default=yaml_cfg.get("strategy", "fedavg"),
@@ -515,9 +521,13 @@ def main():
 
     server_ipv4 = get_device_ipv4()
 
+    from datasets.medmnist_code import get_medmnist_datasets
+    _, _, _, num_classes = get_medmnist_datasets(args.dataset, download=False)
+
     print(f"\n{'='*60}")
     print(f"  FedMedAI FL Server")
     print(f"  Config Source: {pre_args.config}")
+    print(f"  Dataset      : {args.dataset} (Classes: {num_classes})")
     print(f"  Strategy     : {args.strategy.upper()}")
     print(f"  Server IPv4  : {server_ipv4}")
     print(f"  Client Target: {server_ipv4}:{args.port}")
@@ -539,7 +549,7 @@ def main():
     print(f"  Listen       : {args.host}:{args.port}")
     print(f"{'='*60}\n")
 
-    initial_model = CNN(num_classes=8)
+    initial_model = CNN(num_classes=num_classes)
     initial_params = ndarrays_to_parameters(get_parameters(initial_model))
 
     recorder = FLMetricsRecorder(
@@ -571,7 +581,7 @@ def main():
     }
 
     if args.server_eval and args.strategy != "fedbn":
-        strategy_kwargs["evaluate_fn"] = _get_evaluate_fn(num_classes=8, recorder=recorder)
+        strategy_kwargs["evaluate_fn"] = _get_evaluate_fn(dataset_name=args.dataset, num_classes=num_classes, recorder=recorder)
     elif args.strategy == "fedbn":
         print("  [Server] FedBN Official Setting: Centralized server evaluation is disabled.\n"
               "           Model performance is evaluated via distributed client evaluation.")
@@ -665,14 +675,14 @@ def main():
     # Save model weights checkpoints (best weights and final round weights)
     best_params = strategy.get_best_parameters()
     if best_params is not None:
-        best_model = CNN(num_classes=8)
+        best_model = CNN(num_classes=num_classes)
         set_parameters(best_model, parameters_to_ndarrays(best_params))
         best_model_path = os.path.join(save_dir, "best_model.pth")
         torch.save(best_model.state_dict(), best_model_path)
         print(f"  Saved Best Model Checkpoint: {os.path.basename(best_model_path)}")
 
     if server.parameters is not None:
-        final_model = CNN(num_classes=8)
+        final_model = CNN(num_classes=num_classes)
         set_parameters(final_model, parameters_to_ndarrays(server.parameters))
         final_model_path = os.path.join(save_dir, "final_model.pth")
         torch.save(final_model.state_dict(), final_model_path)

@@ -1,25 +1,41 @@
-"""Script to validate and execute Dirichlet partition across num_clients x alpha combinations."""
+"""Script to validate and execute partitions across different datasets and partition modes."""
 
 import argparse
 import numpy as np
-from datasets.medmnist_code import get_bloodmnist_datasets
+from datasets.medmnist_code import get_medmnist_datasets
 from datasets.partition import (
-    dirichlet_partition, save_partition, visualize_partition
+    dirichlet_partition, pathological_partition, practical_partition,
+    save_partition, visualize_partition
 )
 
 # Benchmark grid defaults
-DEFAULT_NUM_CLIENTS = [3, 5, 10]
-DEFAULT_ALPHAS = [1.0, 0.3, 0.1]
+DEFAULT_DATASETS = ["bloodmnist", "pathmnist", "organamnist"]
+DEFAULT_PARTITIONS = ["dirichlet_0.3", "dirichlet_0.1", "pathological", "practical"]
+DEFAULT_NUM_CLIENTS = 12
 DEFAULT_SEED = 42
 
-
-def run_one(train_dataset, num_clients: int, alpha: float, seed: int):
-    """Run partition for one (num_clients, alpha) combination."""
-    print(f"\n{'='*55}")
-    print(f"  Partitioning | num_clients={num_clients} | alpha={alpha} | seed={seed}")
-    print(f"{'='*55}")
-    partition = dirichlet_partition(train_dataset, num_clients, alpha, seed)
+def run_one(dataset_name: str, partition_mode: str, num_clients: int, seed: int):
+    """Run partition for one dataset and partition mode."""
+    print(f"\n{'='*65}")
+    print(f"  Partitioning | dataset={dataset_name} | mode={partition_mode} | clients={num_clients} | seed={seed}")
+    print(f"{'='*65}")
     
+    # Load dataset
+    print(f"Loading {dataset_name} train dataset...")
+    train_dataset, _, _, _ = get_medmnist_datasets(dataset_name, download=True)
+    print(f"Train size: {len(train_dataset)} samples")
+    
+    # Run partition algorithm
+    if partition_mode.startswith("dirichlet"):
+        alpha = float(partition_mode.split("_")[1])
+        partition = dirichlet_partition(train_dataset, num_clients, alpha, seed)
+    elif partition_mode == "pathological":
+        partition = pathological_partition(train_dataset, num_clients, seed)
+    elif partition_mode == "practical":
+        partition = practical_partition(train_dataset, num_clients, seed)
+    else:
+        raise ValueError(f"Unknown partition mode: {partition_mode}")
+        
     # Print summary statistics
     sizes = [len(idx) for idx in partition]
     print(f"  Samples per client: min={min(sizes)}, max={max(sizes)}, mean={np.mean(sizes):.1f}")
@@ -33,38 +49,42 @@ def run_one(train_dataset, num_clients: int, alpha: float, seed: int):
     print("  Validation PASSED: no duplicates, total matches.")
     
     # Save partition mapping JSON
-    save_partition(partition, train_dataset, alpha, seed, num_clients,
+    save_partition(partition, train_dataset, dataset_name, partition_mode, seed, num_clients,
                    save_dir="data/partitions")
     
     # Save visualization plot
-    plot_path = f"data/partitions/plots/dist_alpha{alpha}_clients{num_clients}.png"
-    visualize_partition(partition, train_dataset, alpha, num_clients, save_path=plot_path)
+    plot_path = f"data/partitions/plots/dist_{dataset_name}_{partition_mode}_clients{num_clients}.png"
+    visualize_partition(partition, train_dataset, dataset_name, partition_mode, num_clients, save_path=plot_path)
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Run Dirichlet non-IID partition.")
-    parser.add_argument("--num_clients", type=int, default=None,
-                        help="Number of clients (default: run [3, 5, 10])")
-    parser.add_argument("--alpha", type=float, default=None,
-                        help="Dirichlet concentration alpha (default: run [1.0, 0.3, 0.1])")
+    parser = argparse.ArgumentParser(description="Run dataset partitioning.")
+    parser.add_argument("--dataset", type=str, default=None,
+                        help="Dataset name (e.g., bloodmnist, pathmnist)")
+    parser.add_argument("--partition_mode", type=str, default=None,
+                        help="Partition mode (e.g., dirichlet_0.3, pathological)")
+    parser.add_argument("--num_clients", type=int, default=DEFAULT_NUM_CLIENTS,
+                        help="Number of clients (default: 12)")
     parser.add_argument("--seed", type=int, default=DEFAULT_SEED,
                         help="Random seed (default: 42)")
     parser.add_argument("--all", action="store_true",
-                        help="Run all 9 combinations in the matrix")
+                        help="Run all defaults combinations in the matrix")
     args = parser.parse_args()
 
-    print("Loading BloodMNIST train dataset...")
-    train_dataset, _, _, _ = get_bloodmnist_datasets(download=True)
-    print(f"Train size: {len(train_dataset)} samples")
-
-    if args.all or (args.num_clients is None and args.alpha is None):
-        for nc in DEFAULT_NUM_CLIENTS:
-            for al in DEFAULT_ALPHAS:
-                run_one(train_dataset, nc, al, args.seed)
+    if args.all or (args.dataset is None and args.partition_mode is None):
+        for ds in DEFAULT_DATASETS:
+            for part in DEFAULT_PARTITIONS:
+                # practical mode strictly requires 12 clients, skip if testing num_clients != 12
+                # But our default is 12, so we are safe
+                try:
+                    run_one(ds, part, args.num_clients, args.seed)
+                except ValueError as e:
+                    print(f"Skipping {ds} - {part} for {args.num_clients} clients: {e}")
     else:
-        nc = args.num_clients if args.num_clients else 10
-        al = args.alpha if args.alpha else 0.3
-        run_one(train_dataset, nc, al, args.seed)
+        ds = args.dataset if args.dataset else "bloodmnist"
+        part = args.partition_mode if args.partition_mode else "dirichlet_0.3"
+        run_one(ds, part, args.num_clients, args.seed)
+        
     print("\nDone! Check data/partitions/ for JSON files and plots.")
 
 

@@ -1,4 +1,4 @@
-"""Trien khai cac thuat toan chia nho dataset (IID va non-IID qua phan phoi Dirichlet) cho cac client."""
+"""Trien khai cac thuat toan chia nho dataset (IID va non-IID qua phan phoi Dirichlet, Pathological, Practical) cho cac client."""
 import os
 import sys
 import json
@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 from pathlib import Path
 from torch.utils.data import DataLoader, Subset
 from typing import List, Dict
+from medmnist import INFO
 
 # Duong dan mac dinh den file config
 _CONFIG_DIR = Path(__file__).resolve().parent.parent / "configs"
@@ -18,20 +19,6 @@ _CONFIG_DIR = Path(__file__).resolve().parent.parent / "configs"
 # ─────────────────────────────────────────────────────────────
 
 def resolve_device_type(client_id: int) -> str:
-    """
-    Tu dong xac dinh device_type dua tren client_id.
-    Tra cuu trong client_registry cua configs/jetson.yaml.
-
-    Args:
-        client_id: ID cua client (0-9).
-
-    Returns:
-        device_type: 'jetson_orin' | 'jetson_nano' | 'pc'
-
-    Vi du:
-        resolve_device_type(0)  -> 'jetson_orin'  (client 0-4 la Orin)
-        resolve_device_type(7)  -> 'jetson_nano'  (client 5-9 la Nano)
-    """
     hw_path = _CONFIG_DIR / "jetson.yaml"
     with open(hw_path, "r", encoding="utf-8") as f:
         hw_cfg = yaml.safe_load(f)
@@ -46,26 +33,10 @@ def resolve_device_type(client_id: int) -> str:
 
 
 def load_hardware_config(client_id: int = None, device_type: str = None) -> Dict:
-    """
-    Doc cau hinh phan cung tu configs/jetson.yaml.
-
-    Uu tien theo thu tu:
-      1. device_type: Truyen truc tiep (vi du: 'pc', 'jetson_orin', 'jetson_nano', 'PC1')
-      2. client_id  : Tu dong tra cuu qua client_registry trong jetson.yaml
-      3. Ca 2 deu None: Doc device_type tu experiment.yaml (mac dinh: 'pc')
-
-    Args:
-        client_id  : ID cua client (0-9). Tu dong tra cuu Orin/Nano.
-        device_type: 'pc' | 'jetson_orin' | 'jetson_nano' hoac bat ky custom label nao (vd: 'PC1').
-
-    Returns:
-        Dict chua batch_size, num_workers, pin_memory, device_type.
-    """
     hw_path = _CONFIG_DIR / "jetson.yaml"
     with open(hw_path, "r", encoding="utf-8") as f:
         hw_cfg = yaml.safe_load(f)
 
-    # 1. Uu tien tuyet doi: device_type duoc truyen tu caller/CLI
     resolved_label = None
     if device_type:
         resolved_label = str(device_type).strip()
@@ -80,7 +51,6 @@ def load_hardware_config(client_id: int = None, device_type: str = None) -> Dict
         else:
             resolved_label = "pc"
 
-    # Map label to actual hardware settings
     label_lower = resolved_label.lower()
     if resolved_label in hw_cfg:
         matched_hw = dict(hw_cfg[resolved_label])
@@ -104,57 +74,123 @@ def load_hardware_config(client_id: int = None, device_type: str = None) -> Dict
 # ─────────────────────────────────────────────────────────────
 
 def dirichlet_partition(dataset, num_clients: int, alpha: float, seed: int = 42) -> List[List[int]]:
-    """
-    Phan chia dataset theo phan phoi Dirichlet (non-IID).
-
-    Args:
-        dataset    : Dataset goc (BloodMNIST train).
-        num_clients: So luong client (vi du: 3, 5, 10).
-        alpha      : Tham so Dirichlet. Nho -> rat non-IID. Lon -> gan IID.
-        seed       : Random seed de reproducibility.
-
-    Returns:
-        List gom num_clients danh sach, moi danh sach chua cac sample index.
-    """
     np.random.seed(seed)
-
     labels = np.array([dataset[i][1] for i in range(len(dataset))]).squeeze()
     num_classes = len(np.unique(labels))
-
-    # danh sach cac client
     client_indices = [[] for _ in range(num_clients)]
 
     for class_id in range(num_classes):
         class_indices = np.where(labels == class_id)[0]
         np.random.shuffle(class_indices)
-
-        # ty le phan phoi theo dirichlet
         proportions = np.random.dirichlet(alpha * np.ones(num_clients))
-
-        # tinh so luong sample base on alpha
         proportions = (proportions * len(class_indices)).astype(int)
-
-        # Dieu chinh de tong bang dung len(class_indices) (tranh mat mau do lam tron)
         diff = len(class_indices) - proportions.sum()
         proportions[-1] += diff
-
-        # phan chia indices
         start = 0
         for cid, count in enumerate(proportions):
             end = start + count
             client_indices[cid].extend(class_indices[start:end].tolist())
             start = end
+    return client_indices
 
+
+def pathological_partition(dataset, num_clients: int, seed: int = 42) -> List[List[int]]:
+    """Pathological Non-IID from FedSLD paper: Each client gets 2 random classes."""
+    np.random.seed(seed)
+    labels = np.array([dataset[i][1] for i in range(len(dataset))]).squeeze()
+    num_classes = len(np.unique(labels))
+    
+    # Assign 2 random classes to each client
+    # Ensure every class is assigned to at least one client to prevent dropped samples
+    max_attempts = 1000
+    for attempt in range(max_attempts):
+        client_classes = [np.random.choice(num_classes, 2, replace=False) for _ in range(num_clients)]
+        class_to_clients = {c: [] for c in range(num_classes)}
+        for cid, classes in enumerate(client_classes):
+            for c in classes:
+                class_to_clients[c].append(cid)
+        if all(len(clients) > 0 for clients in class_to_clients.values()):
+            break
+    else:
+        # Fallback: force assign each class to at least one client
+        client_classes = [[] for _ in range(num_clients)]
+        for c in range(num_classes):
+            client_classes[c % num_clients].append(c)
+        for cid in range(num_clients):
+            while len(client_classes[cid]) < 2:
+                c = np.random.choice(num_classes)
+                if c not in client_classes[cid]:
+                    client_classes[cid].append(c)
+        class_to_clients = {c: [] for c in range(num_classes)}
+        for cid, classes in enumerate(client_classes):
+            for c in classes:
+                class_to_clients[c].append(cid)
+            
+    client_indices = [[] for _ in range(num_clients)]
+    
+    for class_id in range(num_classes):
+        assigned_clients = class_to_clients[class_id]
+            
+        class_indices = np.where(labels == class_id)[0]
+        np.random.shuffle(class_indices)
+        
+        # Divide samples randomly among assigned clients
+        proportions = np.random.dirichlet(np.ones(len(assigned_clients)))
+        proportions = (proportions * len(class_indices)).astype(int)
+        diff = len(class_indices) - proportions.sum()
+        proportions[-1] += diff
+        
+        start = 0
+        for idx, count in enumerate(proportions):
+            end = start + count
+            cid = assigned_clients[idx]
+            client_indices[cid].extend(class_indices[start:end].tolist())
+            start = end
+            
+    return client_indices
+
+
+def practical_partition(dataset, num_clients: int, seed: int = 42) -> List[List[int]]:
+    """Practical Non-IID from FedSLD paper: 12 shards per class (10x1%, 1x10%, 1x80%)."""
+    np.random.seed(seed)
+    labels = np.array([dataset[i][1] for i in range(len(dataset))]).squeeze()
+    num_classes = len(np.unique(labels))
+    
+    if num_clients != 12:
+        raise ValueError("practical_partition requires exactly 12 clients according to the FedSLD paper.")
+        
+    client_indices = [[] for _ in range(num_clients)]
+    
+    for class_id in range(num_classes):
+        class_indices = np.where(labels == class_id)[0]
+        np.random.shuffle(class_indices)
+        N = len(class_indices)
+        
+        # Shard counts: ten 1%, one 10%, one 80%
+        shard_props = [0.01]*10 + [0.1, 0.8]
+        shard_counts = [int(p * N) for p in shard_props]
+        
+        # Fix rounding errors
+        diff = N - sum(shard_counts)
+        shard_counts[-1] += diff  # add remainder to the 80% shard
+        
+        # Shuffle shards and assign one to each client
+        shard_indices = list(range(12))
+        np.random.shuffle(shard_indices)
+        
+        start = 0
+        for cid, s_idx in enumerate(shard_indices):
+            count = shard_counts[s_idx]
+            end = start + count
+            client_indices[cid].extend(class_indices[start:end].tolist())
+            start = end
+            
     return client_indices
 
 
 def save_partition(client_indices: List[List[int]], dataset,
-                   alpha: float, seed: int, num_clients: int,
+                   dataset_name: str, partition_mode: str, seed: int, num_clients: int,
                    save_dir: str = "data/partitions") -> Path:
-    """
-    Luu ket qua partition ra file JSON de reproducibility.
-    Ten file: partition_seed{seed}_alpha{alpha}_clients{num_clients}.json
-    """
     save_path = Path(save_dir)
     save_path.mkdir(parents=True, exist_ok=True)
 
@@ -175,15 +211,15 @@ def save_partition(client_indices: List[List[int]], dataset,
         }
 
     result = {
-        "dataset": "bloodmnist",
-        "alpha": alpha,
+        "dataset": dataset_name,
+        "partition_mode": partition_mode,
         "seed": seed,
         "num_clients": num_clients,
         "total_samples": sum(len(idx) for idx in client_indices),
         "clients": clients_data
     }
 
-    filename = f"partition_seed{seed}_alpha{alpha}_clients{num_clients}.json"
+    filename = f"partition_{dataset_name}_{partition_mode}_seed{seed}_clients{num_clients}.json"
     filepath = save_path / filename
     with open(filepath, "w", encoding="utf-8") as f:
         json.dump(result, f, indent=4)
@@ -192,7 +228,6 @@ def save_partition(client_indices: List[List[int]], dataset,
 
 
 def load_partition(json_path: str) -> List[List[int]]:
-    """Load partition tu file JSON da luu."""
     with open(json_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
@@ -214,21 +249,9 @@ def get_client_dataloader(dataset, client_indices: List[int],
                           shuffle: bool = True,
                           num_workers: int = None,
                           pin_memory: bool = None) -> DataLoader:
-    """
-    Tao DataLoader cho 1 client dua tren danh sach indices.
-
-    Args:
-        client_id   : ID cua client (0-9). Tu dong tra cuu device_type -> batch_size, num_workers.
-                      Neu None -> fallback ve experiment.yaml (mac dinh: pc).
-        batch_size  : Override thu cong neu muon. Mac dinh doc tu config.
-        num_workers : Override thu cong neu muon. Mac dinh doc tu config (tren Windows mac dinh = 0).
-        pin_memory  : Override thu cong neu muon. Mac dinh doc tu config.
-    """
     hw_cfg      = load_hardware_config(client_id=client_id, device_type=device_type)
     batch_size  = batch_size  if batch_size  is not None else hw_cfg["batch_size"]
     
-    # On Windows, default to 0 workers to prevent multiprocessing spawn pickling crashes
-    # (OSError [Errno 22] Invalid argument / UnpicklingError) across concurrent clients
     if num_workers is None:
         num_workers = 0 if sys.platform == "win32" else hw_cfg.get("num_workers", 0)
         
@@ -249,16 +272,11 @@ def get_all_client_dataloaders(dataset, partition: List[List[int]],
                                batch_size: int = None,
                                num_workers: int = None,
                                pin_memory: bool = None) -> List[DataLoader]:
-    """
-    Tao DataLoader cho tat ca clients (thuong dung cho simulation).
-    Doc active_clients tu experiment.yaml de map dung client_id.
-    """
     exp_path = _CONFIG_DIR / "experiment.yaml"
     with open(exp_path, "r", encoding="utf-8") as f:
         exp_cfg = yaml.safe_load(f)
     
     active_clients = exp_cfg.get("active_clients")
-    # Neu khong set active_clients, mac dinh danh so 0, 1, 2...
     if not active_clients or len(active_clients) != len(partition):
         active_clients = list(range(len(partition)))
 
@@ -279,25 +297,25 @@ def get_all_client_dataloaders(dataset, partition: List[List[int]],
 # ─────────────────────────────────────────────────────────────
 
 def visualize_partition(partition: List[List[int]], dataset,
-                        alpha: float, num_clients: int,
+                        dataset_name: str, partition_mode: str, num_clients: int,
                         save_path: str = None):
-    """
-    Ve stacked bar chart the hien phan bo class cua tung client.
-    Truc X = Client ID, truc Y = so samples, mau = class.
-    """
     labels = np.array([dataset[i][1] for i in range(len(dataset))]).squeeze()
     num_classes = len(np.unique(labels))
-    class_names = ["Basophil", "Eosinophil", "Erythroblast", "IG",
-                   "Lymphocyte", "Monocyte", "Neutrophil", "Platelet"]
+    
+    # Lấy class names tu MedMNIST INFO
+    data_flag = dataset_name.lower()
+    if data_flag in INFO:
+        label_dict = INFO[data_flag]['label']
+        class_names = [label_dict[str(i)] for i in range(num_classes)]
+    else:
+        class_names = [f"Class {i}" for i in range(num_classes)]
 
-    # Ma tran: [num_clients x num_classes]
     dist_matrix = np.zeros((num_clients, num_classes), dtype=int)
     for client_id, indices in enumerate(partition):
         client_labels = labels[indices]
         for c in range(num_classes):
             dist_matrix[client_id, c] = int(np.sum(client_labels == c))
 
-    # Ve stacked bar
     fig, ax = plt.subplots(figsize=(max(8, num_clients * 1.2), 5))
     x = np.arange(num_clients)
     bottom = np.zeros(num_clients)
@@ -308,7 +326,7 @@ def visualize_partition(partition: List[List[int]], dataset,
                label=class_names[c], color=colors[c])
         bottom += dist_matrix[:, c]
 
-    ax.set_title(f"Data Distribution | alpha={alpha} | {num_clients} Clients")
+    ax.set_title(f"Data Distribution | {dataset_name} | {partition_mode} | {num_clients} Clients")
     ax.set_xlabel("Client ID")
     ax.set_ylabel("Number of Samples")
     ax.set_xticks(x)

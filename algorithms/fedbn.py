@@ -228,6 +228,13 @@ class FedBNStrategy(FlwrFedAvg):
             aggregated_ndarrays = aggregate(weights_results)
 
         parameters_aggregated = ndarrays_to_parameters(aggregated_ndarrays)
+        if parameters_aggregated is not None and hasattr(self.recorder, "record_parameter_dynamics"):
+            self.recorder.record_parameter_dynamics(
+                server_round=server_round,
+                previous_parameters=getattr(self, "_current_global_params", None),
+                aggregated_parameters=parameters_aggregated,
+                results=results,
+            )
         self.latest_parameters = parameters_aggregated
 
         metrics_aggregated: Dict[str, Scalar] = {}
