@@ -31,7 +31,15 @@ if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
 from datasets.medmnist_code import get_medmnist_datasets
-from datasets.partition import dirichlet_partition, pathological_partition, practical_partition, save_partition, visualize_partition
+from datasets.partition import (
+    dirichlet_partition,
+    pathological_partition,
+    practical_partition,
+    save_partition,
+    visualize_partition,
+    has_local_test,
+    get_partition_path,
+)
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -77,44 +85,82 @@ def ensure_partition_exists(
     num_clients: int,
     seed: int = 42,
     partition_dir: str = "data/partitions",
+    local_test: bool = False,
 ) -> Path:
     """Ensure partition JSON exists for (dataset_name, partition_mode, num_clients).
 
-    If missing, automatically generates the partition.
+    If missing or lacking local_test when local_test is requested, automatically generates the partition.
     """
     part_dir = Path(partition_dir)
     part_dir.mkdir(parents=True, exist_ok=True)
-    part_file = part_dir / f"partition_{dataset_name}_{partition_mode}_seed{seed}_clients{num_clients}.json"
+    part_file = get_partition_path(
+        dataset_name=dataset_name,
+        partition_mode=partition_mode,
+        seed=seed,
+        num_clients=num_clients,
+        local_test=local_test,
+        save_dir=part_dir,
+    )
 
     if part_file.exists():
-        return part_file
+        if not local_test or has_local_test(part_file):
+            return part_file
+        print(f"\n[Partition] Existing partition {part_file.name} lacks local test partition. Regenerating with local_test=True...")
+    else:
+        print(f"\n[Partition] Missing partition: {part_file.name}. Generating automatically (local_test={local_test})...")
 
-    print(f"\n[Partition] Missing partition: {part_file.name}. Generating automatically...")
-    train_dataset, _, _, _ = get_medmnist_datasets(dataset_name=dataset_name, download=True)
+    train_dataset, _, test_dataset, _ = get_medmnist_datasets(dataset_name=dataset_name, download=True)
+    target_test_dataset = test_dataset if local_test else None
     
     if partition_mode == "pathological":
-        partition = pathological_partition(train_dataset, num_clients, seed)
+        res = pathological_partition(train_dataset, num_clients, seed, test_dataset=target_test_dataset)
     elif partition_mode == "practical":
-        partition = practical_partition(train_dataset, num_clients, seed)
+        res = practical_partition(train_dataset, num_clients, seed, test_dataset=target_test_dataset)
     elif partition_mode.startswith("dirichlet_"):
         alpha = float(partition_mode.split("_")[1])
-        partition = dirichlet_partition(train_dataset, num_clients, alpha, seed)
+        res = dirichlet_partition(train_dataset, num_clients, alpha, seed, test_dataset=target_test_dataset)
     else:
         raise ValueError(f"Unknown partition mode: {partition_mode}")
 
+    if local_test:
+        partition, test_partition = res
+    else:
+        partition = res
+        test_partition = None
+
     # Validate integrity
     total_assigned = sum(len(indices) for indices in partition)
-    assert total_assigned == len(train_dataset), "Partition sample count mismatch!"
+    assert total_assigned == len(train_dataset), "Partition train sample count mismatch!"
     all_indices = [idx for sublist in partition for idx in sublist]
-    assert len(all_indices) == len(set(all_indices)), "Found duplicate sample indices across clients!"
+    assert len(all_indices) == len(set(all_indices)), "Found duplicate sample indices across clients in train!"
+
+    if local_test:
+        total_test_assigned = sum(len(indices) for indices in test_partition)
+        assert total_test_assigned == len(test_dataset), "Partition test sample count mismatch!"
+        all_test_indices = [idx for sublist in test_partition for idx in sublist]
+        assert len(all_test_indices) == len(set(all_test_indices)), "Found duplicate sample indices across clients in test!"
 
     # Save mapping and visualization
-    save_partition(partition, train_dataset, dataset_name, partition_mode, seed, num_clients, save_dir=str(part_dir))
-    plot_path = part_dir / "plots" / f"dist_{dataset_name}_{partition_mode}_clients{num_clients}.png"
-    visualize_partition(partition, train_dataset, dataset_name, partition_mode, num_clients, save_path=str(plot_path))
-    print(f"[Partition] Generated and verified: {part_file} (plot: {plot_path})")
+    saved_path = save_partition(
+        partition,
+        train_dataset,
+        dataset_name,
+        partition_mode,
+        seed,
+        num_clients,
+        test_dataset=test_dataset if local_test else None,
+        test_indices=test_partition if local_test else None,
+        save_dir=str(part_dir),
+    )
+    plot_tag = "_localtest" if local_test else ""
+    plot_path = part_dir / "plots" / f"dist_{dataset_name}_{partition_mode}{plot_tag}_clients{num_clients}.png"
+    try:
+        visualize_partition(partition, train_dataset, dataset_name, partition_mode, num_clients, save_path=str(plot_path.resolve()))
+    except Exception as e:
+        print(f"[Partition] Warning: Could not generate visualization plot: {e}")
+    print(f"[Partition] Generated and verified: {saved_path} (plot: {plot_path})")
 
-    return part_file
+    return saved_path
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -149,6 +195,15 @@ def run_single_experiment(
     num_workers: int = 0,
     client_cpu_threads: int = 0,
     python_exe: str = sys.executable,
+    local_test: bool = False,
+    model: str = "cnn",
+    seed: int = 42,
+    optimizer: str = "adam",
+    momentum: float = 0.0,
+    weight_decay: float = 0.0,
+    augment: bool = True,
+    random_crop: bool = True,
+    random_flip: bool = True,
 ) -> Dict[str, Any]:
     """Execute a single FL training run (1 Server + N Clients) as isolated subprocesses."""
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -160,7 +215,7 @@ def run_single_experiment(
     host = "127.0.0.1"
 
     print(f"\n{'-'*65}")
-    print(f"  Launching FL Server: {strategy.upper()} | Dataset: {dataset_name} | Partition: {partition_mode} | Port: {port}")
+    print(f"  Launching FL Server: {strategy.upper()} | Model: {model.upper()} | Optimizer: {optimizer.upper()} | Dataset: {dataset_name} | Partition: {partition_mode} | Port: {port} | LocalTest: {local_test} | Seed: {seed}")
     print(f"  Artifact Directory : {run_dir}")
     print(f"{'-'*65}")
 
@@ -170,6 +225,11 @@ def run_single_experiment(
         "--config", str(config_path),
         "--strategy", strategy,
         "--dataset", dataset_name,
+        "--model", model,
+        "--optimizer", optimizer,
+        "--momentum", str(momentum),
+        "--weight_decay", str(weight_decay),
+        "--seed", str(seed),
         "--rounds", str(rounds),
         "--min_clients", str(num_clients),
         "--local_epochs", str(local_epochs),
@@ -191,6 +251,10 @@ def run_single_experiment(
         server_cmd.append("--server_eval")
     else:
         server_cmd.append("--no-server_eval")
+    if local_test:
+        server_cmd.append("--local_test")
+    else:
+        server_cmd.append("--no-local_test")
 
     server_log_file = open(server_log_path, "w", encoding="utf-8")
     
@@ -247,7 +311,28 @@ def run_single_experiment(
                 "--device_type", device_type,
                 "--strategy", strategy,
                 "--client_dir", str(c_dir),
+                "--model", model,
+                "--optimizer", optimizer,
+                "--momentum", str(momentum),
+                "--weight_decay", str(weight_decay),
+                "--seed", str(seed),
             ]
+            if local_test:
+                client_cmd.append("--local_test")
+            else:
+                client_cmd.append("--no-local_test")
+            if augment:
+                client_cmd.append("--augment")
+            else:
+                client_cmd.append("--no-augment")
+            if random_crop:
+                client_cmd.append("--random_crop")
+            else:
+                client_cmd.append("--no-random_crop")
+            if random_flip:
+                client_cmd.append("--random_flip")
+            else:
+                client_cmd.append("--no-random_flip")
             if not save_client_metrics:
                 client_cmd.append("--no_save_metrics")
 
@@ -336,6 +421,10 @@ def run_single_experiment(
                 "strategy": strategy,
                 "partition_mode": partition_mode,
                 "dataset": dataset_name,
+                "model": model,
+                "optimizer": optimizer,
+                "momentum": momentum,
+                "seed": seed,
                 "num_clients": num_clients,
                 "rounds_requested": rounds,
                 "rounds_completed": metadata.get("num_rounds_completed", len(rounds_history)),
@@ -348,6 +437,14 @@ def run_single_experiment(
                 "best_round": int(summary.get("best_global_accuracy_round", 0)),
                 "final_test_loss": float(summary.get("final_global_loss", 0.0)),
                 "best_test_loss": float(summary.get("best_global_loss", 0.0)),
+                "bmcta": float(summary["bmcta"]) if summary.get("bmcta") is not None else None,
+                "bmcta_round": int(summary["bmcta_round"]) if summary.get("bmcta_round") is not None else None,
+                "bta": float(summary["bta"]) if summary.get("bta") is not None else None,
+                "bta_round": int(summary["bta_round"]) if summary.get("bta_round") is not None else None,
+                "local_test": local_test,
+                "augment": augment,
+                "random_crop": random_crop,
+                "random_flip": random_flip,
                 "total_time_seconds": float(summary.get("total_wall_clock_time_seconds", total_wall_time)),
                 "avg_round_time_seconds": float(summary.get("avg_round_time_seconds", 0.0)),
                 "early_stopped": bool(summary.get("early_stopped", False) or metadata.get("early_stopped", False)),
@@ -355,9 +452,16 @@ def run_single_experiment(
                 "run_dir": str(run_dir),
                 "rounds_history": rounds_history,
             }
-            print(f"  [Success] Finished {strategy.upper()} ({partition_mode}): "
-                  f"Best Acc: {run_metrics['best_test_accuracy']*100:.2f}% (R{run_metrics['best_round']}) | "
-                  f"Time: {run_metrics['total_time_seconds']:.1f}s")
+            if local_test and run_metrics.get("bmcta") is not None:
+                bmcta_str = f"BMCTA: {run_metrics['bmcta']*100:.2f}% (R{run_metrics.get('bmcta_round', 0)}) | "
+                bta_str = f"BTA: {run_metrics['bta']*100:.2f}% (R{run_metrics.get('bta_round', 0)}) | " if run_metrics.get("bta") is not None else ""
+                print(f"  [Success] Finished {strategy.upper()} ({partition_mode}) [Local Test]: "
+                      f"{bmcta_str}{bta_str}"
+                      f"Time: {run_metrics['total_time_seconds']:.1f}s")
+            else:
+                print(f"  [Success] Finished {strategy.upper()} ({partition_mode}): "
+                      f"Best Acc: {run_metrics['best_test_accuracy']*100:.2f}% (R{run_metrics['best_round']}) | "
+                      f"Time: {run_metrics['total_time_seconds']:.1f}s")
             return run_metrics
         except Exception as e:
             pass
@@ -396,6 +500,10 @@ def run_single_experiment(
         "strategy": strategy,
         "partition_mode": partition_mode,
         "dataset": dataset_name,
+        "model": model,
+        "optimizer": optimizer,
+        "momentum": momentum,
+        "seed": seed,
         "num_clients": num_clients,
         "rounds_requested": rounds,
         "rounds_completed": len(fallback_history),
@@ -629,8 +737,10 @@ def generate_markdown_report(
         "# FedMedAI Simulation Benchmark Report",
         "",
         f"**Generated At:** {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}  ",
+        f"**Model:** `{sim_config.get('model', 'cnn')}` | **Seed:** `{sim_config.get('seed', 42)}` | "
         f"**Rounds:** {sim_config.get('rounds')} | **Clients:** {sim_config.get('num_clients')} | "
-        f"**Local Epochs:** {sim_config.get('local_epochs')} | **LR Mode:** `{sim_config.get('lr_mode')}`  ",
+        f"**Local Epochs:** {sim_config.get('local_epochs')} | **LR Mode:** `{sim_config.get('lr_mode')}` | "
+        f"**Local Test:** `{'Enabled' if sim_config.get('local_test') else 'Disabled'}`  ",
         "",
         "---",
         "",
@@ -656,16 +766,50 @@ def generate_markdown_report(
                 lines.append(f"- **Partition = {p}:** 🏆 **{best_row['strategy'].upper()}** achieved **{best_row['best_test_accuracy']*100:.2f}%** accuracy in Round {int(best_row['best_round'])} (runtime: {best_row['total_time_seconds']:.1f}s).")
         lines.append("")
 
-    lines.extend([
-        "---",
-        "## 2. Full Simulation Results Matrix",
-        "",
-        "| Dataset | Strategy | Partition | Final Acc (%) | Best Acc (%) | Best Round | Final Loss | Total Time |",
-        "| :--- | :--- | :--- | :---: | :---: | :---: | :---: | :---: |",
-    ])
+    has_bmcta = "bmcta" in df_summary.columns and df_summary["bmcta"].notna().any()
+    has_model = "model" in df_summary.columns
+    has_opt = "optimizer" in df_summary.columns
+    has_aug = "augment" in df_summary.columns
 
-    for _, row in df_summary.iterrows():
-        lines.append(f"| **{row['dataset']}** | **{row['strategy'].upper()}** | `{row['partition_mode']}` | {row['final_test_accuracy']*100:.2f}% | **{row['best_test_accuracy']*100:.2f}%** | R{int(row['best_round'])} | {row['final_test_loss']:.4f} | {row['total_time_seconds']:.1f}s |")
+    model_hdr = " Model |" if has_model else ""
+    model_sep = " :---: |" if has_model else ""
+    opt_hdr = " Opt |" if has_opt else ""
+    opt_sep = " :---: |" if has_opt else ""
+    aug_hdr = " Aug |" if has_aug else ""
+    aug_sep = " :---: |" if has_aug else ""
+
+    if has_bmcta:
+        header = f"| Dataset |{model_hdr}{opt_hdr}{aug_hdr} Strategy | Partition | Final Acc (%) | Best Acc (%) | BMCTA (%) | BTA (%) | Best Round | Final Loss | Total Time |"
+        sep = f"| :--- |{model_sep}{opt_sep}{aug_sep} :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |"
+        lines.extend([
+            "---",
+            "## 2. Full Simulation Results Matrix",
+            "",
+            header,
+            sep,
+        ])
+        for _, row in df_summary.iterrows():
+            bmcta_val = f"**{row['bmcta']*100:.2f}%** (R{int(row.get('bmcta_round', 0))})" if pd.notna(row.get("bmcta")) else "N/A"
+            bta_val = f"**{row['bta']*100:.2f}%** (R{int(row.get('bta_round', 0))})" if pd.notna(row.get("bta")) else "N/A"
+            model_col = f"`{row['model']}` | " if has_model else ""
+            opt_col = f"`{row['optimizer']}` | " if has_opt else ""
+            aug_col = f"{'✅' if row.get('augment', True) else '❌'} | " if has_aug else ""
+            lines.append(f"| **{row['dataset']}** | {model_col}{opt_col}{aug_col}**{row['strategy'].upper()}** | `{row['partition_mode']}` | {row['final_test_accuracy']*100:.2f}% | **{row['best_test_accuracy']*100:.2f}%** | {bmcta_val} | {bta_val} | R{int(row['best_round'])} | {row['final_test_loss']:.4f} | {row['total_time_seconds']:.1f}s |")
+    else:
+        header = f"| Dataset |{model_hdr}{opt_hdr}{aug_hdr} Strategy | Partition | Final Acc (%) | Best Acc (%) | Best Round | Final Loss | Total Time |"
+        sep = f"| :--- |{model_sep}{opt_sep}{aug_sep} :--- | :--- | :---: | :---: | :---: | :---: | :---: |"
+        lines.extend([
+            "---",
+            "## 2. Full Simulation Results Matrix",
+            "",
+            header,
+            sep,
+        ])
+        for _, row in df_summary.iterrows():
+            model_col = f"`{row['model']}` | " if has_model else ""
+            opt_col = f"`{row['optimizer']}` | " if has_opt else ""
+            aug_col = f"{'✅' if row.get('augment', True) else '❌'} | " if has_aug else ""
+            lines.append(f"| **{row['dataset']}** | {model_col}{opt_col}{aug_col}**{row['strategy'].upper()}** | `{row['partition_mode']}` | {row['final_test_accuracy']*100:.2f}% | **{row['best_test_accuracy']*100:.2f}%** | R{int(row['best_round'])} | {row['final_test_loss']:.4f} | {row['total_time_seconds']:.1f}s |")
 
     with open(output_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
@@ -693,21 +837,46 @@ def main():
     parser.add_argument("--num_workers", type=int, default=None)
     parser.add_argument("--client_cpu_threads", type=int, default=None)
     parser.add_argument("--server_eval", dest="server_eval", action=argparse.BooleanOptionalAction, default=None)
+    parser.add_argument("--local_test", dest="local_test", action=argparse.BooleanOptionalAction, default=None, help="Partition test set across clients and track BMCTA/BTA")
+    parser.add_argument("--model", type=str, default=None, choices=["cnn", "baseline", "paper", "classic_cnn"], help="Model architecture ('cnn' or 'baseline')")
+    parser.add_argument("--optimizer", type=str, default=None, choices=["adam", "sgd"], help="Optimizer type ('adam' or 'sgd')")
+    parser.add_argument("--momentum", type=float, default=None, help="Momentum for SGD optimizer")
+    parser.add_argument("--weight_decay", type=float, default=None, help="Weight decay penalty")
+    parser.add_argument("--seed", type=int, default=None, help="Global random seed")
+    parser.add_argument("--augment", dest="augment", action=argparse.BooleanOptionalAction, default=None, help="Enable/disable training data augmentation")
+    parser.add_argument("--random_crop", dest="random_crop", action=argparse.BooleanOptionalAction, default=None, help="Enable/disable random crop during training")
+    parser.add_argument("--random_flip", dest="random_flip", action=argparse.BooleanOptionalAction, default=None, help="Enable/disable random horizontal flip during training")
 
     args = parser.parse_args()
     cfg = load_yaml_config(args.config)
 
-    num_clients = args.num_clients if args.num_clients is not None else cfg.get("num_clients", 12)
-    datasets = args.datasets if args.datasets is not None else cfg.get("datasets", ["bloodmnist"])
-    partitions = args.partitions if args.partitions is not None else cfg.get("partitions", ["dirichlet_0.3", "pathological", "practical"])
-    strategies = args.strategies if args.strategies is not None else cfg.get("strategies", ["fedavg", "fedprox", "fednova", "fedbn", "scaffold"])
-    rounds = args.rounds if args.rounds is not None else cfg.get("rounds", 10)
-    local_epochs = args.local_epochs if args.local_epochs is not None else cfg.get("local_epochs", 3)
-    batch_size = args.batch_size if args.batch_size is not None else cfg.get("batch_size", 32)
+    num_clients = args.num_clients if args.num_clients is not None else cfg.get("num_clients", cfg.get("min_clients", 12))
+
+    raw_datasets = args.datasets if args.datasets is not None else cfg.get("datasets", cfg.get("dataset", ["bloodmnist"]))
+    if isinstance(raw_datasets, str):
+        datasets = [raw_datasets]
+    else:
+        datasets = list(raw_datasets)
+
+    raw_partitions = args.partitions if args.partitions is not None else cfg.get("partitions", cfg.get("partition", cfg.get("partition_mode", ["dirichlet_0.3", "pathological", "practical"])))
+    if isinstance(raw_partitions, str):
+        partitions = [raw_partitions]
+    else:
+        partitions = list(raw_partitions)
+
+    raw_strategies = args.strategies if args.strategies is not None else cfg.get("strategies", cfg.get("strategy", ["fedavg", "fedprox", "fednova", "fedbn", "scaffold"]))
+    if isinstance(raw_strategies, str):
+        strategies = [raw_strategies]
+    else:
+        strategies = list(raw_strategies)
+
+    rounds = args.rounds if args.rounds is not None else cfg.get("rounds", cfg.get("fl_rounds", 80))
+    local_epochs = args.local_epochs if args.local_epochs is not None else cfg.get("local_epochs", 5)
+    batch_size = args.batch_size if args.batch_size is not None else cfg.get("batch_size", 256)
     num_workers = args.num_workers if args.num_workers is not None else cfg.get("num_workers", 0 if sys.platform == "win32" else 0)
-    client_cpu_threads = args.client_cpu_threads if args.client_cpu_threads is not None else cfg.get("client_cpu_threads", 0)
-    learning_rate = args.learning_rate if args.learning_rate is not None else cfg.get("learning_rate", 0.001)
-    lr_mode = args.lr_mode if args.lr_mode is not None else cfg.get("lr_mode", "client_loss")
+    client_cpu_threads = args.client_cpu_threads if args.client_cpu_threads is not None else cfg.get("client_cpu_threads", 1)
+    learning_rate = args.learning_rate if args.learning_rate is not None else cfg.get("learning_rate", cfg.get("lr", 0.01))
+    lr_mode = args.lr_mode if args.lr_mode is not None else cfg.get("lr_mode", "fixed")
     client_lr_patience = cfg.get("client_lr_patience", 2)
     client_lr_factor = cfg.get("client_lr_factor", 0.5)
     client_lr_min = cfg.get("client_lr_min", 1e-6)
@@ -717,8 +886,17 @@ def main():
     early_stop_patience = cfg.get("early_stop_patience", 0)
     early_stop_metric = cfg.get("early_stop_metric", "accuracy")
     server_eval = args.server_eval if args.server_eval is not None else cfg.get("server_eval", True)
+    local_test = args.local_test if args.local_test is not None else cfg.get("local_test", False)
     device_type = cfg.get("device_type", "pc")
     save_client_metrics = cfg.get("save_client_metrics", True)
+    model = args.model if args.model is not None else cfg.get("model", "baseline")
+    optimizer = args.optimizer if args.optimizer is not None else cfg.get("optimizer", "sgd")
+    momentum = args.momentum if args.momentum is not None else cfg.get("momentum", 0.0)
+    weight_decay = args.weight_decay if args.weight_decay is not None else cfg.get("weight_decay", 0.0)
+    seed = args.seed if args.seed is not None else cfg.get("seed", 42)
+    augment = args.augment if args.augment is not None else cfg.get("augment", True)
+    random_crop = args.random_crop if args.random_crop is not None else cfg.get("random_crop", True)
+    random_flip = args.random_flip if args.random_flip is not None else cfg.get("random_flip", True)
 
     if getattr(args, "no_timeout", False):
         timeout_per_run = 0
@@ -728,9 +906,6 @@ def main():
         timeout_per_run = cfg.get("timeout_per_run", 0)
     if timeout_per_run is None or timeout_per_run <= 0:
         timeout_per_run = 0
-
-    seed = cfg.get("seed", 42)
-
     datasets = [d.lower().strip() for d in datasets]
     partitions = [p.lower().strip() for p in partitions]
     strategies = [s.lower().strip() for s in strategies]
@@ -746,9 +921,14 @@ def main():
     print(f"\n{'='*70}")
     print(f"  FedMedAI Automated Simulation Benchmark")
     print(f"{'='*70}")
+    print(f"  Model            : {model.upper()}")
+    print(f"  Optimizer        : {optimizer.upper()}" + (f" (momentum={momentum})" if optimizer == "sgd" else ""))
+    print(f"  Augmentation     : {'Enabled' if augment else 'Disabled'} (crop={random_crop}, flip={random_flip})")
+    print(f"  Seed             : {seed}")
     print(f"  Clients          : {num_clients}")
     print(f"  Rounds per Run   : {rounds}")
     print(f"  Local Epochs     : {local_epochs}")
+    print(f"  Local Test Eval  : {'Enabled (BMCTA/BTA tracking)' if local_test else 'Disabled (Global Test)'}")
     print(f"  Timeout per Run  : {timeout_desc}")
     print(f"  Datasets         : {datasets}")
     print(f"  Partitions       : {partitions}")
@@ -761,7 +941,7 @@ def main():
     partition_map: Dict[Tuple[str, str], Path] = {}
     for d in datasets:
         for p in partitions:
-            p_path = ensure_partition_exists(dataset_name=d, partition_mode=p, num_clients=num_clients, seed=seed)
+            p_path = ensure_partition_exists(dataset_name=d, partition_mode=p, num_clients=num_clients, seed=seed, local_test=local_test)
             partition_map[(d, p)] = p_path
 
     results_list: List[Dict[str, Any]] = []
@@ -798,6 +978,15 @@ def main():
                     early_stop_patience=early_stop_patience,
                     early_stop_metric=early_stop_metric,
                     server_eval=server_eval,
+                    local_test=local_test,
+                    model=model,
+                    seed=seed,
+                    optimizer=optimizer,
+                    momentum=momentum,
+                    weight_decay=weight_decay,
+                    augment=augment,
+                    random_crop=random_crop,
+                    random_flip=random_flip,
                     device_type=device_type,
                     save_client_metrics=save_client_metrics,
                     timeout_per_run=timeout_per_run,
@@ -818,6 +1007,9 @@ def main():
                         "round": rh.get("round", 0),
                         "eval_accuracy": rh.get("eval_accuracy", 0.0),
                         "eval_loss": rh.get("eval_loss", 0.0),
+                        "mcta": rh.get("mcta"),
+                        "bmcta": rh.get("bmcta"),
+                        "bta": rh.get("bta"),
                         "train_accuracy_avg": rh.get("train_accuracy_avg", 0.0),
                         "train_loss_avg": rh.get("train_loss_avg", 0.0),
                         "round_time_seconds": rh.get("round_time_seconds", 0.0),
@@ -870,10 +1062,13 @@ def main():
         datasets=datasets,
         partitions=partitions,
         sim_config={
+            "model": model,
+            "seed": seed,
             "rounds": rounds,
             "num_clients": num_clients,
             "local_epochs": local_epochs,
             "lr_mode": lr_mode,
+            "local_test": local_test,
         },
         output_path=report_path,
     )

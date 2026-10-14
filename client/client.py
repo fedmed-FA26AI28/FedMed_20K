@@ -28,9 +28,9 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 import flwr as fl
 from flwr.common import NDArrays, Scalar
 
-from models.cnn import CNN, get_parameters, set_parameters, set_parameters_fedbn
+from models import get_model, set_seed, get_parameters, set_parameters, set_parameters_fedbn
 from datasets.medmnist_code import get_medmnist_datasets
-from datasets.partition import load_partition, get_client_dataloader
+from datasets.partition import load_partition, get_client_dataloader, get_partition_path
 
 
 from monitoring.resource import get_resource_usage, get_device_type
@@ -208,12 +208,20 @@ class FedMedAIClient(fl.client.NumPyClient):
         server_address: str = "127.0.0.1:8080",
         strategy: str = None,
         client_dir: Optional[Union[str, Path]] = None,
+        model_name: str = "cnn",
+        optimizer_name: str = "adam",
+        momentum: float = 0.0,
+        weight_decay: float = 0.0,
     ):
         self.client_id = client_id
+        self.model_name = model_name
         self.train_loader = train_loader
         self.test_loader = test_loader
         self.local_epochs = local_epochs
         self.learning_rate = learning_rate
+        self.optimizer_name = str(optimizer_name).lower().strip() if optimizer_name else "adam"
+        self.momentum = float(momentum)
+        self.weight_decay = float(weight_decay)
         self.lr_mode = str(lr_mode).lower().strip() if lr_mode else "client_loss"
         self.lr_patience = lr_patience
         self.lr_factor = lr_factor
@@ -245,10 +253,22 @@ class FedMedAIClient(fl.client.NumPyClient):
         self.device = torch.device(
             "cuda" if torch.cuda.is_available() else "cpu"
         )
-        self.model = CNN(num_classes=num_classes).to(self.device)
-        self.optimizer = optim.Adam(
-            self.model.parameters(), lr=self.learning_rate
-        )
+        self.model = get_model(model_name, num_classes=num_classes).to(self.device)
+
+        if self.optimizer_name == "sgd":
+            self.optimizer = optim.SGD(
+                self.model.parameters(),
+                lr=self.learning_rate,
+                momentum=self.momentum,
+                weight_decay=self.weight_decay,
+            )
+        else:
+            self.optimizer = optim.Adam(
+                self.model.parameters(),
+                lr=self.learning_rate,
+                weight_decay=self.weight_decay,
+            )
+
         self.scheduler = ReduceLROnPlateau(
             self.optimizer,
             mode="min",
@@ -262,7 +282,7 @@ class FedMedAIClient(fl.client.NumPyClient):
         print(
             f"[Client {self.client_id}] Initialized on {self.device} ({self.device_type}) | "
             f"IPv4: {self.device_ipv4} | train_samples={len(train_loader.dataset)} | "
-            f"LR Mode: {self.lr_mode} (Initial LR: {self.learning_rate})"
+            f"Optimizer: {self.optimizer_name.upper()} | LR Mode: {self.lr_mode} (Initial LR: {self.learning_rate})"
         )
 
     def get_parameters(self, config) -> NDArrays:
@@ -311,6 +331,27 @@ class FedMedAIClient(fl.client.NumPyClient):
         local_epochs = int(config.get("local_epochs", self.local_epochs))
         proximal_mu = float(config.get("proximal_mu", 0.0))
         lr_mode = str(config.get("lr_mode", self.lr_mode)).lower().strip()
+
+        if "optimizer" in config:
+            srv_opt = str(config["optimizer"]).lower().strip()
+            if srv_opt != self.optimizer_name:
+                self.optimizer_name = srv_opt
+                if "momentum" in config:
+                    self.momentum = float(config["momentum"])
+                if self.optimizer_name == "sgd":
+                    self.optimizer = optim.SGD(
+                        self.model.parameters(),
+                        lr=self.learning_rate,
+                        momentum=self.momentum,
+                        weight_decay=self.weight_decay,
+                    )
+                else:
+                    self.optimizer = optim.Adam(
+                        self.model.parameters(),
+                        lr=self.learning_rate,
+                        weight_decay=self.weight_decay,
+                    )
+                print(f"[Client {self.client_id}] Switched local optimizer to {self.optimizer_name.upper()} based on server config")
 
         active_scheduler = None
 
@@ -610,7 +651,7 @@ def main():
     default_server_address = f"{server_host}:{server_port}"
 
     active_clients = yaml_cfg.get("active_clients")
-    default_num_clients = len(active_clients) if isinstance(active_clients, list) and active_clients else 3
+    default_num_clients = len(active_clients) if isinstance(active_clients, list) and active_clients else yaml_cfg.get("num_clients", yaml_cfg.get("min_clients", 12))
 
     parser = argparse.ArgumentParser(
         description="FedMedAI FL Client",
@@ -635,7 +676,7 @@ def main():
         "--dataset", type=str, default=yaml_cfg.get("dataset", "bloodmnist"), help=f"Dataset name (default: {yaml_cfg.get('dataset', 'bloodmnist')})"
     )
     parser.add_argument(
-        "--partition_mode", type=str, default=yaml_cfg.get("partition_mode", "dirichlet_0.3"), help=f"Partition mode (default: {yaml_cfg.get('partition_mode', 'dirichlet_0.3')})"
+        "--partition_mode", type=str, default=yaml_cfg.get("partition_mode", yaml_cfg.get("partition", "dirichlet_0.3")), help=f"Partition mode (default: {yaml_cfg.get('partition_mode', yaml_cfg.get('partition', 'dirichlet_0.3'))})"
     )
     parser.add_argument(
         "--num_clients", type=int, default=default_num_clients, help=f"Total number of clients (default: {default_num_clients})"
@@ -678,7 +719,7 @@ def main():
         help=f"LR schedule mode: 'client_loss' (each client reduces LR on local loss plateau), 'server_decay' (step decay on rounds), 'fixed' (constant LR) (default: {yaml_cfg.get('lr_mode', 'client_loss')})",
     )
     parser.add_argument(
-        "--batch_size", type=int, default=None, help="Override batch size from config"
+        "--batch_size", type=int, default=yaml_cfg.get("batch_size", None), help="Override batch size from config (default: from config or jetson.yaml)"
     )
     parser.add_argument(
         "--num_workers",
@@ -712,6 +753,62 @@ def main():
         help="Custom directory to store client metrics and ping logs (default: results/clients/client_<id>)",
     )
     parser.add_argument(
+        "--local_test",
+        action=argparse.BooleanOptionalAction,
+        default=yaml_cfg.get("local_test", False),
+        help="Evaluate on client-specific local test partition (following FedSLD paper)",
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=yaml_cfg.get("model", "cnn"),
+        choices=["cnn", "baseline", "paper", "classic_cnn"],
+        help=f"Model architecture (default: {yaml_cfg.get('model', 'cnn')})",
+    )
+    parser.add_argument(
+        "--optimizer",
+        type=str,
+        default=yaml_cfg.get("optimizer", "adam"),
+        choices=["adam", "sgd"],
+        help=f"Client local optimizer ('adam' or 'sgd') (default: {yaml_cfg.get('optimizer', 'adam')})",
+    )
+    parser.add_argument(
+        "--momentum",
+        type=float,
+        default=yaml_cfg.get("momentum", 0.0),
+        help=f"Momentum factor for SGD optimizer (default: {yaml_cfg.get('momentum', 0.0)})",
+    )
+    parser.add_argument(
+        "--weight_decay",
+        type=float,
+        default=yaml_cfg.get("weight_decay", 0.0),
+        help=f"Weight decay penalty (default: {yaml_cfg.get('weight_decay', 0.0)})",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=yaml_cfg.get("seed", 42),
+        help=f"Random seed for reproducibility (default: {yaml_cfg.get('seed', 42)})",
+    )
+    parser.add_argument(
+        "--augment",
+        action=argparse.BooleanOptionalAction,
+        default=yaml_cfg.get("augment", True),
+        help=f"Enable/disable training data augmentation (default: {yaml_cfg.get('augment', True)})",
+    )
+    parser.add_argument(
+        "--random_crop",
+        action=argparse.BooleanOptionalAction,
+        default=yaml_cfg.get("random_crop", True),
+        help=f"Enable/disable random crop during training (default: {yaml_cfg.get('random_crop', True)})",
+    )
+    parser.add_argument(
+        "--random_flip",
+        action=argparse.BooleanOptionalAction,
+        default=yaml_cfg.get("random_flip", True),
+        help=f"Enable/disable random horizontal flip during training (default: {yaml_cfg.get('random_flip', True)})",
+    )
+    parser.add_argument(
         "--no_save_metrics",
         action="store_false",
         dest="save_metrics",
@@ -720,12 +817,20 @@ def main():
     parser.set_defaults(save_metrics=True)
     args = parser.parse_args()
 
+    set_seed(args.seed)
+
     # Resolve partition path
     if args.partition_path:
         partition_path = args.partition_path
     else:
-        partition_path = (
-            f"data/partitions/partition_{args.dataset}_{args.partition_mode}_seed42_clients{args.num_clients}.json"
+        partition_path = str(
+            get_partition_path(
+                dataset_name=args.dataset,
+                partition_mode=args.partition_mode,
+                seed=args.seed,
+                num_clients=args.num_clients,
+                local_test=args.local_test,
+            )
         )
 
     if not Path(partition_path).exists():
@@ -737,9 +842,14 @@ def main():
 
     # Load dataset and partition
     train_dataset, _, test_dataset, num_classes = get_medmnist_datasets(
-        args.dataset, download=True
+        args.dataset,
+        download=True,
+        augment=args.augment,
+        random_crop=args.random_crop,
+        random_flip=args.random_flip,
     )
-    client_indices = load_partition(partition_path)
+    print(f"[Client {args.client_id}] Augmentation: augment={args.augment}, crop={args.random_crop}, flip={args.random_flip}")
+    client_indices = load_partition(partition_path, split="train")
 
     if args.client_id >= len(client_indices):
         print(
@@ -765,9 +875,29 @@ def main():
 
     from torch.utils.data import DataLoader
 
-    test_loader = DataLoader(
-        test_dataset, batch_size=32, shuffle=False, num_workers=0
-    )
+    if args.local_test:
+        client_test_indices = load_partition(partition_path, split="test")
+        if client_test_indices is not None and args.client_id < len(client_test_indices):
+            my_test_indices = client_test_indices[args.client_id]
+            print(f"[Client {args.client_id}] Using local test partition: {len(my_test_indices)} samples")
+            test_loader = get_client_dataloader(
+                test_dataset,
+                my_test_indices,
+                client_id=args.client_id,
+                device_type=args.device_type,
+                batch_size=args.batch_size or 32,
+                shuffle=False,
+                num_workers=0,
+            )
+        else:
+            print(f"[Client {args.client_id}] Warning: local_test requested but no test_indices found in partition. Falling back to global test set.")
+            test_loader = DataLoader(
+                test_dataset, batch_size=32, shuffle=False, num_workers=0
+            )
+    else:
+        test_loader = DataLoader(
+            test_dataset, batch_size=32, shuffle=False, num_workers=0
+        )
 
     # Create client and start
     client = FedMedAIClient(
@@ -786,6 +916,10 @@ def main():
         server_address=args.server_address,
         strategy=args.strategy,
         client_dir=args.client_dir,
+        model_name=args.model,
+        optimizer_name=args.optimizer,
+        momentum=args.momentum,
+        weight_decay=args.weight_decay,
     )
 
     print(f"[Client {args.client_id}] Connecting to {args.server_address}...")

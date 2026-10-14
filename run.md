@@ -22,9 +22,9 @@ Trước khi thực hiện các bước bên dưới, hãy kích hoạt môi tr�
   ```bash
   source .venv/bin/activate
   ```
-* **Kiểm tra kiến trúc mô hình CNN (~20,104 tham số):**
-  * Windows: `python -m models.cnn`
-  * Linux: `python3 -m models.cnn`
+* **Kiểm tra kiến trúc mô hình:**
+  * **Modern CNN** (~20K tham số, BatchNorm + AdaptiveAvgPool): `python -m models.cnn`
+  * **Baseline CNN** (~570K tham số, cấu trúc chuẩn bài báo FedSLD ISBI 2022 / classic 4-layer CNN không BatchNorm): `python -m models.baseline`
 
 ---
 
@@ -87,6 +87,13 @@ tail -f centralized.log
 | `--lr_factor` | `float` | `0.5` (YAML) | Hệ số nhân giảm learning rate khi gặp plateau (`new_lr = lr * factor`). |
 | `--early_stop_patience` | `int` | `8` (YAML) | Số epochs val loss đi ngang trước khi Early Stopping dừng sớm quá trình huấn luyện. |
 | `--min_lr` | `float` | `1e-6` (YAML) | Giới hạn dưới tối thiểu của learning rate. |
+| `--model` | `str` | `cnn` (YAML) | Lựa chọn kiến trúc mô hình: `cnn` (modern CNN) hoặc `baseline` (chuẩn bài báo FedSLD ISBI 2022). |
+| `--optimizer` | `str` | `adam` (YAML) | Bộ tối ưu hóa: `adam` (mặc định hiện đại, hội tụ nhanh) hoặc `sgd` (chuẩn bài báo FedSLD). |
+| `--momentum` | `float` | `0.0` (YAML) | Hệ số momentum khi dùng `--optimizer sgd`. |
+| `--augment` / `--no-augment` | `flag` | `True` (YAML) | Bật/tắt tăng cường dữ liệu huấn luyện (Data Augmentation) gồm Random Crop và Random Flip trên tập train (tập val và test luôn giữ nguyên). |
+| `--random_crop` / `--no-random_crop` | `flag` | `True` (YAML) | Bật/tắt phép biến đổi RandomCrop (padding=2, reflection mode) trên ảnh 28×28 tập train. |
+| `--random_flip` / `--no-random_flip` | `flag` | `True` (YAML) | Bật/tắt phép biến đổi RandomHorizontalFlip (p=0.5) trên tập train. |
+| `--seed` | `int` | `42` | Global random seed thiết lập tính tái lập (khởi tạo trọng số, shuffle dữ liệu). |
 
 **Ví dụ lệnh kết hợp nhiều tùy chọn hoặc dùng file YAML khác:**
 ```powershell
@@ -121,6 +128,22 @@ Tạo file phân vùng Dirichlet Non-IID trên máy chủ (hoặc trên từng m
 * **Tạo phân vùng cho 3 máy PC (ví dụ: $\alpha = 0.3$, seed 42):**
   * Windows: `python -m experiments.run_partition --num_clients 3 --dataset bloodmnist --partition_mode dirichlet_0.3 --seed 42`
   * Linux: `python3 -m experiments.run_partition --num_clients 3 --dataset bloodmnist --partition_mode dirichlet_0.3 --seed 42`
+
+* **Tạo phân vùng Pathological & Practical chuẩn bài báo FedSLD (ISBI 2022) kèm `--local_test`:**
+  * Thêm cờ `--local_test` để đồng thời phân chia tập test cho từng client khớp hoàn toàn với phân bố nhãn huấn luyện cục bộ (không trùng lặp mẫu, phục vụ tính toán BMCTA):
+  * **Pathological (mỗi client 2 lớp ngẫu nhiên, 12 clients):**
+    ```powershell
+    python -m experiments.run_partition --num_clients 12 --dataset bloodmnist --partition_mode pathological --seed 42 --local_test
+    ```
+  * **Practical (12 mảnh: 10×1%, 1×10%, 1×80%, 12 clients):**
+    ```powershell
+    python -m experiments.run_partition --num_clients 12 --dataset bloodmnist --partition_mode practical --seed 42 --local_test
+    ```
+
+* **Quy ước đặt tên file phân vùng (`data/partitions/`):**
+  * Khi bật `--local_test`: `partition_<dataset>_<mode>_localtest_seed<seed>_clients<num>.json` (chứa cả `client_indices` cho tập train và `test_indices` cho tập test riêng biệt từng client).
+  * Khi không dùng `--local_test`: `partition_<dataset>_<mode>_seed<seed>_clients<num>.json` (chỉ phân chia tập train).
+  * *Hệ thống tự động tương thích ngược: nếu file cũ không có đuôi `_localtest_` nhưng đã có `test_indices`, hệ thống vẫn tự động nhận diện và sử dụng.*
 
 * **Sao chép file phân vùng:** Copy file vừa tạo trong `data/partitions/` sang các máy PC client (hoặc chạy lệnh trên với cùng `--seed 42` ở mỗi máy). Tập dữ liệu MedMNIST sẽ tự động tải về khi client chạy lần đầu.
 
@@ -223,6 +246,11 @@ Giả sử IP của PC Server là `192.168.1.50`:
 | `--proximal_mu` | `float` | `0.1` (YAML) | Hệ số phạt proximal $\mu$ khi dùng thuật toán `fedprox` (ràng buộc trọng số local không lệch quá xa global model). |
 | `--early_stop_patience`| `int` | `10` (YAML) | Dừng sớm FL nếu sau $N$ round accuracy đánh giá không tăng (`0` để tắt). |
 | `--server_eval` | `flag` | `False` | Bật đánh giá tập trung mô hình toàn cục trên tập test sau mỗi round tại Server. |
+| `--local_test` | `flag` | `False` | Bật kiểm thử test set cục bộ cho từng client và theo dõi chỉ số bài báo FedSLD: BMCTA (Best Mean Client Test Accuracy) và BTA (Best Test Accuracy). |
+| `--model` | `str` | `cnn` (YAML) | Lựa chọn kiến trúc mô hình: `cnn` (modern CNN) hoặc `baseline` (chuẩn bài báo FedSLD ISBI 2022). |
+| `--optimizer` | `str` | `adam` (YAML) | Bộ tối ưu hóa trên client: `adam` (mặc định) hoặc `sgd` (chuẩn bài báo FedSLD). |
+| `--momentum` | `float` | `0.0` (YAML) | Hệ số momentum cho SGD khi dùng `--optimizer sgd`. |
+| `--seed` | `int` | `42` | Global random seed thiết lập tính tái lập (khởi tạo mô hình & shuffle). |
 | `--host` | `str` | `0.0.0.0` | Địa chỉ IP máy chủ lắng nghe (`0.0.0.0` để lắng nghe từ tất cả card mạng LAN). |
 | `--port` | `int` | `8080` | Cổng mạng TCP gRPC giao tiếp giữa client và server. |
 
@@ -235,6 +263,7 @@ Giả sử IP của PC Server là `192.168.1.50`:
 | `--partition_mode` | `str` | `dirichlet_0.3` | Chế độ phân vùng (`dirichlet_0.1`, `dirichlet_0.3`, `dirichlet_1.0`, `pathological`, `practical`). |
 | `--dataset` | `str` | `bloodmnist` | Tập dữ liệu (`bloodmnist`, `pathmnist`, `organamnist`). |
 | `--partition_path` | `str` | `None` | Đường dẫn trực tiếp đến file JSON phân vùng (nếu không dùng đường dẫn mặc định). |
+| `--local_test` | `flag` | `False` | Nạp tập test riêng biệt cho client từ `test_indices` trong file phân vùng (khớp với phân bố nhãn huấn luyện cục bộ theo bài báo FedSLD). |
 | `--strategy` | `str` | `fedavg` (YAML) | Tên chiến lược để client kích hoạt cơ chế tương ứng (`scaffold`, `fedbn`, `fedprox`, `fednova`, `fedavg`). |
 | `--local_epochs` | `int` | `5` (YAML) | Số epoch train cục bộ (sẽ bị Server ghi đè nếu Server chỉ định). |
 | `--lr_mode` | `str` | `client_loss` (YAML) | Chế độ LR của client: `client_loss`, `server_decay`, `fixed`. |
@@ -244,6 +273,13 @@ Giả sử IP của PC Server là `192.168.1.50`:
 | `--lr_min` | `float` | `1e-6` (YAML) | Giới hạn learning rate tối thiểu của client. |
 | `--batch_size` | `int` | `None` | Kích thước batch. Mặc định tự đọc từ `configs/jetson.yaml` (PC: 32). Có thể truyền ví dụ `--batch_size 64` để ép buộc. |
 | `--device_type` | `str` | `None` | Ghi đè loại thiết bị / tên nhãn định danh (ví dụ: `pc`, `jetson_orin`, `jetson_nano`, `PC1`). Nếu không truyền, hệ thống sẽ tự động tra cứu từ `configs/jetson.yaml`. |
+| `--model` | `str` | `cnn` (YAML) | Lựa chọn kiến trúc mô hình (`cnn` hoặc `baseline`). Phải đồng bộ với Server. |
+| `--optimizer` | `str` | `adam` (YAML) | Bộ tối ưu hóa: `adam` hoặc `sgd`. (Nếu Server chỉ định trong fit config, client sẽ tự động đồng bộ). |
+| `--momentum` | `float` | `0.0` (YAML) | Hệ số momentum cho SGD. |
+| `--augment` / `--no-augment` | `flag` | `True` (YAML) | Bật/tắt tăng cường dữ liệu huấn luyện cục bộ (Random Crop và Random Flip) trên tập train của client. |
+| `--random_crop` / `--no-random_crop` | `flag` | `True` (YAML) | Bật/tắt RandomCrop trên tập train của client. |
+| `--random_flip` / `--no-random_flip` | `flag` | `True` (YAML) | Bật/tắt RandomHorizontalFlip trên tập train của client. |
+| `--seed` | `int` | `42` | Global random seed thiết lập tính tái lập (shuffle dữ liệu). |
 | `--no_save_metrics` | `flag` | `False` | Tắt tự động ghi log số liệu metrics per-round & per-epoch ra CSV cục bộ tại client. |
 
 **Ví dụ lệnh Server & Client trên PC:**
@@ -260,9 +296,10 @@ python -m client.client --client_id 0 --server_address 192.168.1.50:8080 --num_c
 > Tự động lưu tại thư mục `results/federated/<strategy>/<timestamp>/` gồm đầy đủ định dạng số liệu, đồ thị và báo cáo:
 >
 > 1. **Các file số liệu định dạng CSV (.csv):**
+>    - `client_eval_metrics.csv`: Chi tiết kiểm thử cục bộ của từng client qua từng round (round, client_id, test_loss, test_accuracy, num_samples), ghi nhận khi bật `--local_test`.
 >    - `client_round_metrics.csv`: Chi tiết từng client qua từng round (round, client_id, device_type, num_samples, local_epochs, training_time_seconds, epoch_time_avg, min/max epoch time, train_loss, train_accuracy, weight_size_kb, cpu_percent, ram_percent, ram_used_mb, gpu_memory_mb).
 >    - `client_epoch_metrics.csv`: Bóc tách chi tiết đến từng epoch của từng client (round, client_id, device_type, epoch, epoch_time_seconds, cumulative_epoch_time_seconds, train_loss, train_accuracy, learning_rate).
->    - `round_metrics.csv`: Tổng hợp cấp hệ thống cho từng round (round, round_time_seconds, total_elapsed_seconds, num_clients_reporting, train_loss_avg, train_accuracy_avg, eval_loss, eval_accuracy, client_train_time_avg, client_train_time_min, client_train_time_max, straggler_time_seconds, epoch_time_avg, total_weight_size_kb, server_overhead_seconds).
+>    - `round_metrics.csv`: Tổng hợp cấp hệ thống cho từng round (round, round_time_seconds, total_elapsed_seconds, num_clients_reporting, train_loss_avg, train_accuracy_avg, eval_loss, eval_accuracy, mcta, bmcta, wcta, bta, client_train_time_avg, client_train_time_min, client_train_time_max, straggler_time_seconds, epoch_time_avg, total_weight_size_kb, server_overhead_seconds).
 >    - `parameters_changes.csv`: Theo dõi động thái tham số toàn cục qua từng round (round, global_l2_norm, step_update_norm ||ΔW_global||, step_update_relative_change, mean_client_drift ||W_k - W_global^{t-1}||, max_client_drift, mean_consensus_divergence ||W_k - W_agg^t||, max_consensus_divergence).
 >    - `client_parameters_drift.csv`: Chi tiết độ dịch chuyển tham số cục bộ của từng client so với mô hình toàn cục trước và sau tổng hợp.
 >    - `layer_parameters_changes.csv`: Phân rã độ biến thiên L2 norm và delta update theo từng layer/tensor riêng lẻ của mô hình.
@@ -276,7 +313,7 @@ python -m client.client --client_id 0 --server_address 192.168.1.50:8080 --num_c
 >    - `fl_summary_card.png`: Thẻ tóm tắt trực quan (Dashboard Summary Card) tổng kết siêu tham số, hiệu năng mô hình, tài nguyên và độ chênh lệch tính toán phần cứng.
 >
 > 3. **Báo cáo định dạng JSON chi tiết (.json):**
->    - `fl_results.json`: Chứa toàn bộ metadata, executive summary, thống kê tổng hợp của từng client, phân tích độ trễ phần cứng dị thể (hardware heterogeneity analysis), lịch sử huấn luyện round-by-round đầy đủ, thông số thống kê biến thiên trọng số `parameter_dynamics` và đường dẫn đến các artifacts.
+>    - `fl_results.json`: Chứa toàn bộ metadata, executive summary, thống kê BMCTA / BTA (`paper_benchmark_metrics` kèm quỹ đạo `mcta_trajectory`), thống kê tổng hợp của từng client, phân tích độ trễ phần cứng dị thể (hardware heterogeneity analysis), lịch sử huấn luyện round-by-round đầy đủ, thông số thống kê biến thiên trọng số `parameter_dynamics` và đường dẫn đến các artifacts.
 >    - `parameters_records.json`: Bản ghi chi tiết đầy đủ của toàn bộ chuỗi lịch sử tham số toàn cục và tham số client qua tất cả các round.
 >
 > 4. **Số liệu cục bộ lưu tại từng Client:**  
@@ -487,6 +524,7 @@ Hệ thống tự động tra cứu ID trong [`configs/jetson.yaml`](file:///D:/
 | `--partition_mode` | `str` | `dirichlet_0.3` | Tham số phân vùng (`dirichlet_0.3`, `pathological`, `practical`). |
 | `--dataset` | `str` | `bloodmnist` | Tập dữ liệu. |
 | `--partition_path` | `str` | `None` | Chỉ định file phân vùng cụ thể nếu lưu ở vị trí khác. |
+| `--local_test` | `flag` | `False` | Nạp tập test riêng biệt từ `test_indices` trong file phân vùng (đáp ứng kịch bản đánh giá cá nhân hóa theo bài báo FedSLD). |
 | `--strategy` | `str` | `fedavg` (YAML) | Thuật toán client tham gia: `fedavg`, `fedprox`, `fednova`, `fedbn`, `scaffold`. |
 | `--batch_size` | `int` | Tự động | Ghi đè kích thước batch nếu không muốn dùng giá trị tự động từ config. |
 | `--lr_mode` | `str` | `client_loss` (YAML) | Chế độ quản lý learning rate: `client_loss`, `server_decay`, `fixed`. |
@@ -514,22 +552,26 @@ Hệ thống tự động tra cứu ID trong [`configs/jetson.yaml`](file:///D:/
 
 Kịch bản này cung cấp công cụ tự động hóa **100% cục bộ trên 1 máy tính PC** ([`experiments/run_simulation.py`](file:///D:/FPT/KLTN/FED/FedMedAI_Study/experiments/run_simulation.py)) để chạy quét toàn bộ lưới ma trận (Grid Search Benchmark) giữa:
 - **Tất cả các thuật toán FL:** `FedAvg`, `FedProx`, `FedNova`, `FedBN`, `SCAFFOLD`.
-- **Tất cả các mức độ dị thể dữ liệu Non-IID:** Dirichlet $\alpha \in \{1.0, 0.3, 0.1\}$.
+- **Tất cả các chế độ phân vùng Non-IID:**
+  - Dirichlet: $\alpha \in \{1.0, 0.3, 0.1\}$.
+  - Pathological: Mỗi client ngẫu nhiên nhận 2 lớp (chuẩn bài báo FedSLD, ISBI 2022).
+  - Practical: 12 mảnh dữ liệu mỗi lớp (10×1%, 1×10%, 1×80%) phân phối cho 12 clients (chuẩn bài báo FedSLD).
+- **Hỗ trợ cờ `--local_test`:** Tự động phân chia tập test cho từng client khớp với phân bố nhãn huấn luyện cục bộ (không trùng lặp mẫu), kích hoạt đo lường và theo dõi các chỉ số bài báo: **BMCTA** (Best Mean Client Test Accuracy) và **BTA** (Best Test Accuracy).
 - **File cấu hình độc lập chuyên dụng:** [`configs/simulation.yaml`](file:///D:/FPT/KLTN/FED/FedMedAI_Study/configs/simulation.yaml).
 
 > 💡 **Đặc tính kỹ thuật nổi bật:**
-> 1. **100% Localhost Execution:** Tự động tạo Server và số lượng Client mong muốn (`num_clients: 3`, `5`, `10`...) dưới dạng các tiến trình con độc lập chạy qua loopback `127.0.0.1`. Không cần thiết bị Jetson ngoài và không cần kết nối mạng bên ngoài.
+> 1. **100% Localhost Execution:** Tự động tạo Server và số lượng Client mong muốn (`num_clients: 3`, `5`, `12`...) dưới dạng các tiến trình con độc lập chạy qua loopback `127.0.0.1`. Không cần thiết bị Jetson ngoài và không cần kết nối mạng bên ngoài.
 > 2. **Tự động cấp phát cổng động (Dynamic Ephemeral Port):** Mỗi lượt chạy được cấp một socket port trống riêng biệt, loại bỏ hoàn toàn lỗi xung đột cổng (`Address already in use`).
-> 3. **Tự động kiểm tra & sinh phân hoạch Dirichlet:** Nếu thiếu file phân hoạch `partition_seed42_alpha{alpha}_clients{num_clients}.json`, hệ thống tự động phân chia tập BloodMNIST và vẽ biểu đồ phân bố lưu vào `data/partitions/`.
+> 3. **Tự động kiểm tra & sinh phân hoạch thông minh:** Nếu thiếu file phân hoạch, hoặc khi truyền `--local_test` mà file phân hoạch cũ chưa có local test set, hệ thống tự động sinh lại file phân vùng và vẽ biểu đồ lưu vào `data/partitions/`.
 > 4. **Giám sát đa tiến trình chủ động (Watchdog Monitor):** Theo dõi liên tục cả Server và toàn bộ Client; nếu có lỗi ở bất kỳ client nào, hệ thống lập tức trích xuất log lỗi và thu hồi tiến trình, tránh bị treo vô tận.
-> 5. **Tự động tổng hợp kết quả & biểu đồ so sánh xuất bản:** Xuất 5 biểu đồ so sánh chất lượng cao (300 DPI), 2 file CSV tổng hợp, file JSON benchmark và báo cáo tóm tắt Markdown.
-> 6. **Quản trị tài nguyên an toàn trên Windows:** Khả năng giới hạn luồng CPU của PyTorch (`client_cpu_threads`) nhằm tránh lỗi kiệt quệ tài nguyên (Insufficient System Resources) khi chạy song song số lượng lớn tiến trình mô phỏng.
+> 5. **Tự động tổng hợp kết quả & biểu đồ so sánh xuất bản:** Xuất 5 biểu đồ so sánh chất lượng cao (300 DPI), 2 file CSV tổng hợp, file JSON benchmark và báo cáo tóm tắt Markdown (tự động bổ sung cột BMCTA và BTA khi bật `--local_test`).
+> 6. **Quản trị tài nguyên an toàn trên Windows:** Khả năng giới hạn luồng CPU của PyTorch (`client_cpu_threads`) nhằm tránh lỗi kiệt quệ tài nguyên (Insufficient System Resources) khi chạy song song số lượng lớn tiến trình mô phỏng (vd: 12 clients).
 
 ---
 
 ### 4.1. Chạy mô phỏng với cấu hình mặc định trong `configs/simulation.yaml`
 
-Lệnh này sẽ tự động duyệt toàn bộ ma trận (5 thuật toán $\times$ 3 mức độ $\alpha$ = 15 lượt chạy):
+Lệnh này sẽ tự động duyệt toàn bộ ma trận (5 thuật toán $\times$ các chế độ phân vùng):
 
 * **Windows PowerShell:**
   ```powershell
@@ -561,6 +603,18 @@ Bạn có thể dễ dàng chạy thử nhanh một tập con các chiến lư�
   python -m experiments.run_simulation --rounds 15 --lr_mode server_decay --strategies fedavg fednova scaffold --partitions dirichlet_0.3
   ```
 
+* **Ví dụ 4: Chạy benchmark với mô hình chuẩn bài báo (`--model baseline`, 12 clients, pathological & practical, bật `--local_test` theo dõi BMCTA & BTA):**
+  ```powershell
+  python -m experiments.run_simulation --num_clients 12 --strategies fedavg fedprox scaffold --partitions pathological practical --local_test --model baseline --rounds 20
+  ```
+
+* **Ví dụ 5: Tái lập chính xác 100% thiết lập bài báo FedSLD (ISBI 2022) trên PathMNIST (~57% BTA):**
+  Bài báo FedSLD dùng Vanilla SGD ($\eta=0.01$, không momentum), fixed learning rate, batch size 256, kiến trúc 4-layer CNN không BatchNorm (~570k tham số):
+  ```powershell
+  python -m experiments.run_simulation --datasets pathmnist --partitions practical --strategies fedavg --model baseline --optimizer sgd --learning_rate 0.01 --lr_mode fixed --batch_size 256 --rounds 80 --local_test
+  ```
+  *(Lưu ý: Mặc định FedMedAI dùng Adam optimizer và batch_size 32/256 nên mô hình hội tụ rất nhanh đạt ~80% ngay cả trên Practical partition nhờ Client 11 chứa 80% dữ liệu. Để tái hiện chính xác mức ~57% như Table 2 trong bài báo, bắt buộc phải chọn `--optimizer sgd --learning_rate 0.01 --lr_mode fixed`).*
+
 ---
 
 ### 4.3. Cấu trúc kết quả đầu ra của Simulation Benchmark
@@ -569,10 +623,10 @@ Toàn bộ kết quả được lưu tập trung vào thư mục `results/simula
 
 ```
 results/simulation/<timestamp>/
-├── simulation_summary.csv             # Bảng CSV tổng hợp metrics cốt lõi của tất cả các lần chạy
-├── simulation_rounds_history.csv     # Bảng CSV toàn bộ timeline round-by-round (accuracy, loss, time)
+├── simulation_summary.csv             # Bảng CSV tổng hợp metrics cốt lõi (tự động có cột BMCTA và BTA khi bật --local_test)
+├── simulation_rounds_history.csv     # Bảng CSV toàn bộ timeline round-by-round (accuracy, loss, time, mcta)
 ├── simulation_results.json           # File JSON đầy đủ siêu tham số và kết quả máy đọc
-├── simulation_report.md              # Báo cáo Markdown có bảng xếp hạng Leaderboard trực quan
+├── simulation_report.md              # Báo cáo Markdown có bảng xếp hạng Leaderboard và ma trận kết quả (BMCTA/BTA)
 ├── compare_accuracy_curves.png       # Đồ thị hội tụ Accuracy qua các round (chia theo từng alpha)
 ├── compare_loss_curves.png           # Đồ thị hội tụ Loss qua các round (chia theo từng alpha)
 ├── compare_accuracy_barchart.png     # Biểu đồ cột so sánh Best Test Accuracy của các thuật toán
@@ -581,6 +635,7 @@ results/simulation/<timestamp>/
 └── <dataset>/                    # Thư mục dữ liệu (hoặc alpha_<alpha>/)
     └── <partition>/
         └── <strategy>/           # Artifacts chi tiết:
+            ├── client_eval_metrics.csv     # Bảng metrics kiểm thử cục bộ từng client theo round (khi bật --local_test)
             ├── parameters_changes.csv      # Bảng biến thiên tham số toàn cục & client drift
             ├── client_parameters_drift.csv # Bảng drift chi tiết từng client
             ├── layer_parameters_changes.csv# Bảng biến thiên chi tiết theo layer
@@ -615,7 +670,34 @@ results/simulation/<timestamp>/
 | *(YAML)* | `lr_decay_steps` | `int` | `3` | Số round giữa mỗi lần giảm LR toàn cục (chế độ `server_decay`). |
 | *(YAML)* | `proximal_mu` | `float` | `0.01` | Trọng số ràng buộc proximal $\mu$ cho thuật toán FedProx. |
 | `--server_eval` | `server_eval` | `bool` | `True` | Đánh giá mô hình toàn cục sau mỗi round trên 3,421 ảnh test set BloodMNIST. |
+| `--local_test` | `local_test` | `bool` | `False` | Phân vùng test set cục bộ cho từng client (pathological, practical, dirichlet) và theo dõi BMCTA / BTA theo bài báo FedSLD. Tự động kiểm tra và sinh lại file partition nếu chưa có local test set. |
+| `--model` | `model` | `str` | `cnn` | Lựa chọn mô hình: `cnn` (mô hình hiện đại ~20K tham số) hoặc `baseline` (chuẩn bài báo FedSLD ISBI 2022 ~570K tham số). |
+| `--optimizer` | `optimizer` | `str` | `adam` | Bộ tối ưu hóa trên client: `adam` (mặc định) hoặc `sgd` (chuẩn bài báo FedSLD). |
+| `--momentum` | `momentum` | `float` | `0.0` | Hệ số momentum khi dùng `--optimizer sgd`. |
+| `--seed` | `seed` | `int` | `42` | Global random seed thiết lập tính tái lập toàn diện cho partition, server và tất cả client. |
+| `--augment` / `--no-augment` | `augment` | `bool` | `True` | Bật/tắt tăng cường dữ liệu huấn luyện (Random Crop và Random Flip) trên toàn bộ clients. |
+| `--random_crop` / `--no-random_crop` | `random_crop` | `bool` | `True` | Bật/tắt phép biến đổi RandomCrop (padding=2, reflection mode) trên ảnh 28×28 tập train. |
+| `--random_flip` / `--no-random_flip` | `random_flip` | `bool` | `True` | Bật/tắt phép biến đổi RandomHorizontalFlip (p=0.5) trên tập train. |
 | `--output_dir` | `output_dir` | `str` | `results/simulation/<timestamp>` | Thư mục lưu trữ kết quả và các biểu đồ so sánh. |
 | `--timeout_per_run` | `timeout_per_run` | `int` | `0` | Thời gian chờ tối đa (giây) cho 1 lượt chạy. Đặt `0` hoặc số âm để **tắt hoàn toàn timeout** (chạy vô hạn đến khi hoàn thành). |
 | `--no_timeout` | *(CLI flag)* | `flag` | `False` | Cờ dòng lệnh trực tiếp tắt bỏ timeout watchdog (tương đương `--timeout_per_run 0`). |
+
+**Ví dụ tắt tăng cường dữ liệu trực tiếp qua dòng lệnh (Inline CLI):**
+```powershell
+# Tắt toàn bộ augmentation (chỉ giữ ToTensor & Normalize):
+python -m experiments.run_simulation --no-augment
+
+# Tắt riêng Random Crop hoặc Random Flip:
+python -m experiments.run_simulation --no-random_crop
+python -m experiments.train_centralized --no-random_flip
+```
+
+**Hoặc tắt trong file cấu hình (`configs/experiment.yaml` hoặc `configs/simulation.yaml`):**
+```yaml
+# --- Data Augmentation (Training split only) ---
+augment: false       # Tắt toàn bộ augmentation
+# hoặc:
+random_crop: false   # Tắt riêng crop
+random_flip: false   # Tắt riêng flip
+```
 

@@ -113,6 +113,16 @@ class FLMetricsRecorder:
         self.best_eval_round: int = 0
         self.best_eval_loss: float = float("inf")
 
+        # FedSLD Paper Metrics: BMCTA and BTA Tracking
+        self.local_test_enabled: bool = False
+        self.mcta_history: Dict[int, float] = {}
+        self.wcta_history: Dict[int, float] = {}
+        self.client_eval_records: List[Dict[str, Any]] = []
+        self.bmcta: float = 0.0
+        self.bmcta_round: int = 0
+        self.bta: float = 0.0
+        self.bta_round: int = 0
+
         self.parameter_round_records: List[Dict[str, Any]] = []
         self.parameter_client_records: List[Dict[str, Any]] = []
         self.parameter_layer_records: List[Dict[str, Any]] = []
@@ -295,6 +305,10 @@ class FLMetricsRecorder:
             "train_accuracy_avg": round(train_acc_avg, 6),
             "eval_loss": round(eval_loss, 6) if eval_loss is not None else None,
             "eval_accuracy": round(eval_acc, 6) if eval_acc is not None else None,
+            "mcta": round(self.mcta_history.get(server_round, 0.0), 6) if server_round in self.mcta_history else None,
+            "bmcta": round(self.bmcta, 6) if self.bmcta > 0 else None,
+            "wcta": round(self.wcta_history.get(server_round, 0.0), 6) if server_round in self.wcta_history else None,
+            "bta": round(self.bta, 6) if self.bta > 0 else None,
             "client_train_time_avg": round(c_avg, 4),
             "client_train_time_min": round(c_min, 4),
             "client_train_time_max": round(c_max, 4),
@@ -325,17 +339,80 @@ class FLMetricsRecorder:
             "is_server_eval": is_server_eval,
         }
 
-        if acc_val is not None and acc_val > self.best_eval_accuracy:
-            self.best_eval_accuracy = acc_val
-            self.best_eval_round = server_round
-            if loss_val is not None:
-                self.best_eval_loss = loss_val
+        if acc_val is not None:
+            if acc_val > self.best_eval_accuracy:
+                self.best_eval_accuracy = acc_val
+                self.best_eval_round = server_round
+                if loss_val is not None:
+                    self.best_eval_loss = loss_val
+            if acc_val > self.bta:
+                self.bta = acc_val
+                self.bta_round = server_round
 
         # Update existing round record if already present
         for r in self.round_records:
             if r["round"] == server_round:
                 r["eval_loss"] = round(loss_val, 6) if loss_val is not None else None
                 r["eval_accuracy"] = round(acc_val, 6) if acc_val is not None else None
+                r["bta"] = round(self.bta, 6) if self.bta > 0 else None
+                break
+
+    def record_federated_eval_results(
+        self,
+        server_round: int,
+        results: List[Tuple[Any, Any]],
+        metrics_aggregated: Dict[str, Any],
+        local_test: bool = False,
+    ):
+        """Record federated client evaluation results, compute MCTA, WCTA, and track BMCTA/BTA."""
+        self.local_test_enabled = bool(local_test)
+        client_eval_entries = []
+        client_accuracies = []
+
+        for client_proxy, eval_res in results:
+            m = eval_res.metrics or {}
+            raw_cid = m.get("client_id")
+            if raw_cid is None:
+                try:
+                    raw_cid = int(client_proxy.cid)
+                except Exception:
+                    raw_cid = len(client_eval_entries)
+            cid = int(raw_cid)
+            loss = float(eval_res.loss) if eval_res.loss is not None else 0.0
+            num_samples = int(eval_res.num_examples)
+            acc = float(m.get("accuracy", 0.0))
+
+            entry = {
+                "round": server_round,
+                "client_id": cid,
+                "test_loss": round(loss, 6),
+                "test_accuracy": round(acc, 6),
+                "num_samples": num_samples,
+            }
+            self.client_eval_records.append(entry)
+            client_eval_entries.append(entry)
+            client_accuracies.append(acc)
+
+        mcta = float(np.mean(client_accuracies)) if client_accuracies else 0.0
+        wcta = float(metrics_aggregated.get("accuracy", 0.0))
+
+        self.mcta_history[server_round] = mcta
+        self.wcta_history[server_round] = wcta
+
+        if mcta > self.bmcta:
+            self.bmcta = mcta
+            self.bmcta_round = server_round
+
+        if self.bta == 0.0 or wcta > self.bta:
+            self.bta = wcta
+            self.bta_round = server_round
+
+        for r in self.round_records:
+            if r["round"] == server_round:
+                r["mcta"] = round(mcta, 6)
+                r["bmcta"] = round(self.bmcta, 6)
+                r["wcta"] = round(wcta, 6)
+                r["bta"] = round(self.bta, 6)
                 break
 
     def record_parameter_dynamics(
@@ -467,6 +544,11 @@ class FLMetricsRecorder:
             "avg_round_time_seconds": round(avg_round, 2),
             "best_metric": round(best_metric, 4),
             "best_round": self.best_eval_round,
+            "bmcta": round(self.bmcta, 4) if self.bmcta > 0 else None,
+            "bmcta_round": self.bmcta_round if self.bmcta > 0 else None,
+            "bta": round(self.bta, 4) if self.bta > 0 else None,
+            "bta_round": self.bta_round if self.bta > 0 else None,
+            "local_test_enabled": self.local_test_enabled,
         }
         if self.proximal_mu is not None:
             summary["proximal_mu"] = self.proximal_mu
@@ -563,6 +645,10 @@ class FLMetricsRecorder:
             "train_accuracy_avg",
             "eval_loss",
             "eval_accuracy",
+            "mcta",
+            "bmcta",
+            "wcta",
+            "bta",
             "client_train_time_avg",
             "client_train_time_min",
             "client_train_time_max",
@@ -588,6 +674,27 @@ class FLMetricsRecorder:
             with open(round_csv_path, "w", encoding="utf-8") as f:
                 f.write(",".join(round_columns) + "\n")
         paths["round_metrics_csv"] = round_csv_path
+
+        # 3b. client_eval_metrics.csv (Federated client evaluation records)
+        client_eval_csv_path = os.path.join(save_dir, "client_eval_metrics.csv")
+        client_eval_columns = [
+            "round",
+            "client_id",
+            "test_loss",
+            "test_accuracy",
+            "num_samples",
+        ]
+        if self.client_eval_records:
+            if pd is not None:
+                df_eval = pd.DataFrame(self.client_eval_records)
+                df_eval.to_csv(client_eval_csv_path, index=False)
+            else:
+                import csv
+                with open(client_eval_csv_path, "w", newline="", encoding="utf-8") as f:
+                    writer = csv.DictWriter(f, fieldnames=client_eval_columns)
+                    writer.writeheader()
+                    writer.writerows(self.client_eval_records)
+            paths["client_eval_metrics_csv"] = client_eval_csv_path
 
         # 4. parameters_changes.csv (Global round-level parameter changes)
         param_csv_path = os.path.join(save_dir, "parameters_changes.csv")
@@ -858,6 +965,26 @@ class FLMetricsRecorder:
                 "final_train_accuracy_avg": final_train_acc,
                 "total_communication_kb": round(total_comm_kb, 2),
                 "total_communication_mb": round(total_comm_kb / 1024.0, 2),
+                "bmcta": round(self.bmcta, 4) if self.bmcta > 0 else None,
+                "bmcta_round": self.bmcta_round if self.bmcta > 0 else None,
+                "bta": round(self.bta, 4) if self.bta > 0 else None,
+                "bta_round": self.bta_round if self.bta > 0 else None,
+                "local_test_enabled": self.local_test_enabled,
+            },
+            "paper_benchmark_metrics": {
+                "local_test_enabled": self.local_test_enabled,
+                "bmcta": round(self.bmcta, 4) if self.bmcta > 0 else None,
+                "bmcta_round": self.bmcta_round if self.bmcta > 0 else None,
+                "bta": round(self.bta, 4) if self.bta > 0 else None,
+                "bta_round": self.bta_round if self.bta > 0 else None,
+                "mcta_trajectory": [
+                    {
+                        "round": r,
+                        "mcta": round(self.mcta_history[r], 4),
+                        "wcta": round(self.wcta_history[r], 4),
+                    }
+                    for r in sorted(self.mcta_history.keys())
+                ],
             },
             "client_summaries": client_summaries,
             "hardware_heterogeneity": heterogeneity_stats,
@@ -866,6 +993,7 @@ class FLMetricsRecorder:
                 "client_round_metrics_csv": "client_round_metrics.csv",
                 "client_epoch_metrics_csv": "client_epoch_metrics.csv",
                 "round_metrics_csv": "round_metrics.csv",
+                "client_eval_metrics_csv": "client_eval_metrics.csv",
                 "plots": [os.path.basename(p) for p in (plot_files or [])],
             },
         }

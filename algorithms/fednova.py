@@ -135,6 +135,7 @@ class FedNovaStrategy(FlwrFedAvg):
         early_stop_metric: str = "accuracy",
         metrics_recorder: Optional[FLMetricsRecorder] = None,
         model: Optional[nn.Module] = None,
+        local_test: bool = False,
         **kwargs,
     ):
         if "fit_metrics_aggregation_fn" not in kwargs:
@@ -143,6 +144,8 @@ class FedNovaStrategy(FlwrFedAvg):
         super().__init__(**kwargs)
 
         self.recorder = metrics_recorder or FLMetricsRecorder(strategy_name="FedNova")
+        self.local_test = local_test
+        self.recorder.local_test_enabled = local_test
 
         if model is None:
             model = CNN(num_classes=8)
@@ -343,6 +346,39 @@ class FedNovaStrategy(FlwrFedAvg):
         loss_aggregated, metrics_aggregated = super().aggregate_evaluate(
             server_round, results, failures
         )
+
+        if results and hasattr(self.recorder, "record_federated_eval_results"):
+            self.recorder.record_federated_eval_results(
+                server_round=server_round,
+                results=results,
+                metrics_aggregated=metrics_aggregated or {},
+                local_test=self.local_test,
+            )
+            comb_acc = metrics_aggregated.get("accuracy", 0.0) if metrics_aggregated else 0.0
+            if self.local_test:
+                mcta_val = self.recorder.mcta_history.get(server_round, 0.0)
+                bmcta_val = self.recorder.bmcta
+                bta_val = self.recorder.bta
+                log(
+                    INFO,
+                    "[FedNova] Round %d Eval | MCTA: %.2f%% (BMCTA: %.2f%% @ R%d) | Combined: %.2f%% (BTA: %.2f%% @ R%d)",
+                    server_round,
+                    mcta_val * 100,
+                    bmcta_val * 100,
+                    self.recorder.bmcta_round,
+                    float(comb_acc) * 100,
+                    bta_val * 100,
+                    self.recorder.bta_round,
+                )
+            else:
+                log(
+                    INFO,
+                    "[FedNova] Round %d Eval | Global Test Acc: %.2f%% (Best: %.2f%% @ R%d)",
+                    server_round,
+                    float(comb_acc) * 100,
+                    self.recorder.bta * 100,
+                    self.recorder.bta_round,
+                )
 
         if loss_aggregated is not None and metrics_aggregated:
             eval_metric_val = metrics_aggregated.get(self.early_stop_metric)

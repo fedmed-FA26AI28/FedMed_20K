@@ -1,61 +1,99 @@
 # ==============================================================================
 # FedMedAI: Multi-Strategy & Multi-Partition Simulation Configuration
 # ==============================================================================
-# This configuration file specifies settings for running automated FL simulations
-# across multiple aggregation strategies and non-IID data partition modes.
+# This configuration file is the single source of truth for running automated FL
+# simulations with `python -m experiments.run_simulation`.
 #
-# Execution Command:
+# You can change any parameter below directly in this file without needing to pass
+# inline command-line arguments.
+#
+# Execution:
 #     python -m experiments.run_simulation
-#     python -m experiments.run_simulation --config configs/simulation.yaml
+#     (or specify custom config: python -m experiments.run_simulation --config configs/simulation.yaml)
 # ==============================================================================
+
+# ──────────────────────────────────────────────────────────────────────────────
+# QUICK PRESETS (Uncomment / edit values in the sections below to switch modes)
+# ──────────────────────────────────────────────────────────────────────────────
+#
+# [PRESET 1: FedSLD Paper Baseline Replication (Luo & Wu, ISBI 2022 - Table 2)]
+#   datasets: [pathmnist] (or [organamnist])
+#   partitions: [practical]
+#   strategies: [fedavg]
+#   model: baseline             # Classic 4-layer CNN (~570K params, no BatchNorm)
+#   optimizer: sgd              # Pure Vanilla SGD
+#   momentum: 0.0               # Pure SGD (paper uses 0.0 momentum)
+#   learning_rate: 0.01         # Paper base learning rate eta = 0.01
+#   lr_mode: fixed              # Constant learning rate across all rounds
+#   batch_size: 256             # Paper mini-batch size B = 256
+#   local_epochs: 5             # Paper local epochs E = 5
+#   rounds: 80                  # Paper communication rounds R = 80
+#   num_clients: 12             # 12 clients in federation
+#   local_test: true            # Tracks BMCTA (Best Mean Client Test Acc) & BTA
+#
+# [PRESET 2: FedMedAI Modern Optimized FL]
+#   datasets: [bloodmnist]
+#   partitions: [dirichlet_0.3, pathological, practical]
+#   strategies: [fedavg, fedprox, fednova, fedbn, scaffold]
+#   model: cnn                  # Modern CNN (~20K params, BatchNorm + AdaptiveAvgPool)
+#   optimizer: adam             # Fast adaptive optimizer
+#   learning_rate: 0.001        # Adam default learning rate
+#   lr_mode: client_loss        # Adaptive local loss reduction per client
+#   batch_size: 32              # Standard batch size
+#   local_epochs: 5
+#   rounds: 20
+#   num_clients: 12
+# ──────────────────────────────────────────────────────────────────────────────
 
 # --- Simulation Topology & Matrix Grid ---
 # Number of simulated clients participating in federated training
 num_clients: 12
 
 # Datasets to benchmark:
-# Options: 'bloodmnist', 'pathmnist', 'organamnist'
+# Available options: 'bloodmnist', 'pathmnist', 'organamnist'
+# Tip: Set to a single dataset (e.g. [pathmnist]) or multiple (e.g. [pathmnist, organamnist])
 datasets:
-  - bloodmnist
   - pathmnist
-  - organamnist
 
 # Non-IID data partition modes to benchmark:
-# Options:
-#   - 'dirichlet_X.X': e.g., dirichlet_1.0, dirichlet_0.3, dirichlet_0.1
-#   - 'pathological': Each client randomly gets 2 classes (FedSLD)
-#   - 'practical': 12 shards (10x1%, 1x10%, 1x80%) distributed across 12 clients (FedSLD)
+# Available options:
+#   - 'practical'    : 12 shards per class (10x1%, 1x10%, 1x80%) across 12 clients (FedSLD ISBI 2022)
+#   - 'pathological' : Each client gets 2 random classes (FedSLD ISBI 2022)
+#   - 'dirichlet_X.X': Dirichlet label distribution (e.g. dirichlet_0.3, dirichlet_0.1, dirichlet_1.0)
 partitions:
-  - dirichlet_0.3
-  - pathological
   - practical
 
-# FL aggregation strategies to benchmark across all partition levels
-# Available: 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold'
+# FL aggregation strategies to benchmark:
+# Available options: 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold'
 strategies:
   - fedavg
-  - fedprox
-  - fednova
-  - fedbn
-  - scaffold
 
 # --- Training Hyperparameters ---
-rounds: 20                     # Number of federated communication rounds per simulation run
-local_epochs: 5               # Number of local training epochs on each client per round
-batch_size: 32                # Client training mini-batch size
-learning_rate: 0.001          # Initial base learning rate
+rounds: 80                     # Total federated communication rounds (Paper: 80 rounds)
+local_epochs: 5               # Local training epochs on each client per round (Paper: 5)
+batch_size: 256               # Client training mini-batch size (Paper: 256; Modern: 32)
+learning_rate: 0.01           # Base learning rate (Paper SGD: 0.01; Modern Adam: 0.001)
+model: baseline               # Architecture: 'baseline' (FedSLD 4-layer CNN ~570K params) or 'cnn' (Modern ~20K params)
+optimizer: sgd                # Optimizer: 'sgd' (Paper Vanilla SGD) or 'adam' (Modern)
+momentum: 0.0                 # SGD momentum: 0.0 (Pure SGD, reproduces paper) or 0.9 (momentum-accelerated)
+weight_decay: 0.0             # L2 regularization penalty (0.0 = none)
 seed: 42                      # Random seed for partition and model initialization reproducibility
+
+# --- Data Augmentation (Training split only) ---
+augment: true                 # Master toggle for train set augmentation (true = enabled, false = disabled)
+random_crop: true             # Random crop with reflection padding (default: true)
+random_flip: true             # Random horizontal flip (default: true)
 
 # --- Learning Rate (LR) Scheduling Mode ---
 # Options:
+#   'fixed'       : Constant learning rate across all rounds and clients (FedSLD paper setting)
 #   'client_loss' : Server only sends initial LR on Round 1; each client independently
-#                   reduces LR when local loss plateaus (default in FedMedAI).
-#   'server_decay': Server computes global step decay every N rounds and synchronizes across all clients.
-#   'fixed'       : Constant learning rate across all rounds and clients (classic Flower baseline).
-lr_mode: server_decay
+#                   reduces LR when local loss plateaus (FedMedAI default)
+#   'server_decay': Server computes global step decay every N rounds and synchronizes across all clients
+lr_mode: fixed
 
 # Settings for 'client_loss' mode:
-client_lr_patience: 5         # Client local epochs without loss improvement before reducing LR
+client_lr_patience: 2         # Client local epochs without loss improvement before reducing LR
 client_lr_factor: 0.5         # Multiplicative factor of LR reduction (new_lr = lr * factor)
 client_lr_min: 0.000001       # Minimum learning rate lower bound
 
@@ -64,25 +102,26 @@ lr_decay_steps: 3             # Decay learning rate every N rounds
 lr_decay_gamma: 0.5           # Multiplicative decay factor
 
 # --- Algorithm-Specific Hyperparameters ---
-# FedProx proximal term coefficient mu (0.0 = standard FedAvg)
-proximal_mu: 0.01
+# FedProx proximal term coefficient mu (0.0 = standard FedAvg, 0.01 - 0.1 = FedProx)
+proximal_mu: 0.1
 
-# --- Server Evaluation & Early Stopping ---
+# --- Server Evaluation & Metrics Tracking ---
 server_eval: true             # Centralized evaluation on global test set
-early_stop_patience: 0        # Rounds without metric improvement before stopping (0 = disabled)
+local_test: true              # Partition test set across clients and track BMCTA/BTA (FedSLD paper metric)
+early_stop_patience: 0        # Rounds without metric improvement before stopping (0 = disabled, run all rounds)
 early_stop_metric: accuracy   # Target metric to monitor: 'accuracy' or 'loss'
 
-# --- Hardware & System Execution ---
-device: auto                  # 'auto', 'cuda', or 'cpu'
+# --- Hardware, Multi-process & Resource Management ---
+device: auto                  # Compute device: 'auto', 'cuda', or 'cpu'
 device_type: pc               # Hardware profile for client monitoring ('pc', 'jetson_orin', 'jetson_nano')
-pin_memory: true              # Pinned memory for CUDA transfer acceleration
+pin_memory: true              # Pinned host memory for faster CUDA data transfer
 num_workers: 0                # DataLoader workers (0 is safest for multi-process simulation on Windows)
-client_cpu_threads: 1         # Limit PyTorch CPU threads per subprocess (reduces memory/OOM on Windows)
+client_cpu_threads: 1         # PyTorch CPU threads per client subprocess (1 avoids thread explosion/OOM on Windows)
 
 # --- Network & Execution Control ---
 server_host: "127.0.0.1"      # Host address for FL server socket
-timeout_per_run: 0            # Maximum timeout in seconds per run (0 or <=0 to disable timeout)
-auto_partition: true          # Automatically generate missing partition JSON files
+timeout_per_run: 0            # Maximum timeout in seconds per run (0 or <=0 to disable timeout completely)
+auto_partition: true          # Automatically generate missing partition JSON files if not present
 save_client_metrics: true     # Record per-client ping and epoch metrics CSVs
 
 # --- Output & Logging ---

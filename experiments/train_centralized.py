@@ -20,8 +20,8 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 
-from models.cnn import CNN, SimpleCNN
-from datasets.medmnist_code import get_bloodmnist_datasets, get_bloodmnist_dataloaders
+from models import get_model, set_seed
+from datasets.medmnist_code import get_medmnist_datasets, get_medmnist_dataloaders
 from client.train import train
 from client.evaluate import evaluate 
 
@@ -233,6 +233,7 @@ def load_yaml_config(config_path: str = "configs/experiment.yaml") -> dict:
 
 
 def run_centralized(
+    dataset_name: str = "bloodmnist",
     epochs: int = 100,
     batch_size: int = 32,
     learning_rate: float = 0.001,
@@ -241,11 +242,22 @@ def run_centralized(
     min_lr: float = 1e-6,
     early_stop_patience: int = 8,
     config_source: str = "configs/experiment.yaml",
+    model_name: str = "cnn",
+    seed: int = 42,
+    optimizer_name: str = "adam",
+    momentum: float = 0.0,
+    augment: bool = True,
+    random_crop: bool = True,
+    random_flip: bool = True,
 ):
+    set_seed(seed)
+    opt_name = str(optimizer_name).lower().strip()
     print("Starting centralized training...")
     print(
-        f"Config ({config_source}): epochs={epochs}, batch_size={batch_size}, learning_rate={learning_rate}, "
-        f"lr_patience={lr_patience}, lr_factor={lr_factor}, early_stop_patience={early_stop_patience}"
+        f"Config ({config_source}): dataset={dataset_name}, model={model_name}, optimizer={opt_name.upper()}" + (f"(momentum={momentum})" if opt_name == "sgd" else "") +
+        f", seed={seed}, epochs={epochs}, batch_size={batch_size}, learning_rate={learning_rate}, "
+        f"lr_patience={lr_patience}, lr_factor={lr_factor}, early_stop_patience={early_stop_patience}, "
+        f"augment={augment}, random_crop={random_crop}, random_flip={random_flip}"
     )
 
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -253,9 +265,21 @@ def run_centralized(
     os.makedirs(save_dir, exist_ok=True)
 
     # Load dataset
-    print("Loading BloodMNIST dataset...")
-    train_data, val_data, test_data, num_classes = get_bloodmnist_datasets(download=True)
-    train_loader, val_loader, test_loader, num_classes = get_bloodmnist_dataloaders(batch_size=batch_size)
+    print(f"Loading {dataset_name} dataset...")
+    train_data, val_data, test_data, num_classes = get_medmnist_datasets(
+        dataset_name=dataset_name,
+        download=True,
+        augment=augment,
+        random_crop=random_crop,
+        random_flip=random_flip,
+    )
+    train_loader, val_loader, test_loader, num_classes = get_medmnist_dataloaders(
+        dataset_name=dataset_name,
+        batch_size=batch_size,
+        augment=augment,
+        random_crop=random_crop,
+        random_flip=random_flip,
+    )
     print(f"Number of training samples: {len(train_data)}")
     print(f"Number of validation samples: {len(val_data)}")
     print(f"Number of test samples: {len(test_data)}")
@@ -263,8 +287,11 @@ def run_centralized(
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
 
-    model = CNN(num_classes=num_classes).to(device)
-    optimizer = optim.Adam(model.parameters(), lr=learning_rate)
+    model = get_model(model_name, num_classes=num_classes).to(device)
+    if opt_name == "sgd":
+        optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=momentum)
+    else:
+        optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
     resource_usage_before = get_resource_usage()
 
@@ -317,7 +344,15 @@ def run_centralized(
 
     results = {
         "config_source": config_source,
+        "model": model_name,
+        "optimizer": opt_name,
+        "momentum": momentum,
+        "seed": seed,
         "hyperparameters": {
+            "model": model_name,
+            "optimizer": opt_name,
+            "momentum": momentum,
+            "seed": seed,
             "epochs": epochs,
             "batch_size": batch_size,
             "learning_rate": learning_rate,
@@ -325,6 +360,9 @@ def run_centralized(
             "lr_factor": lr_factor,
             "min_lr": min_lr,
             "early_stop_patience": early_stop_patience,
+            "augment": augment,
+            "random_crop": random_crop,
+            "random_flip": random_flip,
         },
         "dataset_info": {
             "train_samples": len(train_data),
@@ -362,6 +400,7 @@ def parse_args():
     if not isinstance(cen_cfg, dict):
         cen_cfg = {}
 
+    default_dataset = cen_cfg.get("dataset", yaml_cfg.get("dataset", "bloodmnist"))
     default_epochs = cen_cfg.get("epochs", yaml_cfg.get("centralized_epochs", 100))
     default_batch_size = cen_cfg.get("batch_size", yaml_cfg.get("centralized_batch_size", 32))
     default_lr = cen_cfg.get("learning_rate", yaml_cfg.get("centralized_learning_rate", yaml_cfg.get("learning_rate", 0.001)))
@@ -369,21 +408,44 @@ def parse_args():
     default_lr_factor = cen_cfg.get("lr_factor", yaml_cfg.get("centralized_lr_factor", 0.5))
     default_min_lr = cen_cfg.get("min_lr", yaml_cfg.get("centralized_min_lr", 1e-6))
     default_early_stop = cen_cfg.get("early_stop_patience", yaml_cfg.get("centralized_early_stop_patience", 8))
+    default_model = cen_cfg.get("model", yaml_cfg.get("model", "cnn"))
+    default_optimizer = cen_cfg.get("optimizer", yaml_cfg.get("optimizer", "adam"))
+    default_momentum = cen_cfg.get("momentum", yaml_cfg.get("momentum", 0.0))
+    default_seed = cen_cfg.get("seed", yaml_cfg.get("seed", 42))
+    default_augment = cen_cfg.get("augment", yaml_cfg.get("augment", True))
+    default_crop = cen_cfg.get("random_crop", yaml_cfg.get("random_crop", True))
+    default_flip = cen_cfg.get("random_flip", yaml_cfg.get("random_flip", True))
 
     parser = argparse.ArgumentParser(
-        description="Centralized Training Baseline for BloodMNIST with YAML Config Support.",
+        description="Centralized Training Baseline with YAML Config Support.",
         parents=[pre_parser],
     )
+    parser.add_argument("--dataset", type=str, default=default_dataset,
+                        help=f"Dataset name (e.g. 'bloodmnist', 'pathmnist', 'organamnist') (default: {default_dataset}).")
+    parser.add_argument("--model", type=str, default=default_model, choices=["cnn", "baseline", "paper", "classic_cnn"],
+                        help=f"Model architecture (default: {default_model}).")
+    parser.add_argument("--optimizer", type=str, default=default_optimizer, choices=["adam", "sgd"],
+                        help=f"Optimizer type: 'adam' or 'sgd' (default: {default_optimizer}).")
+    parser.add_argument("--momentum", type=float, default=default_momentum,
+                        help=f"Momentum for SGD (default: {default_momentum}).")
+    parser.add_argument("--seed", type=int, default=default_seed,
+                        help=f"Random seed for reproducibility (default: {default_seed}).")
+    parser.add_argument("--augment", action=argparse.BooleanOptionalAction, default=default_augment,
+                        help=f"Enable/disable training data augmentation (default: {default_augment}).")
+    parser.add_argument("--random_crop", action=argparse.BooleanOptionalAction, default=default_crop,
+                        help=f"Enable/disable random crop during training (default: {default_crop}).")
+    parser.add_argument("--random_flip", action=argparse.BooleanOptionalAction, default=default_flip,
+                        help=f"Enable/disable random horizontal flip during training (default: {default_flip}).")
     parser.add_argument("--epochs", type=int, default=default_epochs,
                         help=f"Maximum training epochs (default: {default_epochs}).")
     parser.add_argument("--batch_size", type=int, default=default_batch_size,
                         help=f"Batch size (default: {default_batch_size}).")
     parser.add_argument("--lr", "--learning_rate", type=float, default=default_lr, dest="learning_rate",
-                        help=f"Initial learning rate for Adam optimizer (default: {default_lr}).")
+                        help=f"Initial learning rate for optimizer (default: {default_lr}).")
     parser.add_argument("--lr_patience", type=int, default=default_lr_patience,
                         help=f"Epochs without val loss improvement before reducing LR (default: {default_lr_patience}).")
     parser.add_argument("--lr_factor", type=float, default=default_lr_factor,
-                        help=f"Multiplicative factor for LR reduction (default: {default_lr_factor}).")
+                        help=f"Multiplicative factor for LR reduction (default: {default_factor if 'default_factor' in locals() else default_lr_factor}).")
     parser.add_argument("--min_lr", type=float, default=default_min_lr,
                         help=f"Minimum learning rate lower bound (default: {default_min_lr}).")
     parser.add_argument("--early_stop_patience", type=int, default=default_early_stop,
@@ -394,6 +456,7 @@ def parse_args():
 if __name__ == "__main__":
     args = parse_args()
     run_centralized(
+        dataset_name=args.dataset,
         epochs=args.epochs,
         batch_size=args.batch_size,
         learning_rate=args.learning_rate,
@@ -402,4 +465,11 @@ if __name__ == "__main__":
         min_lr=args.min_lr,
         early_stop_patience=args.early_stop_patience,
         config_source=args.config,
+        model_name=args.model,
+        optimizer_name=args.optimizer,
+        momentum=args.momentum,
+        seed=args.seed,
+        augment=args.augment,
+        random_crop=args.random_crop,
+        random_flip=args.random_flip,
     )
