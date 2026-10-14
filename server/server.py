@@ -40,7 +40,7 @@ from flwr.common import (
 )
 from flwr.common.logger import log
 
-from models.cnn import CNN, get_parameters, set_parameters
+from models import get_model, set_seed, get_parameters, set_parameters
 from algorithms import get_strategy
 from monitoring.metrics import FLMetricsRecorder
 from monitoring.network import get_device_ipv4
@@ -208,7 +208,12 @@ class FedMedAIServer(fl.server.Server):
 # Server-side evaluate function (centralized evaluation)
 # ──────────────────────────────────────────────────────────────
 
-def _get_evaluate_fn(dataset_name: str = "bloodmnist", num_classes: int = 8, recorder: Optional[FLMetricsRecorder] = None):
+def _get_evaluate_fn(
+    dataset_name: str = "bloodmnist",
+    num_classes: int = 8,
+    recorder: Optional[FLMetricsRecorder] = None,
+    model_name: str = "cnn",
+):
     """Return a server-side evaluation function for centralized evaluation on test set."""
     from datasets.medmnist_code import get_medmnist_datasets
     from torch.utils.data import DataLoader
@@ -222,7 +227,7 @@ def _get_evaluate_fn(dataset_name: str = "bloodmnist", num_classes: int = 8, rec
         parameters_ndarrays: List[np.ndarray],
         config: Dict[str, Scalar],
     ) -> Optional[Tuple[float, Dict[str, Scalar]]]:
-        model = CNN(num_classes=num_classes).to(device)
+        model = get_model(model_name, num_classes=num_classes).to(device)
         set_parameters(model, parameters_ndarrays)
         model.eval()
 
@@ -280,6 +285,8 @@ def _make_on_fit_config_fn(
     client_lr_patience: int = 2,
     client_lr_factor: float = 0.5,
     client_lr_min: float = 1e-6,
+    optimizer: str = "adam",
+    momentum: float = 0.0,
 ):
     """Create a function that calculates and sends training config to clients each round.
 
@@ -289,6 +296,7 @@ def _make_on_fit_config_fn(
     - 'fixed': Constant initial learning rate across all rounds and clients (classic Flower baseline).
     """
     mode = str(lr_mode).lower().strip()
+    opt_name = str(optimizer).lower().strip()
 
     def on_fit_config(server_round: int) -> Dict[str, Scalar]:
         config: Dict[str, Scalar] = {
@@ -297,6 +305,8 @@ def _make_on_fit_config_fn(
             "local_epochs": local_epochs,
             "lr_mode": mode,
             "initial_lr": float(learning_rate),
+            "optimizer": opt_name,
+            "momentum": float(momentum),
         }
 
         if proximal_mu > 0.0:
@@ -411,14 +421,14 @@ def main():
     parser.add_argument(
         "--rounds",
         type=int,
-        default=yaml_cfg.get("fl_rounds", 50),
-        help=f"Number of FL rounds (default: {yaml_cfg.get('fl_rounds', 50)})",
+        default=yaml_cfg.get("rounds", yaml_cfg.get("fl_rounds", 50)),
+        help=f"Number of FL rounds (default: {yaml_cfg.get('rounds', yaml_cfg.get('fl_rounds', 50))})",
     )
     parser.add_argument(
         "--min_clients",
         type=int,
-        default=yaml_cfg.get("min_clients", 3),
-        help=f"Minimum number of clients required to start a round (default: {yaml_cfg.get('min_clients', 3)})",
+        default=yaml_cfg.get("min_clients", yaml_cfg.get("num_clients", 3)),
+        help=f"Minimum number of clients required to start a round (default: {yaml_cfg.get('min_clients', yaml_cfg.get('num_clients', 3))})",
     )
     parser.add_argument(
         "--local_epochs",
@@ -510,6 +520,44 @@ def main():
         help=f"Enable server-side centralized evaluation (default: {yaml_cfg.get('server_eval', True)})",
     )
     parser.add_argument(
+        "--local_test",
+        action=argparse.BooleanOptionalAction,
+        default=yaml_cfg.get("local_test", False),
+        help=f"Enable local test partition evaluation across clients and track BMCTA/BTA (default: {yaml_cfg.get('local_test', False)})",
+    )
+    parser.add_argument(
+        "--model",
+        type=str,
+        default=yaml_cfg.get("model", "cnn"),
+        choices=["cnn", "baseline", "paper", "classic_cnn"],
+        help=f"Model architecture to train (default: {yaml_cfg.get('model', 'cnn')})",
+    )
+    parser.add_argument(
+        "--optimizer",
+        type=str,
+        default=yaml_cfg.get("optimizer", "adam"),
+        choices=["adam", "sgd"],
+        help=f"Client local optimizer type: 'adam' (default) or 'sgd' (reproduces FedSLD paper) (default: {yaml_cfg.get('optimizer', 'adam')})",
+    )
+    parser.add_argument(
+        "--momentum",
+        type=float,
+        default=yaml_cfg.get("momentum", 0.0),
+        help=f"SGD momentum parameter when --optimizer sgd is used (default: {yaml_cfg.get('momentum', 0.0)})",
+    )
+    parser.add_argument(
+        "--weight_decay",
+        type=float,
+        default=yaml_cfg.get("weight_decay", 0.0),
+        help=f"Weight decay penalty (default: {yaml_cfg.get('weight_decay', 0.0)})",
+    )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=yaml_cfg.get("seed", 42),
+        help=f"Global random seed for initialization reproducibility (default: {yaml_cfg.get('seed', 42)})",
+    )
+    parser.add_argument(
         "--save_dir",
         "--output_dir",
         dest="save_dir",
@@ -518,6 +566,8 @@ def main():
         help="Custom directory path to save FL artifacts (default: results/federated/<strategy>/<timestamp>)",
     )
     args = parser.parse_args()
+
+    set_seed(args.seed)
 
     server_ipv4 = get_device_ipv4()
 
@@ -528,6 +578,9 @@ def main():
     print(f"  FedMedAI FL Server")
     print(f"  Config Source: {pre_args.config}")
     print(f"  Dataset      : {args.dataset} (Classes: {num_classes})")
+    print(f"  Model        : {args.model.upper()}")
+    print(f"  Optimizer    : {args.optimizer.upper()}" + (f" (momentum={args.momentum})" if args.optimizer == "sgd" else ""))
+    print(f"  Seed         : {args.seed}")
     print(f"  Strategy     : {args.strategy.upper()}")
     print(f"  Server IPv4  : {server_ipv4}")
     print(f"  Client Target: {server_ipv4}:{args.port}")
@@ -546,10 +599,11 @@ def main():
         print(f"  Proximal mu  : {args.proximal_mu}")
     print(f"  Early Stop   : Patience={args.early_stop_patience} (metric: {args.early_stop_metric})")
     print(f"  Server Eval  : {args.server_eval}")
+    print(f"  Local Test   : {args.local_test}")
     print(f"  Listen       : {args.host}:{args.port}")
     print(f"{'='*60}\n")
 
-    initial_model = CNN(num_classes=num_classes)
+    initial_model = get_model(args.model, num_classes=num_classes)
     initial_params = ndarrays_to_parameters(get_parameters(initial_model))
 
     recorder = FLMetricsRecorder(
@@ -563,6 +617,7 @@ def main():
         "min_available_clients": args.min_clients,
         "initial_parameters": initial_params,
         "metrics_recorder": recorder,
+        "local_test": args.local_test,
         "on_fit_config_fn": _make_on_fit_config_fn(
             strategy_name=args.strategy,
             local_epochs=args.local_epochs,
@@ -574,6 +629,8 @@ def main():
             client_lr_patience=args.client_lr_patience,
             client_lr_factor=args.client_lr_factor,
             client_lr_min=args.client_lr_min,
+            optimizer=args.optimizer,
+            momentum=args.momentum,
         ),
         "evaluate_metrics_aggregation_fn": _evaluate_metrics_aggregation_fn,
         "early_stop_patience": args.early_stop_patience,
@@ -581,7 +638,12 @@ def main():
     }
 
     if args.server_eval and args.strategy != "fedbn":
-        strategy_kwargs["evaluate_fn"] = _get_evaluate_fn(dataset_name=args.dataset, num_classes=num_classes, recorder=recorder)
+        strategy_kwargs["evaluate_fn"] = _get_evaluate_fn(
+            dataset_name=args.dataset,
+            num_classes=num_classes,
+            recorder=recorder,
+            model_name=args.model,
+        )
     elif args.strategy == "fedbn":
         print("  [Server] FedBN Official Setting: Centralized server evaluation is disabled.\n"
               "           Model performance is evaluated via distributed client evaluation.")
@@ -647,6 +709,10 @@ def main():
 
     extra_metadata = {
         "strategy": args.strategy,
+        "model": args.model,
+        "optimizer": args.optimizer,
+        "momentum": args.momentum,
+        "seed": args.seed,
         "num_rounds_requested": args.rounds,
         "min_clients": args.min_clients,
         "local_epochs": args.local_epochs,
@@ -675,14 +741,14 @@ def main():
     # Save model weights checkpoints (best weights and final round weights)
     best_params = strategy.get_best_parameters()
     if best_params is not None:
-        best_model = CNN(num_classes=num_classes)
+        best_model = get_model(args.model, num_classes=num_classes)
         set_parameters(best_model, parameters_to_ndarrays(best_params))
         best_model_path = os.path.join(save_dir, "best_model.pth")
         torch.save(best_model.state_dict(), best_model_path)
         print(f"  Saved Best Model Checkpoint: {os.path.basename(best_model_path)}")
 
     if server.parameters is not None:
-        final_model = CNN(num_classes=num_classes)
+        final_model = get_model(args.model, num_classes=num_classes)
         set_parameters(final_model, parameters_to_ndarrays(server.parameters))
         final_model_path = os.path.join(save_dir, "final_model.pth")
         torch.save(final_model.state_dict(), final_model_path)
