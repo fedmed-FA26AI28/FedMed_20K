@@ -1,0 +1,205 @@
+{
+    "metadata": {
+        "strategy": "fedavg",
+        "timestamp": "20261014_112416",
+        "status": "completed",
+        "num_rounds_completed": 1,
+        "model": "cnn",
+        "optimizer": "sgd",
+        "momentum": 0.0,
+        "seed": 41,
+        "num_rounds_requested": 1,
+        "min_clients": 1,
+        "local_epochs": 5,
+        "initial_learning_rate": 0.01,
+        "lr_decay_steps": 3,
+        "lr_decay_gamma": 0.5,
+        "server_eval_enabled": true,
+        "server_address": "0.0.0.0:8080",
+        "early_stop_patience": 0,
+        "early_stop_metric": "accuracy",
+        "early_stopped": false,
+        "best_metric": null,
+        "best_round": 0
+    },
+    "summary": {
+        "total_wall_clock_time_seconds": 252.73,
+        "total_client_compute_time_seconds": 223.38,
+        "avg_round_time_seconds": 247.57,
+        "min_round_time_seconds": 247.57,
+        "max_round_time_seconds": 247.57,
+        "total_straggler_overhead_seconds": 0.0,
+        "straggler_overhead_percent": 0.0,
+        "final_global_accuracy": 0.462875,
+        "best_global_accuracy": 0.4629,
+        "best_global_accuracy_round": 1,
+        "final_global_loss": 1.534198,
+        "best_global_loss": 1.5342,
+        "final_train_loss_avg": 1.445954,
+        "final_train_accuracy_avg": 0.489135,
+        "total_communication_kb": 80.06,
+        "total_communication_mb": 0.08,
+        "bmcta": 0.4629,
+        "bmcta_round": 1,
+        "bta": 0.4629,
+        "bta_round": 1,
+        "local_test_enabled": false
+    },
+    "paper_benchmark_metrics": {
+        "local_test_enabled": false,
+        "bmcta": 0.4629,
+        "bmcta_round": 1,
+        "bta": 0.4629,
+        "bta_round": 1,
+        "mcta_trajectory": [
+            {
+                "round": 1,
+                "mcta": 0.4629,
+                "wcta": 0.4629
+            }
+        ]
+    },
+    "client_summaries": {
+        "0": {
+            "client_id": 0,
+            "device_type": "jetson_orin",
+            "num_samples": 34561,
+            "total_rounds_participated": 1,
+            "total_training_time_seconds": 223.3799,
+            "avg_time_per_round_seconds": 223.3799,
+            "min_time_per_round_seconds": 223.3799,
+            "max_time_per_round_seconds": 223.3799,
+            "avg_time_per_epoch_seconds": 44.6755,
+            "min_time_per_epoch_seconds": 44.0498,
+            "max_time_per_epoch_seconds": 45.5025,
+            "total_epochs_trained": 5,
+            "final_train_loss": 1.445954,
+            "final_train_accuracy": 0.489135,
+            "total_data_uploaded_kb": 80.06,
+            "avg_cpu_percent": 18.7,
+            "avg_ram_percent": 32.7,
+            "avg_gpu_memory_mb": 16.41,
+            "avg_ping_ms": 5.59,
+            "min_ping_ms": 5.59,
+            "max_ping_ms": 5.59
+        }
+    },
+    "hardware_heterogeneity": {
+        "device_types_present": [
+            "jetson_orin"
+        ],
+        "by_device_type": {
+            "jetson_orin": {
+                "client_count": 1,
+                "avg_round_training_time_seconds": 223.3799,
+                "avg_epoch_time_seconds": 44.6755,
+                "avg_ping_ms": 5.59,
+                "total_device_compute_time_seconds": 223.3799
+            }
+        }
+    },
+    "rounds_history": [
+        {
+            "round": 1,
+            "round_time_seconds": 247.5678,
+            "total_elapsed_seconds": 252.7327,
+            "num_clients_reporting": 1,
+            "train_loss_avg": 1.445954,
+            "train_accuracy_avg": 0.489135,
+            "eval_loss": 1.534198,
+            "eval_accuracy": 0.462875,
+            "mcta": 0.462875,
+            "bmcta": 0.462875,
+            "wcta": 0.462875,
+            "bta": 0.462875,
+            "client_train_time_avg": 223.3799,
+            "client_train_time_min": 223.3799,
+            "client_train_time_max": 223.3799,
+            "straggler_time_seconds": 0.0,
+            "epoch_time_avg": 44.6755,
+            "total_weight_size_kb": 80.06,
+            "server_overhead_seconds": 24.1879,
+            "ping_ms_avg": 5.59,
+            "ping_ms_min": 5.59,
+            "ping_ms_max": 5.59,
+            "clients": [
+                {
+                    "client_id": 0,
+                    "device_type": "jetson_orin",
+                    "num_samples": 34561,
+                    "training_time_seconds": 223.3799,
+                    "epoch_time_avg": 44.6755,
+                    "epoch_times": [
+                        45.5025,
+                        44.5289,
+                        44.5669,
+                        44.0498,
+                        44.7295
+                    ],
+                    "train_loss": 1.445954,
+                    "train_accuracy": 0.489135,
+                    "ping_ms": 5.59,
+                    "epoch_losses": [
+                        1.9561,
+                        1.7027,
+                        1.5901,
+                        1.5097,
+                        1.446
+                    ],
+                    "epoch_accuracies": [
+                        0.3007,
+                        0.3595,
+                        0.427,
+                        0.45,
+                        0.4891
+                    ],
+                    "weight_size_kb": 80.06,
+                    "cpu_percent": 18.7,
+                    "ram_percent": 32.7,
+                    "gpu_memory_mb": 16.41
+                }
+            ]
+        }
+    ],
+    "artifacts": {
+        "client_round_metrics_csv": "client_round_metrics.csv",
+        "client_epoch_metrics_csv": "client_epoch_metrics.csv",
+        "round_metrics_csv": "round_metrics.csv",
+        "client_eval_metrics_csv": "client_eval_metrics.csv",
+        "plots": [
+            "client_training_time_comparison.png",
+            "client_epoch_time_comparison.png",
+            "fl_training_curves.png",
+            "round_time_breakdown.png",
+            "fl_summary_card.png",
+            "parameter_changes_plot.png"
+        ],
+        "parameters_records_json": "parameters_records.json",
+        "parameters_changes_csv": "parameters_changes.csv",
+        "client_parameters_drift_csv": "client_parameters_drift.csv"
+    },
+    "parameter_dynamics": {
+        "summary": {
+            "initial_global_l2_norm": 961.748363,
+            "final_global_l2_norm": 961.748363,
+            "total_parameter_update_distance": 961.712266,
+            "avg_client_drift_l2": 961.712266,
+            "max_client_drift_l2": 961.712266,
+            "avg_client_divergence_l2": 0.0
+        },
+        "rounds": [
+            {
+                "round": 1,
+                "global_l2_norm": 961.748363,
+                "global_delta_l2": 961.712266,
+                "global_delta_relative": 63.630275,
+                "avg_client_drift_l2": 961.712266,
+                "max_client_drift_l2": 961.712266,
+                "min_client_drift_l2": 961.712266,
+                "avg_client_divergence_l2": 0.0,
+                "max_client_divergence_l2": 0.0,
+                "num_clients": 1
+            }
+        ]
+    }
+}
