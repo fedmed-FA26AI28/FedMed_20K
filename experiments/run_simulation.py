@@ -279,7 +279,7 @@ def run_single_experiment(
     run_metrics: Dict[str, Any] = {}
 
     try:
-        if not wait_for_server(host, port, timeout=25.0):
+        if not wait_for_server(host, port, timeout=180.0):
             raise TimeoutError(f"Server on {host}:{port} did not start listening within timeout.")
 
         print(f"  [Server] Listening. Launching {num_clients} client workers...")
