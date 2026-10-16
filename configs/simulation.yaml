@@ -75,8 +75,8 @@ batch_size: 256               # Client training mini-batch size (Paper: 256; Mod
 learning_rate: 0.01           # Base learning rate (Paper SGD: 0.01; Modern Adam: 0.001)
 model: baseline               # Architecture: 'baseline' (FedSLD 4-layer CNN ~570K params) or 'cnn' (Modern ~20K params)
 optimizer: sgd                # Optimizer: 'sgd' (Paper Vanilla SGD) or 'adam' (Modern)
-momentum: 0.0                 # SGD momentum: 0.0 (Pure SGD, reproduces paper) or 0.9 (momentum-accelerated)
-weight_decay: 0.0             # L2 regularization penalty (0.0 = none)
+momentum: 0.9                 # SGD momentum: 0.0 (Pure SGD, reproduces paper) or 0.9 (momentum-accelerated)
+weight_decay: 1e-4            # L2 regularization penalty (0.0 = none)
 seed: 42                      # Random seed for partition and model initialization reproducibility
 
 # --- Data Augmentation (Training split only) ---
