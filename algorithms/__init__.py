@@ -8,6 +8,7 @@ Usage:
     strategy = get_strategy("fednova")
 """
 
+from algorithms.base import FedStrategyBase
 from algorithms.fedavg import FedAvgStrategy
 from algorithms.fedprox import FedProxStrategy
 from algorithms.fednova import FedNovaStrategy

@@ -43,6 +43,7 @@ from flwr.common.logger import log
 from models import get_model, set_seed, get_parameters, set_parameters
 from algorithms import get_strategy
 from monitoring.metrics import FLMetricsRecorder
+from utils.path_utils import sanitize_run_name
 from monitoring.network import get_device_ipv4
 
 
@@ -558,12 +559,19 @@ def main():
         help=f"Global random seed for initialization reproducibility (default: {yaml_cfg.get('seed', 42)})",
     )
     parser.add_argument(
+        "--name",
+        "-n",
+        type=str,
+        default=yaml_cfg.get("name", None),
+        help="Designated run name for output directory (default: timestamp)",
+    )
+    parser.add_argument(
         "--save_dir",
         "--output_dir",
         dest="save_dir",
         type=str,
         default=None,
-        help="Custom directory path to save FL artifacts (default: results/federated/<strategy>/<timestamp>)",
+        help="Custom directory path to save FL artifacts (default: results/federated/<strategy>/<name_or_timestamp>)",
     )
     args = parser.parse_args()
 
@@ -700,14 +708,19 @@ def main():
         print(f"  Final Server c Norm: {summary.get('server_c_norm', 'N/A')}")
     print(f"{'='*60}\n")
 
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_name = sanitize_run_name(args.name) if args.name else None
+
     if args.save_dir:
         save_dir = args.save_dir
+    elif run_name:
+        save_dir = f"results/federated/{args.strategy}/{run_name}"
     else:
-        timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
         save_dir = f"results/federated/{args.strategy}/{timestamp}"
     os.makedirs(save_dir, exist_ok=True)
 
     extra_metadata = {
+        "run_name": run_name or timestamp,
         "strategy": args.strategy,
         "model": args.model,
         "optimizer": args.optimizer,

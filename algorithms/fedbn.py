@@ -10,9 +10,8 @@ layers (such as Conv2d and Linear weights and biases) are communicated and
 aggregated on the server.
 """
 
-import time
+from logging import INFO, WARNING
 from typing import Dict, List, Optional, Tuple, Union, Any
-from logging import WARNING, INFO
 
 import numpy as np
 import torch.nn as nn
@@ -25,11 +24,14 @@ from flwr.common import (
 )
 from flwr.common.logger import log
 from flwr.server.client_proxy import ClientProxy
-from flwr.server.strategy import FedAvg as FlwrFedAvg
 
-from algorithms.fedavg import _weighted_average_metrics, _format_device_details
+from algorithms.base import (
+    FedStrategyBase,
+    _format_device_details,
+    _weighted_average_metrics,
+)
+from models.cnn import get_bn_mask
 from monitoring.metrics import FLMetricsRecorder
-from models.cnn import CNN, get_bn_mask
 
 
 def _fedbn_aggregate(
@@ -37,16 +39,7 @@ def _fedbn_aggregate(
     global_parameters: List[np.ndarray],
     bn_mask: List[bool],
 ) -> List[np.ndarray]:
-    """Aggregate model updates by averaging non-BN parameters and preserving server BN parameters.
-
-    Args:
-        results: List of (ClientProxy, FitRes) from reporting clients.
-        global_parameters: Current global parameters on the server.
-        bn_mask: Boolean list matching layers, True if layer belongs to BatchNorm.
-
-    Returns:
-        List of NumPy ndarrays representing updated global model parameters.
-    """
+    """Aggregate model updates by averaging non-BN parameters and preserving server BN parameters."""
     total_examples = sum(fit_res.num_examples for _, fit_res in results)
     if total_examples == 0:
         return global_parameters
@@ -54,7 +47,6 @@ def _fedbn_aggregate(
     num_layers = len(global_parameters)
     aggregated_params = [np.zeros_like(g, dtype=np.float64) for g in global_parameters]
 
-    # Pre-extract client parameter ndarrays and normalized weights
     client_params_list = []
     client_weights = []
     for _, fit_res in results:
@@ -77,15 +69,15 @@ def _fedbn_aggregate(
     ]
 
 
-class FedBNStrategy(FlwrFedAvg):
+class FedBNStrategy(FedStrategyBase):
     """FedBN Strategy with selective non-BN aggregation, extended metrics, and early stopping.
 
     Args:
-        model: Optional PyTorch model instance used to determine BatchNorm layer mask.
-            Defaults to CNN(num_classes=8).
+        model: Required PyTorch model instance used to determine BatchNorm layer mask.
         early_stop_patience: Number of rounds without improvement before stopping (0 to disable).
         early_stop_metric: Target metric to track ('accuracy' or 'loss').
         metrics_recorder: Optional FLMetricsRecorder instance for logging and visualization.
+        local_test: Whether local test partitions are enabled.
         All other kwargs are forwarded to flwr.server.strategy.FedAvg.
     """
 
@@ -99,110 +91,33 @@ class FedBNStrategy(FlwrFedAvg):
         local_test: bool = False,
         **kwargs,
     ):
-        if "fit_metrics_aggregation_fn" not in kwargs:
-            kwargs["fit_metrics_aggregation_fn"] = _weighted_average_metrics
+        if model is None:
+            raise ValueError(
+                "FedBNStrategy requires 'model' (nn.Module) to identify BatchNorm layers "
+                "so local BN statistics are not aggregated on the server. Please pass model=<model_instance>."
+            )
 
-        super().__init__(**kwargs)
+        super().__init__(
+            early_stop_patience=early_stop_patience,
+            early_stop_metric=early_stop_metric,
+            metrics_recorder=metrics_recorder,
+            model=model,
+            local_test=local_test,
+            strategy_name="FedBN",
+            **kwargs,
+        )
 
-        self.recorder = metrics_recorder or FLMetricsRecorder(strategy_name="FedBN")
-        self.local_test = local_test
-        self.recorder.local_test_enabled = local_test
-
-        # Resolve BatchNorm parameter mask
-        target_model = model if model is not None else CNN(num_classes=8)
-        self.bn_mask = get_bn_mask(target_model)
+        self.bn_mask = get_bn_mask(model)
         self.num_bn_layers = sum(self.bn_mask)
         self.num_non_bn_layers = len(self.bn_mask) - self.num_bn_layers
-
-        # Early stopping state
-        self.early_stop_patience = early_stop_patience
-        self.early_stop_metric = early_stop_metric
-        self._best_metric: Optional[float] = None
-        self._best_round: int = 0
-        self._best_parameters: Optional[Parameters] = None
-        self._rounds_without_improvement: int = 0
-        self._last_checked_round: Optional[int] = None
-        self.should_stop: bool = False
-        self.latest_parameters: Optional[Parameters] = None
-
-        # Per-round timing
-        self._round_start: float = 0.0
-        self._round_times: List[float] = []
-        self._total_start: float = time.time()
-
         self._current_global_params: Optional[List[np.ndarray]] = None
 
-    def check_early_stopping(
-        self,
-        server_round: int,
-        metrics: Dict[str, Any],
-        loss: Optional[float] = None,
-        parameters: Optional[Parameters] = None,
-    ) -> bool:
-        """Evaluate early stopping conditions against monitored metric."""
-        if self.early_stop_patience <= 0:
-            return False
-
-        if self._last_checked_round == server_round:
-            return self.should_stop
-        self._last_checked_round = server_round
-
-        if self.early_stop_metric == "loss":
-            current = loss if loss is not None else metrics.get("loss")
-            is_better = lambda cur, best: best is None or cur < (best - 1e-5)
-        else:
-            current = metrics.get(self.early_stop_metric)
-            is_better = lambda cur, best: best is None or cur > (best + 1e-5)
-
-        if current is not None:
-            current = float(current)
-            if is_better(current, self._best_metric):
-                self._best_metric = current
-                self._best_round = server_round
-                self._rounds_without_improvement = 0
-                if parameters is not None:
-                    self._best_parameters = parameters
-                log(
-                    INFO,
-                    "[EarlyStop] Round %d: new best %s = %.4f",
-                    server_round,
-                    self.early_stop_metric,
-                    current,
-                )
-            else:
-                self._rounds_without_improvement += 1
-                log(
-                    INFO,
-                    "[EarlyStop] Round %d: no improvement for %d rounds (best=%.4f, current=%.4f)",
-                    server_round,
-                    self._rounds_without_improvement,
-                    self._best_metric if self._best_metric is not None else 0.0,
-                    current,
-                )
-                if self._rounds_without_improvement >= self.early_stop_patience:
-                    log(
-                        WARNING,
-                        "[EarlyStop] Stopping at round %d - no improvement in %d rounds.",
-                        server_round,
-                        self.early_stop_patience,
-                    )
-                    self.should_stop = True
-                    return True
-        return self.should_stop
-
-    def get_best_parameters(self) -> Optional[Parameters]:
-        """Return the best recorded model parameters or latest if none."""
-        return self._best_parameters or self.latest_parameters
-
-    def configure_fit(self, server_round, parameters, client_manager):
-        """Record round start time, cache global parameters, or halt if early stopped."""
-        if self.should_stop:
-            log(INFO, "[EarlyStop] Training halted: configure_fit sampling 0 clients.")
-            return []
-        self._round_start = time.time()
-        self.recorder.record_round_start(server_round)
-        self._current_global_params = parameters_to_ndarrays(parameters)
-        return super().configure_fit(server_round, parameters, client_manager)
+    def configure_fit(self, server_round: int, parameters: Parameters, client_manager):
+        """Record round start time, cache global parameters as ndarrays, or halt if early stopped."""
+        ret = super().configure_fit(server_round, parameters, client_manager)
+        if ret:
+            self._current_global_params = parameters_to_ndarrays(parameters)
+        return ret
 
     def aggregate_fit(
         self,
@@ -224,6 +139,7 @@ class FedBNStrategy(FlwrFedAvg):
             )
         else:
             from flwr.server.strategy.aggregate import aggregate
+
             weights_results = [
                 (parameters_to_ndarrays(fit_res.parameters), fit_res.num_examples)
                 for _, fit_res in results
@@ -231,14 +147,6 @@ class FedBNStrategy(FlwrFedAvg):
             aggregated_ndarrays = aggregate(weights_results)
 
         parameters_aggregated = ndarrays_to_parameters(aggregated_ndarrays)
-        if parameters_aggregated is not None and hasattr(self.recorder, "record_parameter_dynamics"):
-            self.recorder.record_parameter_dynamics(
-                server_round=server_round,
-                previous_parameters=getattr(self, "_current_global_params", None),
-                aggregated_parameters=parameters_aggregated,
-                results=results,
-            )
-        self.latest_parameters = parameters_aggregated
 
         metrics_aggregated: Dict[str, Scalar] = {}
         if self.fit_metrics_aggregation_fn:
@@ -247,37 +155,26 @@ class FedBNStrategy(FlwrFedAvg):
         elif server_round == 1:
             log(WARNING, "No fit_metrics_aggregation_fn provided")
 
-        round_time = time.time() - self._round_start
-        self._round_times.append(round_time)
-
-        metrics_aggregated["round_time_seconds"] = float(round_time)
-        metrics_aggregated["total_elapsed_seconds"] = float(
-            time.time() - self._total_start
-        )
-        metrics_aggregated["num_clients_reporting"] = len(results)
-        metrics_aggregated["num_failures"] = len(failures)
         metrics_aggregated["num_bn_layers_local"] = int(self.num_bn_layers)
         metrics_aggregated["num_non_bn_layers_aggregated"] = int(self.num_non_bn_layers)
 
-        self.recorder.record_fit_results(
+        metrics_aggregated = self._finalize_fit_aggregation(
             server_round=server_round,
-            round_duration=round_time,
-            results=results,
+            parameters_aggregated=parameters_aggregated,
             metrics_aggregated=metrics_aggregated,
+            results=results,
+            failures=failures,
         )
 
         log(
             INFO,
             "[FedBN] Round %d | %.1fs | clients=%d | non_bn_layers=%d | local_bn_layers=%d",
             server_round,
-            round_time,
+            metrics_aggregated["round_time_seconds"],
             len(results),
             self.num_non_bn_layers,
             self.num_bn_layers,
         )
-        dev_str = _format_device_details(results)
-        if dev_str:
-            log(INFO, "[Reporting Devices] %s", dev_str)
 
         return parameters_aggregated, metrics_aggregated
 
@@ -298,85 +195,12 @@ class FedBNStrategy(FlwrFedAvg):
     def evaluate(
         self, server_round: int, parameters: Parameters
     ) -> Optional[Tuple[float, Dict[str, Scalar]]]:
-        """Centralized server evaluation is disabled in FedBN per official paper.
-
-        Reference:
-            Li et al., 'FedBN: Federated Learning on Non-IID Features via Local
-            Batch Normalization', ICLR 2021.
-
-        In FedBN, Batch Normalization parameters (weights, biases, running mean,
-        running variance) remain strictly local to clients. The server does not
-        maintain trained global BN parameters, so centralized evaluation of a
-        single global model on the server is not applicable. Model performance
-        is evaluated via distributed client evaluation in aggregate_evaluate().
-        """
+        """Centralized server evaluation is disabled in FedBN per official paper."""
         return None
-
-    def aggregate_evaluate(self, server_round, results, failures):
-        """Aggregate evaluation results and check early stopping condition."""
-        loss_aggregated, metrics_aggregated = super().aggregate_evaluate(
-            server_round, results, failures
-        )
-
-        if results and hasattr(self.recorder, "record_federated_eval_results"):
-            self.recorder.record_federated_eval_results(
-                server_round=server_round,
-                results=results,
-                metrics_aggregated=metrics_aggregated or {},
-                local_test=self.local_test,
-            )
-            comb_acc = metrics_aggregated.get("accuracy", 0.0) if metrics_aggregated else 0.0
-            if self.local_test:
-                mcta_val = self.recorder.mcta_history.get(server_round, 0.0)
-                bmcta_val = self.recorder.bmcta
-                bta_val = self.recorder.bta
-                log(
-                    INFO,
-                    "[FedBN] Round %d Eval | MCTA: %.2f%% (BMCTA: %.2f%% @ R%d) | Combined: %.2f%% (BTA: %.2f%% @ R%d)",
-                    server_round,
-                    mcta_val * 100,
-                    bmcta_val * 100,
-                    self.recorder.bmcta_round,
-                    float(comb_acc) * 100,
-                    bta_val * 100,
-                    self.recorder.bta_round,
-                )
-            else:
-                log(
-                    INFO,
-                    "[FedBN] Round %d Eval | Global Test Acc: %.2f%% (Best: %.2f%% @ R%d)",
-                    server_round,
-                    float(comb_acc) * 100,
-                    self.recorder.bta * 100,
-                    self.recorder.bta_round,
-                )
-
-        if loss_aggregated is not None and metrics_aggregated:
-            eval_metric_val = metrics_aggregated.get(self.early_stop_metric)
-            if eval_metric_val is not None:
-                self.recorder.record_eval_results(
-                    server_round=server_round,
-                    loss=loss_aggregated,
-                    accuracy=float(eval_metric_val),
-                    is_server_eval=False,
-                )
-
-        if self.early_stop_patience > 0 and metrics_aggregated:
-            self.check_early_stopping(
-                server_round=server_round,
-                metrics=metrics_aggregated,
-                loss=loss_aggregated,
-                parameters=self.latest_parameters,
-            )
-
-        return loss_aggregated, metrics_aggregated
 
     def get_summary(self) -> Dict[str, Any]:
         """Return a dict summarising the entire FL run."""
-        summary = self.recorder.get_summary()
-        summary["best_metric"] = self._best_metric
-        summary["best_round"] = self._best_round
-        summary["early_stopped"] = self.should_stop
+        summary = super().get_summary()
         summary["num_bn_layers_local"] = self.num_bn_layers
         summary["num_non_bn_layers_aggregated"] = self.num_non_bn_layers
         return summary
@@ -387,9 +211,6 @@ class FedBNStrategy(FlwrFedAvg):
         """Export CSVs, comparison plots, and rich fl_results.json."""
         if extra_metadata is None:
             extra_metadata = {}
-        extra_metadata["best_metric"] = self._best_metric
-        extra_metadata["best_round"] = self._best_round
-        extra_metadata["early_stopped"] = self.should_stop
         extra_metadata["num_bn_layers_local"] = self.num_bn_layers
         extra_metadata["num_non_bn_layers_aggregated"] = self.num_non_bn_layers
-        return self.recorder.save_all(save_dir=save_dir, extra_metadata=extra_metadata)
+        return super().save_artifacts(save_dir=save_dir, extra_metadata=extra_metadata)

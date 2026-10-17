@@ -80,6 +80,8 @@ tail -f centralized.log
 | Tùy chọn (Option) | Kiểu dữ liệu | Mặc định | Ý nghĩa & Hướng dẫn sử dụng |
 | :--- | :---: | :---: | :--- |
 | `--config` | `str` | `configs/experiment.yaml` | Đường dẫn file cấu hình YAML chứa các siêu tham số tập trung (mục `centralized:`). |
+| `--name` hoặc `-n` | `str` | `None` (YAML) | Tên định danh đợt chạy để đặt tên thư mục kết quả (`results/centralized/<name>/`). Mặc định dùng timestamp (`%Y%m%d_%H%M%S`). |
+| `--output_dir` / `--save_dir` | `str` | `None` | Đường dẫn thư mục tùy biến trực tiếp để lưu kết quả huấn luyện tập trung. |
 | `--epochs` | `int` | `100` (YAML) | Số lượng epoch huấn luyện tối đa. Quá trình có tích hợp Early Stopping tự động dừng nếu validation loss không cải thiện. |
 | `--batch_size` | `int` | `32` (YAML) | Kích thước mini-batch cho DataLoader. Tăng lên `64` hoặc `128` nếu PC có GPU VRAM lớn (>= 6GB) để tăng tốc, hoặc giảm xuống `16` nếu chạy trên CPU yếu. |
 | `--lr` hoặc `--learning_rate` | `float` | `0.001` (YAML) | Tốc độ học ban đầu cho Adam optimizer. |
@@ -140,10 +142,15 @@ Tạo file phân vùng Dirichlet Non-IID trên máy chủ (hoặc trên từng m
     python -m experiments.run_partition --num_clients 12 --dataset bloodmnist --partition_mode practical --seed 42 --local_test
     ```
 
-* **Quy ước đặt tên file phân vùng (`data/partitions/`):**
-  * Khi bật `--local_test`: `partition_<dataset>_<mode>_localtest_seed<seed>_clients<num>.json` (chứa cả `client_indices` cho tập train và `test_indices` cho tập test riêng biệt từng client).
-  * Khi không dùng `--local_test`: `partition_<dataset>_<mode>_seed<seed>_clients<num>.json` (chỉ phân chia tập train).
-  * *Hệ thống tự động tương thích ngược: nếu file cũ không có đuôi `_localtest_` nhưng đã có `test_indices`, hệ thống vẫn tự động nhận diện và sử dụng.*
+* **Quy ước đặt tên file phân vùng & biểu đồ (`data/partitions/`):**
+  * **File JSON phân vùng:**
+    * Khi bật `--local_test`: `partition_<dataset>_<mode>_localtest_seed<seed>_clients<num>.json` (chứa cả `client_indices` cho tập train và `test_indices` cho tập test riêng biệt từng client).
+    * Khi không dùng `--local_test`: `partition_<dataset>_<mode>_seed<seed>_clients<num>.json` (chỉ phân chia tập train).
+    * *Hệ thống tự động tương thích ngược: nếu file cũ không có đuôi `_localtest_` nhưng đã có `test_indices`, hệ thống vẫn tự động nhận diện và sử dụng.*
+  * **File ảnh biểu đồ phân bố dữ liệu (`data/partitions/plots/`):**
+    * Khi bật `--local_test`: `dist_<dataset>_<mode>_localtest_seed<seed>_clients<num>.png`
+    * Khi không dùng `--local_test`: `dist_<dataset>_<mode>_seed<seed>_clients<num>.png`
+    * *(Tên file ảnh và tiêu đề đồ thị tự động gắn `seed` giúp các lần chạy với seed khác nhau như seed 41, 42 không bị ghi đè lẫn nhau).*
 
 * **Sao chép file phân vùng:** Copy file vừa tạo trong `data/partitions/` sang các máy PC client (hoặc chạy lệnh trên với cùng `--seed 42` ở mỗi máy). Tập dữ liệu MedMNIST sẽ tự động tải về khi client chạy lần đầu.
 
@@ -233,6 +240,7 @@ Giả sử IP của PC Server là `192.168.1.50`:
 | Tùy chọn (Option) | Kiểu dữ liệu | Mặc định | Ý nghĩa & Hướng dẫn sử dụng |
 | :--- | :---: | :---: | :--- |
 | `--strategy` | `str` | `fedavg` (YAML) | Thuật toán tổng hợp trọng số: `fedavg`, `fedprox`, `fednova`, `fedbn`, `scaffold`. |
+| `--name` hoặc `-n` | `str` | `None` (YAML) | Tên định danh đợt chạy để đặt tên thư mục kết quả (`results/federated/<strategy>/<name>/`). Mặc định dùng timestamp (`%Y%m%d_%H%M%S`). |
 | `--rounds` | `int` | `50` (YAML) | Tổng số vòng (rounds) Federated Learning cần huấn luyện. |
 | `--min_clients` | `int` | `3` (YAML) | Số lượng client tối thiểu phải kết nối trước khi Server bắt đầu mỗi round. **Phải khớp với số PC client tham gia**. |
 | `--local_epochs` | `int` | `5` (YAML) | Số epoch huấn luyện cục bộ tại mỗi client trong từng round. |
@@ -259,6 +267,7 @@ Giả sử IP của PC Server là `192.168.1.50`:
 | :--- | :---: | :---: | :--- |
 | `--client_id` | `int` | *(Bắt buộc)* | ID đại diện của máy client (0, 1, 2, ...). **Mỗi PC phải có ID riêng biệt**. |
 | `--server_address` | `str` | `127.0.0.1:8080` | Địa chỉ `<IP_SERVER>:<PORT>` của PC Server trong mạng LAN. |
+| `--name` hoặc `-n` | `str` | `None` (YAML) | Tên định danh đợt chạy để phân tách thư mục logs của client (`results/clients/<name>/client_<id>/`). |
 | `--num_clients` | `int` | `3` (YAML) | Tổng số client tương ứng với file phân vùng dữ liệu. |
 | `--partition_mode` | `str` | `dirichlet_0.3` | Chế độ phân vùng (`dirichlet_0.1`, `dirichlet_0.3`, `dirichlet_1.0`, `pathological`, `practical`). |
 | `--dataset` | `str` | `bloodmnist` | Tập dữ liệu (`bloodmnist`, `pathmnist`, `organamnist`). |
@@ -619,20 +628,20 @@ Bạn có thể dễ dàng chạy thử nhanh một tập con các chiến lư�
 
 ### 4.3. Cấu trúc kết quả đầu ra của Simulation Benchmark
 
-Toàn bộ kết quả được lưu tập trung vào thư mục `results/simulation/<timestamp>/`:
+Toàn bộ kết quả được lưu tập trung vào thư mục `results/simulation/<name_hoặc_timestamp>/` (khi truyền `--name my_run`, thư mục sẽ là `results/simulation/my_run/`):
 
 ```
-results/simulation/<timestamp>/
+results/simulation/<name_hoặc_timestamp>/
 ├── simulation_summary.csv             # Bảng CSV tổng hợp metrics cốt lõi (tự động có cột BMCTA và BTA khi bật --local_test)
 ├── simulation_rounds_history.csv     # Bảng CSV toàn bộ timeline round-by-round (accuracy, loss, time, mcta)
-├── simulation_results.json           # File JSON đầy đủ siêu tham số và kết quả máy đọc
+├── simulation_results.json           # File JSON đầy đủ siêu tham số và kết quả máy đọc (chứa run_name)
 ├── simulation_report.md              # Báo cáo Markdown có bảng xếp hạng Leaderboard và ma trận kết quả (BMCTA/BTA)
-├── compare_accuracy_curves.png       # Đồ thị hội tụ Accuracy qua các round (chia theo từng alpha)
-├── compare_loss_curves.png           # Đồ thị hội tụ Loss qua các round (chia theo từng alpha)
-├── compare_accuracy_barchart.png     # Biểu đồ cột so sánh Best Test Accuracy của các thuật toán
-├── compare_runtime_barchart.png      # Biểu đồ cột so sánh tổng thời gian huấn luyện và thời gian/round
-├── compare_accuracy_heatmap.png      # Ma trận Heatmap 2D (Strategy x Alpha) làm nổi bật thuật toán tối ưu
-└── <dataset>/                    # Thư mục dữ liệu (hoặc alpha_<alpha>/)
+├── <dataset>_compare_accuracy_curves.png  # Đồ thị hội tụ Accuracy qua các round
+├── <dataset>_compare_loss_curves.png      # Đồ thị hội tụ Loss qua các round
+├── <dataset>_compare_accuracy_barchart.png# Biểu đồ cột so sánh Best Test Accuracy của các thuật toán
+├── <dataset>_compare_runtime_barchart.png # Biểu đồ cột so sánh tổng thời gian huấn luyện và thời gian/round
+├── <dataset>_compare_accuracy_heatmap.png # Ma trận Heatmap 2D (Strategy x Alpha) làm nổi bật thuật toán tối ưu
+└── <dataset>/                         # Thư mục dữ liệu
     └── <partition>/
         └── <strategy>/           # Artifacts chi tiết:
             ├── client_eval_metrics.csv     # Bảng metrics kiểm thử cục bộ từng client theo round (khi bật --local_test)
@@ -654,6 +663,8 @@ results/simulation/<timestamp>/
 | Tùy chọn CLI | Khóa trong `configs/simulation.yaml` | Kiểu dữ liệu | Mặc định | Ý nghĩa & Hướng dẫn sử dụng |
 | :--- | :--- | :---: | :---: | :--- |
 | `--config` | *(đường dẫn)* | `str` | `configs/simulation.yaml` | Đường dẫn file YAML cấu hình mô phỏng. |
+| `--name` hoặc `-n` | `name` | `str` | `None` (YAML) | Tên định danh đợt mô phỏng để tạo thư mục riêng biệt (`results/simulation/<name>/`). Mặc định dùng timestamp (`%Y%m%d_%H%M%S`). |
+| `--output_dir` | `output_dir` | `str` | `results/simulation` | Thư mục cha lưu trữ toàn bộ đợt mô phỏng. |
 | `--num_clients` | `num_clients` | `int` | `3` | Số lượng client ảo mô phỏng cùng chạy cục bộ trên PC. |
 | `--partitions` | `partitions` | `list[str]` | `[dirichlet_0.3, pathological, practical]` | Danh sách mức độ phân tán nhãn cần kiểm nghiệm. |
 | `--datasets` | `datasets` | `list[str]` | `[bloodmnist]` | Danh sách tập dữ liệu cần mô phỏng. |

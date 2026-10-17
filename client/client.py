@@ -31,6 +31,7 @@ from flwr.common import NDArrays, Scalar
 from models import get_model, set_seed, get_parameters, set_parameters, set_parameters_fedbn
 from datasets.medmnist_code import get_medmnist_datasets
 from datasets.partition import load_partition, get_client_dataloader, get_partition_path
+from utils.path_utils import sanitize_run_name
 
 
 from monitoring.resource import get_resource_usage, get_device_type
@@ -212,6 +213,7 @@ class FedMedAIClient(fl.client.NumPyClient):
         optimizer_name: str = "adam",
         momentum: float = 0.0,
         weight_decay: float = 0.0,
+        name: Optional[str] = None,
     ):
         self.client_id = client_id
         self.model_name = model_name
@@ -239,6 +241,9 @@ class FedMedAIClient(fl.client.NumPyClient):
         # Client ping logger
         if client_dir is not None:
             self.client_dir = Path(client_dir)
+        elif name:
+            safe_name = sanitize_run_name(name)
+            self.client_dir = Path("results") / "clients" / safe_name / f"client_{self.client_id}"
         else:
             self.client_dir = Path("results") / "clients" / f"client_{self.client_id}"
         self.ping_logger = ClientPingLogger(
@@ -544,7 +549,7 @@ class FedMedAIClient(fl.client.NumPyClient):
     def _save_client_csvs(self):
         """Export local client CSV metrics for on-device inspection."""
         try:
-            client_dir = Path("results") / "clients" / f"client_{self.client_id}"
+            client_dir = self.client_dir
             client_dir.mkdir(parents=True, exist_ok=True)
 
             # Round metrics
@@ -750,7 +755,14 @@ def main():
         "--client_dir",
         type=str,
         default=None,
-        help="Custom directory to store client metrics and ping logs (default: results/clients/client_<id>)",
+        help="Custom directory to store client metrics and ping logs (default: results/clients/[<name>/]client_<id>)",
+    )
+    parser.add_argument(
+        "--name",
+        "-n",
+        type=str,
+        default=yaml_cfg.get("name", None),
+        help="Designated run name for client output directory (default: None)",
     )
     parser.add_argument(
         "--local_test",
@@ -920,6 +932,7 @@ def main():
         optimizer_name=args.optimizer,
         momentum=args.momentum,
         weight_decay=args.weight_decay,
+        name=args.name,
     )
 
     print(f"[Client {args.client_id}] Connecting to {args.server_address}...")

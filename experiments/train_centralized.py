@@ -24,6 +24,7 @@ from models import get_model, set_seed
 from datasets.medmnist_code import get_medmnist_datasets, get_medmnist_dataloaders
 from client.train import train
 from client.evaluate import evaluate 
+from utils.path_utils import sanitize_run_name 
 
 
 def get_resource_usage():
@@ -249,20 +250,30 @@ def run_centralized(
     augment: bool = True,
     random_crop: bool = True,
     random_flip: bool = True,
+    name: str = None,
+    save_dir: str = None,
 ):
     set_seed(seed)
     opt_name = str(optimizer_name).lower().strip()
+    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+    run_name = sanitize_run_name(name) if name else None
+
+    if save_dir:
+        final_save_dir = str(save_dir)
+    elif run_name:
+        final_save_dir = f"results/centralized/{run_name}"
+    else:
+        final_save_dir = f"results/centralized/{timestamp}"
+    os.makedirs(final_save_dir, exist_ok=True)
+    save_dir = final_save_dir
+
     print("Starting centralized training...")
     print(
         f"Config ({config_source}): dataset={dataset_name}, model={model_name}, optimizer={opt_name.upper()}" + (f"(momentum={momentum})" if opt_name == "sgd" else "") +
-        f", seed={seed}, epochs={epochs}, batch_size={batch_size}, learning_rate={learning_rate}, "
+        f", run_name={run_name or timestamp}, seed={seed}, epochs={epochs}, batch_size={batch_size}, learning_rate={learning_rate}, "
         f"lr_patience={lr_patience}, lr_factor={lr_factor}, early_stop_patience={early_stop_patience}, "
         f"augment={augment}, random_crop={random_crop}, random_flip={random_flip}"
     )
-
-    timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    save_dir = f"results/centralized/{timestamp}"
-    os.makedirs(save_dir, exist_ok=True)
 
     # Load dataset
     print(f"Loading {dataset_name} dataset...")
@@ -343,6 +354,7 @@ def run_centralized(
     )
 
     results = {
+        "run_name": run_name or timestamp,
         "config_source": config_source,
         "model": model_name,
         "optimizer": opt_name,
@@ -412,6 +424,7 @@ def parse_args():
     default_optimizer = cen_cfg.get("optimizer", yaml_cfg.get("optimizer", "adam"))
     default_momentum = cen_cfg.get("momentum", yaml_cfg.get("momentum", 0.0))
     default_seed = cen_cfg.get("seed", yaml_cfg.get("seed", 42))
+    default_name = cen_cfg.get("name", yaml_cfg.get("name", None))
     default_augment = cen_cfg.get("augment", yaml_cfg.get("augment", True))
     default_crop = cen_cfg.get("random_crop", yaml_cfg.get("random_crop", True))
     default_flip = cen_cfg.get("random_flip", yaml_cfg.get("random_flip", True))
@@ -420,6 +433,10 @@ def parse_args():
         description="Centralized Training Baseline with YAML Config Support.",
         parents=[pre_parser],
     )
+    parser.add_argument("--name", "-n", type=str, default=default_name,
+                        help=f"Designated run name for output directory (default: {default_name or 'timestamp'}).")
+    parser.add_argument("--output_dir", "--save_dir", dest="save_dir", type=str, default=None,
+                        help="Explicit directory path to save centralized artifacts (overrides default results/centralized/<name>).")
     parser.add_argument("--dataset", type=str, default=default_dataset,
                         help=f"Dataset name (e.g. 'bloodmnist', 'pathmnist', 'organamnist') (default: {default_dataset}).")
     parser.add_argument("--model", type=str, default=default_model, choices=["cnn", "baseline", "paper", "classic_cnn"],
@@ -472,4 +489,6 @@ if __name__ == "__main__":
         augment=args.augment,
         random_crop=args.random_crop,
         random_flip=args.random_flip,
+        name=args.name,
+        save_dir=args.save_dir,
     )

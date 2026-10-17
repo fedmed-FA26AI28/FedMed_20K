@@ -107,7 +107,7 @@ proximal_mu: 0.01
 
 # --- Server Evaluation & Metrics Tracking ---
 server_eval: true             # Centralized evaluation on global test set
-local_test: true              # Partition test set across clients and track BMCTA/BTA (FedSLD paper metric)
+local_test: false             # Partition test set across clients and track BMCTA/BTA (FedSLD paper metric)
 early_stop_patience: 0        # Rounds without metric improvement before stopping (0 = disabled, run all rounds)
 early_stop_metric: accuracy   # Target metric to monitor: 'accuracy' or 'loss'
 
@@ -126,4 +126,5 @@ save_client_metrics: true     # Record per-client ping and epoch metrics CSVs
 
 # --- Output & Logging ---
 output_dir: results/simulation # Base directory to save simulation run logs, summary CSVs, and plots
+name: null                     # Optional designated simulation run folder name (e.g. 'isbi_repro'); defaults to timestamp if null
 generate_comparison_plots: true # Generate cross-strategy accuracy/loss curves, bar charts, and heatmap
