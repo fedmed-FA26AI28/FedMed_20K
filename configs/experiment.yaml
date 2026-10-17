@@ -50,6 +50,7 @@ optimizer: sgd                    # Client optimizer: 'sgd' (reproduces FedSLD p
 momentum: 0.0                     # SGD momentum (0.0 = Pure SGD matching paper; 0.9 = accelerated momentum)
 weight_decay: 0.0                 # L2 weight decay penalty (0.0 = disabled)
 seed: 42                          # Global random seed for reproducible initialization & partitioning
+name: null                        # Optional designated run folder name (e.g. 'baseline_repro'); defaults to timestamp if null
 
 # --- Data Augmentation (Training split only) ---
 augment: true                     # Master toggle for train set augmentation (true = enabled, false = disabled)
@@ -128,6 +129,7 @@ centralized:
   min_lr: 0.000001                # Minimum learning rate lower bound
   early_stop_patience: 15         # Early stopping patience (epochs without val loss improvement)
   seed: 42                        # Random seed for reproducibility
+  name: null                      # Optional designated run folder name (e.g. 'centralized_pathmnist'); defaults to timestamp if null
 
 # Flat aliases for centralized run parameters (backwards compatibility)
 centralized_epochs: 100

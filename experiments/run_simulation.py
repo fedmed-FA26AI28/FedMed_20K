@@ -39,7 +39,9 @@ from datasets.partition import (
     visualize_partition,
     has_local_test,
     get_partition_path,
+    get_partition_plot_path,
 )
+from utils.path_utils import sanitize_run_name
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -152,10 +154,26 @@ def ensure_partition_exists(
         test_indices=test_partition if local_test else None,
         save_dir=str(part_dir),
     )
-    plot_tag = "_localtest" if local_test else ""
-    plot_path = part_dir / "plots" / f"dist_{dataset_name}_{partition_mode}{plot_tag}_clients{num_clients}.png"
+    plot_path = get_partition_plot_path(
+        dataset_name=dataset_name,
+        partition_mode=partition_mode,
+        seed=seed,
+        num_clients=num_clients,
+        local_test=local_test,
+        save_dir=part_dir,
+    )
     try:
-        visualize_partition(partition, train_dataset, dataset_name, partition_mode, num_clients, save_path=str(plot_path.resolve()))
+        visualize_partition(
+            partition,
+            train_dataset,
+            dataset_name,
+            partition_mode,
+            num_clients,
+            seed=seed,
+            save_path=str(plot_path.resolve()),
+            test_partition=test_partition if local_test else None,
+            test_dataset=test_dataset if local_test else None,
+        )
     except Exception as e:
         print(f"[Partition] Warning: Could not generate visualization plot: {e}")
     print(f"[Partition] Generated and verified: {saved_path} (plot: {plot_path})")
@@ -737,6 +755,7 @@ def generate_markdown_report(
         "# FedMedAI Simulation Benchmark Report",
         "",
         f"**Generated At:** {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}  ",
+        (f"**Run Name:** `{sim_config['name']}` | " if sim_config.get("name") else "") +
         f"**Model:** `{sim_config.get('model', 'cnn')}` | **Seed:** `{sim_config.get('seed', 42)}` | "
         f"**Rounds:** {sim_config.get('rounds')} | **Clients:** {sim_config.get('num_clients')} | "
         f"**Local Epochs:** {sim_config.get('local_epochs')} | **LR Mode:** `{sim_config.get('lr_mode')}` | "
@@ -831,6 +850,7 @@ def main():
     parser.add_argument("--batch_size", type=int, default=None)
     parser.add_argument("--learning_rate", "--lr", type=float, default=None)
     parser.add_argument("--lr_mode", type=str, choices=["client_loss", "server_decay", "fixed"], default=None)
+    parser.add_argument("--name", "-n", type=str, default=None, help="Designated simulation run name for output directory (default: timestamp)")
     parser.add_argument("--output_dir", type=str, default=None)
     parser.add_argument("--timeout_per_run", type=int, default=None, help="Max run timeout in seconds (<=0 to disable)")
     parser.add_argument("--no_timeout", dest="no_timeout", action="store_true", help="Disable run timeout completely")
@@ -910,9 +930,15 @@ def main():
     partitions = [p.lower().strip() for p in partitions]
     strategies = [s.lower().strip() for s in strategies]
 
+    raw_name = args.name or cfg.get("name")
+    run_name = sanitize_run_name(raw_name) if raw_name else None
     timestamp_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
+
     if args.output_dir:
-        base_output_dir = Path(args.output_dir)
+        base_parent = Path(args.output_dir)
+        base_output_dir = base_parent / run_name if run_name else base_parent
+    elif run_name:
+        base_output_dir = Path(cfg.get("output_dir", "results/simulation")) / run_name
     else:
         base_output_dir = Path(cfg.get("output_dir", "results/simulation")) / timestamp_str
     base_output_dir.mkdir(parents=True, exist_ok=True)
@@ -921,6 +947,8 @@ def main():
     print(f"\n{'='*70}")
     print(f"  FedMedAI Automated Simulation Benchmark")
     print(f"{'='*70}")
+    print(f"  Run Name         : {run_name or timestamp_str}")
+    print(f"  Output Directory : {base_output_dir}")
     print(f"  Model            : {model.upper()}")
     print(f"  Optimizer        : {optimizer.upper()}" + (f" (momentum={momentum})" if optimizer == "sgd" else ""))
     print(f"  Augmentation     : {'Enabled' if augment else 'Disabled'} (crop={random_crop}, flip={random_flip})")
@@ -1045,6 +1073,7 @@ def main():
         print("  [Notice] No rounds history available to plot (runs may have timed out or failed before completing).")
 
     sim_meta = {
+        "run_name": run_name or timestamp_str,
         "timestamp": timestamp_str,
         "config": cfg,
         "total_wall_clock_time_seconds": total_sim_time,
@@ -1062,6 +1091,7 @@ def main():
         datasets=datasets,
         partitions=partitions,
         sim_config={
+            "name": run_name,
             "model": model,
             "seed": seed,
             "rounds": rounds,

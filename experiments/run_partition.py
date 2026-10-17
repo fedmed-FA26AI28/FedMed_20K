@@ -6,7 +6,7 @@ import numpy as np
 from datasets.medmnist_code import get_medmnist_datasets
 from datasets.partition import (
     dirichlet_partition, pathological_partition, practical_partition,
-    save_partition, visualize_partition
+    save_partition, visualize_partition, get_partition_plot_path
 )
 
 def load_yaml_config(config_path: str = "configs/experiment.yaml") -> dict:
@@ -89,10 +89,25 @@ def run_one(dataset_name: str, partition_mode: str, num_clients: int, seed: int,
     )
     
     # Save visualization plot
-    plot_tag = "_localtest" if local_test else ""
-    plot_path = Path(f"data/partitions/plots/dist_{dataset_name}_{partition_mode}{plot_tag}_clients{num_clients}.png").resolve()
+    plot_path = get_partition_plot_path(
+        dataset_name=dataset_name,
+        partition_mode=partition_mode,
+        seed=seed,
+        num_clients=num_clients,
+        local_test=local_test,
+    )
     try:
-        visualize_partition(partition, train_dataset, dataset_name, partition_mode, num_clients, save_path=str(plot_path))
+        visualize_partition(
+            partition,
+            train_dataset,
+            dataset_name,
+            partition_mode,
+            num_clients,
+            seed=seed,
+            save_path=str(plot_path.resolve()),
+            test_partition=test_partition if local_test else None,
+            test_dataset=test_dataset if local_test else None,
+        )
     except Exception as e:
         print(f"[Partition] Warning: Could not save partition plot: {e}")
 

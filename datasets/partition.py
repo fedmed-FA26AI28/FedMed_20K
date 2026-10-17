@@ -8,11 +8,27 @@ import numpy as np
 import matplotlib.pyplot as plt
 from pathlib import Path
 from torch.utils.data import DataLoader, Subset
-from typing import List, Dict, Tuple, Optional, Union
+from typing import List, Dict, Tuple, Optional, Union, Any
 from medmnist import INFO
 
 # Duong dan mac dinh den file config
 _CONFIG_DIR = Path(__file__).resolve().parent.parent / "configs"
+
+
+def _extract_labels(dataset) -> np.ndarray:
+    """Fast label extraction from MedMNIST, PyTorch Subsets, or standard Datasets.
+
+    Avoids executing full torchvision transforms across all samples by directly
+    accessing in-memory labels when available.
+    """
+    if hasattr(dataset, "labels"):
+        return np.array(dataset.labels).squeeze()
+    if hasattr(dataset, "targets"):
+        return np.array(dataset.targets).squeeze()
+    if isinstance(dataset, Subset):
+        base_labels = _extract_labels(dataset.dataset)
+        return base_labels[dataset.indices]
+    return np.array([dataset[i][1] for i in range(len(dataset))]).squeeze()
 
 
 # ─────────────────────────────────────────────────────────────
@@ -76,22 +92,23 @@ def load_hardware_config(client_id: int = None, device_type: str = None) -> Dict
 
 def dirichlet_partition(dataset, num_clients: int, alpha: float, seed: int = 42,
                         test_dataset=None) -> Union[List[List[int]], Tuple[List[List[int]], List[List[int]]]]:
-    np.random.seed(seed)
-    labels = np.array([dataset[i][1] for i in range(len(dataset))]).squeeze()
+    """Partition dataset following Dirichlet distribution (Non-IID).
+
+    Decouples train and test RNG passes so the training split is 100% deterministic
+    regardless of whether test_dataset is provided.
+    """
+    rng = np.random.RandomState(seed)
+    labels = _extract_labels(dataset)
     num_classes = len(np.unique(labels))
     client_indices = [[] for _ in range(num_clients)]
-
-    test_labels = None
-    test_client_indices = None
-    if test_dataset is not None:
-        test_labels = np.array([test_dataset[i][1] for i in range(len(test_dataset))]).squeeze()
-        test_client_indices = [[] for _ in range(num_clients)]
+    class_proportions = {}
 
     for class_id in range(num_classes):
         class_indices = np.where(labels == class_id)[0]
-        np.random.shuffle(class_indices)
-        proportions = np.random.dirichlet(alpha * np.ones(num_clients))
+        rng.shuffle(class_indices)
+        proportions = rng.dirichlet(alpha * np.ones(num_clients))
         proportions = proportions / proportions.sum()
+        class_proportions[class_id] = proportions
 
         counts = (proportions * len(class_indices)).astype(int)
         diff = len(class_indices) - counts.sum()
@@ -102,21 +119,28 @@ def dirichlet_partition(dataset, num_clients: int, alpha: float, seed: int = 42,
             client_indices[cid].extend(class_indices[start:end].tolist())
             start = end
 
-        if test_dataset is not None:
-            t_class_indices = np.where(test_labels == class_id)[0]
-            np.random.shuffle(t_class_indices)
-            t_counts = (proportions * len(t_class_indices)).astype(int)
-            t_diff = len(t_class_indices) - t_counts.sum()
-            t_counts[-1] += t_diff
-            t_start = 0
-            for cid, count in enumerate(t_counts):
-                t_end = t_start + count
-                test_client_indices[cid].extend(t_class_indices[t_start:t_end].tolist())
-                t_start = t_end
+    if test_dataset is None:
+        return client_indices
 
-    if test_dataset is not None:
-        return client_indices, test_client_indices
-    return client_indices
+    # Phase 2: Partition test set (isolated pass with dedicated test RNG)
+    test_labels = _extract_labels(test_dataset)
+    test_client_indices = [[] for _ in range(num_clients)]
+    test_rng = np.random.RandomState(seed)
+
+    for class_id in range(num_classes):
+        t_class_indices = np.where(test_labels == class_id)[0]
+        test_rng.shuffle(t_class_indices)
+        proportions = class_proportions[class_id]
+        t_counts = (proportions * len(t_class_indices)).astype(int)
+        t_diff = len(t_class_indices) - t_counts.sum()
+        t_counts[-1] += t_diff
+        t_start = 0
+        for cid, count in enumerate(t_counts):
+            t_end = t_start + count
+            test_client_indices[cid].extend(t_class_indices[t_start:t_end].tolist())
+            t_start = t_end
+
+    return client_indices, test_client_indices
 
 
 def pathological_partition(dataset, num_clients: int, seed: int = 42,
@@ -125,16 +149,17 @@ def pathological_partition(dataset, num_clients: int, seed: int = 42,
 
     If test_dataset is provided, partitions the test set using the exact same assigned classes
     and proportional distribution per client, guaranteeing identical label distributions.
+    Decouples train and test RNG passes so train splits are 100% deterministic regardless of whether test_dataset is passed.
     """
-    np.random.seed(seed)
-    labels = np.array([dataset[i][1] for i in range(len(dataset))]).squeeze()
+    rng = np.random.RandomState(seed)
+    labels = _extract_labels(dataset)
     num_classes = len(np.unique(labels))
-    
+
     # Assign 2 random classes to each client
     # Ensure every class is assigned to at least one client to prevent dropped samples
     max_attempts = 1000
     for attempt in range(max_attempts):
-        client_classes = [np.random.choice(num_classes, 2, replace=False) for _ in range(num_clients)]
+        client_classes = [rng.choice(num_classes, 2, replace=False).tolist() for _ in range(num_clients)]
         class_to_clients = {c: [] for c in range(num_classes)}
         for cid, classes in enumerate(client_classes):
             for c in classes:
@@ -148,31 +173,26 @@ def pathological_partition(dataset, num_clients: int, seed: int = 42,
             client_classes[c % num_clients].append(c)
         for cid in range(num_clients):
             while len(client_classes[cid]) < 2:
-                c = np.random.choice(num_classes)
+                c = int(rng.choice(num_classes))
                 if c not in client_classes[cid]:
                     client_classes[cid].append(c)
         class_to_clients = {c: [] for c in range(num_classes)}
         for cid, classes in enumerate(client_classes):
             for c in classes:
                 class_to_clients[c].append(cid)
-            
-    client_indices = [[] for _ in range(num_clients)]
 
-    test_labels = None
-    test_client_indices = None
-    if test_dataset is not None:
-        test_labels = np.array([test_dataset[i][1] for i in range(len(test_dataset))]).squeeze()
-        test_client_indices = [[] for _ in range(num_clients)]
-    
+    client_indices = [[] for _ in range(num_clients)]
+    class_proportions = {}
+
     for class_id in range(num_classes):
         assigned_clients = class_to_clients[class_id]
-            
         class_indices = np.where(labels == class_id)[0]
-        np.random.shuffle(class_indices)
-        
+        rng.shuffle(class_indices)
+
         # Divide samples randomly among assigned clients
-        proportions = np.random.dirichlet(np.ones(len(assigned_clients)))
+        proportions = rng.dirichlet(np.ones(len(assigned_clients)))
         proportions = proportions / proportions.sum()
+        class_proportions[class_id] = proportions
 
         # Divide samples among assigned clients
         if len(class_indices) >= len(assigned_clients):
@@ -184,7 +204,7 @@ def pathological_partition(dataset, num_clients: int, seed: int = 42,
             counts = (proportions * len(class_indices)).astype(int)
             diff = len(class_indices) - counts.sum()
             counts[-1] += diff
-        
+
         start = 0
         for idx, count in enumerate(counts):
             end = start + count
@@ -192,30 +212,38 @@ def pathological_partition(dataset, num_clients: int, seed: int = 42,
             client_indices[cid].extend(class_indices[start:end].tolist())
             start = end
 
-        if test_dataset is not None:
-            t_class_indices = np.where(test_labels == class_id)[0]
-            np.random.shuffle(t_class_indices)
+    if test_dataset is None:
+        return client_indices
 
-            if len(t_class_indices) >= len(assigned_clients):
-                t_remaining = len(t_class_indices) - len(assigned_clients)
-                t_counts = 1 + (proportions * t_remaining).astype(int)
-                t_diff = len(t_class_indices) - t_counts.sum()
-                t_counts[np.argmax(proportions)] += t_diff
-            else:
-                t_counts = (proportions * len(t_class_indices)).astype(int)
-                t_diff = len(t_class_indices) - t_counts.sum()
-                t_counts[-1] += t_diff
+    # Phase 2: Partition test set (isolated pass with dedicated test RNG)
+    test_labels = _extract_labels(test_dataset)
+    test_client_indices = [[] for _ in range(num_clients)]
+    test_rng = np.random.RandomState(seed)
 
-            t_start = 0
-            for idx, count in enumerate(t_counts):
-                t_end = t_start + count
-                cid = assigned_clients[idx]
-                test_client_indices[cid].extend(t_class_indices[t_start:t_end].tolist())
-                t_start = t_end
-            
-    if test_dataset is not None:
-        return client_indices, test_client_indices
-    return client_indices
+    for class_id in range(num_classes):
+        assigned_clients = class_to_clients[class_id]
+        proportions = class_proportions[class_id]
+        t_class_indices = np.where(test_labels == class_id)[0]
+        test_rng.shuffle(t_class_indices)
+
+        if len(t_class_indices) >= len(assigned_clients):
+            t_remaining = len(t_class_indices) - len(assigned_clients)
+            t_counts = 1 + (proportions * t_remaining).astype(int)
+            t_diff = len(t_class_indices) - t_counts.sum()
+            t_counts[np.argmax(proportions)] += t_diff
+        else:
+            t_counts = (proportions * len(t_class_indices)).astype(int)
+            t_diff = len(t_class_indices) - t_counts.sum()
+            t_counts[-1] += t_diff
+
+        t_start = 0
+        for idx, count in enumerate(t_counts):
+            t_end = t_start + count
+            cid = assigned_clients[idx]
+            test_client_indices[cid].extend(t_class_indices[t_start:t_end].tolist())
+            t_start = t_end
+
+    return client_indices, test_client_indices
 
 
 def practical_partition(dataset, num_clients: int, seed: int = 42,
@@ -224,29 +252,27 @@ def practical_partition(dataset, num_clients: int, seed: int = 42,
 
     If test_dataset is provided, shards the test set using the exact same shard proportions
     and client assignments per class, guaranteeing identical label distributions.
+    Training partition is decoupled from test partition so train splits are 100% deterministic
+    regardless of whether test_dataset is passed.
     """
-    np.random.seed(seed)
-    labels = np.array([dataset[i][1] for i in range(len(dataset))]).squeeze()
-    num_classes = len(np.unique(labels))
-    
     if num_clients != 12:
         raise ValueError("practical_partition requires exactly 12 clients according to the FedSLD paper.")
-        
-    client_indices = [[] for _ in range(num_clients)]
 
-    test_labels = None
-    test_client_indices = None
-    if test_dataset is not None:
-        test_labels = np.array([test_dataset[i][1] for i in range(len(test_dataset))]).squeeze()
-        test_client_indices = [[] for _ in range(num_clients)]
-    
+    labels = _extract_labels(dataset)
+    num_classes = len(np.unique(labels))
+
+    # Phase 1: Partition training set (independent RNG sequence)
+    rng = np.random.RandomState(seed)
+    client_indices = [[] for _ in range(num_clients)]
+    class_shard_map = {}
+
+    shard_props = [0.01]*10 + [0.1, 0.8]
+
     for class_id in range(num_classes):
         class_indices = np.where(labels == class_id)[0]
-        np.random.shuffle(class_indices)
+        rng.shuffle(class_indices)
         N = len(class_indices)
-        
-        # Shard counts: ten 1%, one 10%, one 80%
-        shard_props = [0.01]*10 + [0.1, 0.8]
+
         if N >= 12:
             shard_counts = [max(1, int(p * N)) for p in shard_props[:-1]]
             diff = N - sum(shard_counts)
@@ -261,35 +287,11 @@ def practical_partition(dataset, num_clients: int, seed: int = 42,
             diff = N - sum(shard_counts)
             shard_counts[-1] += diff
 
-        t_shard_slices = None
-        if test_dataset is not None:
-            t_class_indices = np.where(test_labels == class_id)[0]
-            np.random.shuffle(t_class_indices)
-            t_N = len(t_class_indices)
-            if t_N >= 12:
-                t_shard_counts = [max(1, int(p * t_N)) for p in shard_props[:-1]]
-                t_diff = t_N - sum(t_shard_counts)
-                if t_diff >= 0:
-                    t_shard_counts.append(t_diff)
-                else:
-                    t_shard_counts = [int(p * t_N) for p in shard_props]
-                    t_diff = t_N - sum(t_shard_counts)
-                    t_shard_counts[-1] += t_diff
-            else:
-                t_shard_counts = [int(p * t_N) for p in shard_props]
-                t_diff = t_N - sum(t_shard_counts)
-                t_shard_counts[-1] += t_diff
-
-            t_shard_slices = []
-            t_start = 0
-            for t_cnt in t_shard_counts:
-                t_shard_slices.append(t_class_indices[t_start:t_start + t_cnt].tolist())
-                t_start += t_cnt
-        
-        # Shuffle shards and assign one to each client
+        # Shuffle shards and assign to clients
         shard_indices = list(range(12))
-        np.random.shuffle(shard_indices)
-        
+        rng.shuffle(shard_indices)
+        class_shard_map[class_id] = shard_indices
+
         start = 0
         for cid, s_idx in enumerate(shard_indices):
             count = shard_counts[s_idx]
@@ -297,12 +299,44 @@ def practical_partition(dataset, num_clients: int, seed: int = 42,
             client_indices[cid].extend(class_indices[start:end].tolist())
             start = end
 
-            if test_dataset is not None:
-                test_client_indices[cid].extend(t_shard_slices[s_idx])
-            
-    if test_dataset is not None:
-        return client_indices, test_client_indices
-    return client_indices
+    if test_dataset is None:
+        return client_indices
+
+    # Phase 2: Partition test set (isolated pass with dedicated test RNG)
+    test_labels = _extract_labels(test_dataset)
+    test_client_indices = [[] for _ in range(num_clients)]
+    test_rng = np.random.RandomState(seed)
+
+    for class_id in range(num_classes):
+        t_class_indices = np.where(test_labels == class_id)[0]
+        test_rng.shuffle(t_class_indices)
+        t_N = len(t_class_indices)
+
+        if t_N >= 12:
+            t_shard_counts = [max(1, int(p * t_N)) for p in shard_props[:-1]]
+            t_diff = t_N - sum(t_shard_counts)
+            if t_diff >= 0:
+                t_shard_counts.append(t_diff)
+            else:
+                t_shard_counts = [int(p * t_N) for p in shard_props]
+                t_diff = t_N - sum(t_shard_counts)
+                t_shard_counts[-1] += t_diff
+        else:
+            t_shard_counts = [int(p * t_N) for p in shard_props]
+            t_diff = t_N - sum(t_shard_counts)
+            t_shard_counts[-1] += t_diff
+
+        t_shard_slices = []
+        t_start = 0
+        for t_cnt in t_shard_counts:
+            t_shard_slices.append(t_class_indices[t_start:t_start + t_cnt].tolist())
+            t_start += t_cnt
+
+        shard_indices = class_shard_map[class_id]
+        for cid, s_idx in enumerate(shard_indices):
+            test_client_indices[cid].extend(t_shard_slices[s_idx])
+
+    return client_indices, test_client_indices
 
 
 def save_partition(client_indices: List[List[int]], dataset,
@@ -312,12 +346,12 @@ def save_partition(client_indices: List[List[int]], dataset,
     save_path = Path(save_dir)
     save_path.mkdir(parents=True, exist_ok=True)
 
-    labels = np.array([dataset[i][1] for i in range(len(dataset))]).squeeze()
+    labels = _extract_labels(dataset)
     num_classes = len(np.unique(labels))
 
     test_labels = None
     if test_dataset is not None and test_indices is not None:
-        test_labels = np.array([test_dataset[i][1] for i in range(len(test_dataset))]).squeeze()
+        test_labels = _extract_labels(test_dataset)
 
     clients_data = {}
     for client_id, indices in enumerate(client_indices):
@@ -394,6 +428,20 @@ def get_partition_path(
         if local_cand.exists():
             return local_cand
         return std_cand
+
+
+def get_partition_plot_path(
+    dataset_name: str,
+    partition_mode: str,
+    seed: int = 42,
+    num_clients: int = 12,
+    local_test: bool = False,
+    save_dir: Union[str, Path] = "data/partitions",
+) -> Path:
+    """Resolve partition visualization plot PNG file path, including seed."""
+    base = Path(save_dir) / "plots"
+    tag = "_localtest" if local_test else ""
+    return base / f"dist_{dataset_name}_{partition_mode}{tag}_seed{seed}_clients{num_clients}.png"
 
 
 def load_partition(json_path: str, split: str = "train") -> Optional[List[List[int]]]:
@@ -498,11 +546,24 @@ def get_all_client_dataloaders(dataset, partition: List[List[int]],
 
 def visualize_partition(partition: List[List[int]], dataset,
                         dataset_name: str, partition_mode: str, num_clients: int,
-                        save_path: str = None):
-    labels = np.array([dataset[i][1] for i in range(len(dataset))]).squeeze()
+                        seed: Optional[int] = None,
+                        save_path: str = None,
+                        test_partition: Optional[List[List[int]]] = None,
+                        test_dataset: Optional[Any] = None):
+    """Visualize client class distributions as stacked bar chart.
+
+    If test_partition and test_dataset are provided, generates a 2-panel figure
+    showing Train Distribution on the left and Local Test Distribution on the right.
+    """
+    # Backward compatibility: if caller passed save_path as 6th positional argument
+    if isinstance(seed, (str, Path)) and save_path is None:
+        save_path = str(seed)
+        seed = None
+
+    labels = _extract_labels(dataset)
     num_classes = len(np.unique(labels))
-    
-    # Lấy class names tu MedMNIST INFO
+
+    # Get class names from MedMNIST INFO
     data_flag = dataset_name.lower()
     if data_flag in INFO:
         label_dict = INFO[data_flag]['label']
@@ -516,23 +577,57 @@ def visualize_partition(partition: List[List[int]], dataset,
         for c in range(num_classes):
             dist_matrix[client_id, c] = int(np.sum(client_labels == c))
 
-    fig, ax = plt.subplots(figsize=(max(8, num_clients * 1.2), 5))
+    has_test_plot = (test_partition is not None and test_dataset is not None)
+    if has_test_plot:
+        test_labels = _extract_labels(test_dataset)
+        test_dist_matrix = np.zeros((num_clients, num_classes), dtype=int)
+        for client_id, indices in enumerate(test_partition):
+            client_test_labels = test_labels[indices]
+            for c in range(num_classes):
+                test_dist_matrix[client_id, c] = int(np.sum(client_test_labels == c))
+
+        fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(max(15, num_clients * 2.2), 5), sharey=False)
+    else:
+        fig, ax1 = plt.subplots(figsize=(max(8, num_clients * 1.2), 5))
+        ax2 = None
+
     try:
         x = np.arange(num_clients)
-        bottom = np.zeros(num_clients)
         colors = plt.cm.Set3(np.linspace(0, 1, num_classes))
 
+        # Panel 1: Train split
+        bottom1 = np.zeros(num_clients)
         for c in range(num_classes):
-            ax.bar(x, dist_matrix[:, c], bottom=bottom,
-                   label=class_names[c], color=colors[c])
-            bottom += dist_matrix[:, c]
+            ax1.bar(x, dist_matrix[:, c], bottom=bottom1,
+                    label=class_names[c], color=colors[c])
+            bottom1 += dist_matrix[:, c]
 
-        ax.set_title(f"Data Distribution | {dataset_name} | {partition_mode} | {num_clients} Clients")
-        ax.set_xlabel("Client ID")
-        ax.set_ylabel("Number of Samples")
-        ax.set_xticks(x)
-        ax.set_xticklabels([f"C{i}" for i in range(num_clients)])
-        ax.legend(bbox_to_anchor=(1.01, 1), loc="upper left", fontsize=8)
+        title_seed = f" | Seed {seed}" if seed is not None else ""
+        train_total = np.sum(dist_matrix)
+        ax1.set_title(f"Train Distribution | {dataset_name} | {partition_mode}{title_seed} ({train_total} samples)")
+        ax1.set_xlabel("Client ID")
+        ax1.set_ylabel("Train Samples")
+        ax1.set_xticks(x)
+        ax1.set_xticklabels([f"C{i}" for i in range(num_clients)])
+
+        if not has_test_plot:
+            ax1.legend(bbox_to_anchor=(1.01, 1), loc="upper left", fontsize=8)
+        else:
+            # Panel 2: Test split
+            bottom2 = np.zeros(num_clients)
+            for c in range(num_classes):
+                ax2.bar(x, test_dist_matrix[:, c], bottom=bottom2,
+                        label=class_names[c], color=colors[c])
+                bottom2 += test_dist_matrix[:, c]
+
+            test_total = np.sum(test_dist_matrix)
+            ax2.set_title(f"Local Test Distribution | {dataset_name} | {partition_mode}{title_seed} ({test_total} samples)")
+            ax2.set_xlabel("Client ID")
+            ax2.set_ylabel("Test Samples")
+            ax2.set_xticks(x)
+            ax2.set_xticklabels([f"C{i}" for i in range(num_clients)])
+            ax2.legend(bbox_to_anchor=(1.01, 1), loc="upper left", fontsize=8)
+
         plt.tight_layout()
 
         if save_path:
