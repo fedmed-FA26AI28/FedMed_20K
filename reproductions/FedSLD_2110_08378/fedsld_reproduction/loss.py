@@ -21,8 +21,16 @@ def fedsld_loss(
     logits: torch.Tensor,
     targets: torch.Tensor,
     global_prior: torch.Tensor,
+    *,
+    ratio: str = "batch_over_global",
+    weight_normalized: bool = False,
 ) -> torch.Tensor:
-    """Weighted mean CE with paper weight p_batch(y) / p_global(y)."""
+    """Compute an explicitly selected FedSLD reconstruction hypothesis.
+
+    The defaults preserve Equation (3) as printed in the paper: sample weight
+    ``p_batch(y) / p_global(y)`` followed by a batch-size mean. Diagnostic
+    alternatives are opt-in and must not be described as the published method.
+    """
     if logits.ndim != 2:
         raise ValueError("logits must have shape [batch, classes]")
     targets = targets.reshape(-1).long()
@@ -36,9 +44,23 @@ def fedsld_loss(
     if torch.any((targets < 0) | (targets >= logits.shape[1])):
         raise ValueError("target outside configured class range")
 
+    if ratio not in {"batch_over_global", "global_over_batch"}:
+        raise ValueError("ratio must be batch_over_global or global_over_batch")
+
     batch_counts = torch.bincount(targets, minlength=logits.shape[1]).to(logits.dtype)
     batch_prior = batch_counts / targets.numel()
-    sample_weights = batch_prior[targets] / prior[targets]
+    if ratio == "batch_over_global":
+        sample_weights = batch_prior[targets] / prior[targets]
+    else:
+        # Every selected target is present in this batch, so its batch prior is
+        # strictly positive. This inverse direction is a reconstruction
+        # hypothesis motivated by importance weighting, not the printed formula.
+        sample_weights = prior[targets] / batch_prior[targets]
     per_sample = F.cross_entropy(logits, targets, reduction="none")
-    return torch.mean(sample_weights * per_sample)
+    weighted = sample_weights * per_sample
+    if weight_normalized:
+        return weighted.sum() / sample_weights.sum().clamp_min(
+            torch.finfo(sample_weights.dtype).eps
+        )
+    return weighted.mean()
 

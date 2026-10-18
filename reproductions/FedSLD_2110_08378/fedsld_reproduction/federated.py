@@ -67,6 +67,22 @@ def train_client(
             logits = model(images)
             if algorithm == "fedsld":
                 loss = fedsld_loss(logits, targets, global_prior.to(device))
+            elif algorithm == "fedsld_weightnorm":
+                loss = fedsld_loss(
+                    logits,
+                    targets,
+                    global_prior.to(device),
+                    ratio="batch_over_global",
+                    weight_normalized=True,
+                )
+            elif algorithm == "fedsld_inverse":
+                loss = fedsld_loss(
+                    logits,
+                    targets,
+                    global_prior.to(device),
+                    ratio="global_over_batch",
+                    weight_normalized=True,
+                )
             else:
                 loss = F.cross_entropy(logits, targets)
             if algorithm == "fedprox":

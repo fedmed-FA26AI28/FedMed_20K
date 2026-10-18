@@ -125,10 +125,34 @@ These are diagnostic targets, not acceptance thresholds:
 | PathMNIST/pathological | FedSLD | 59.11 |
 | OrganMNIST/practical | FedAvg | 85.69 |
 | OrganMNIST/practical | FedProx | 85.54 |
-| OrganMNIST/practical | FedSLD | 87.37 |
+| OrganMNIST/practical | FedSLD | 84.75 |
 | PathMNIST/practical | FedAvg | 57.38 |
 | PathMNIST/practical | FedProx | 57.72 |
 | PathMNIST/practical | FedSLD | 57.90 |
+
+The final paper table reports 84.75 BTA for practical OrganMNIST FedSLD, even
+though its surrounding prose states that FedSLD improves practical BTA on every
+dataset. This internal inconsistency must be noted rather than silently
+corrected. The 64.99/66.13 OrganMNIST values in the arXiv-v1 table belong to the
+pathological setting.
+
+## Explicit diagnostic hypotheses
+
+The CLI preserves `--algorithm fedsld` as the literal printed Equation (3):
+`p_batch/p_global` sample weights followed by a batch-size mean. Two opt-in
+diagnostics investigate details not resolved by the paper or public code:
+
+- `fedsld_weightnorm`: the printed ratio with division by the sum of sample
+  weights;
+- `fedsld_inverse`: `p_global/p_batch` importance weights with division by the
+  sum of sample weights.
+
+The latter two are recorded as reconstruction hypotheses in every result JSON.
+They must never be presented as the published FedSLD implementation. Similarly,
+`--dataset-split stratified` pools the three official MedMNIST splits and makes
+a deterministic class-stratified split with the same test-set size by default;
+it is an explicit hypothesis prompted by the paper's statement that train and
+test were partitioned to share a label distribution.
 
 ## BloodMNIST reference port
 

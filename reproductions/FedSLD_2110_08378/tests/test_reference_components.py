@@ -8,6 +8,7 @@ import torch
 import torch.nn.functional as F
 
 from fedsld_reproduction.federated import aggregate_states
+from fedsld_reproduction.data import stratified_split_indices
 from fedsld_reproduction.loss import federation_prior, fedsld_loss
 from fedsld_reproduction.model import PaperCNN
 from fedsld_reproduction.partition import (
@@ -37,8 +38,43 @@ class FedSLDLossTests(unittest.TestCase):
         expected = torch.mean(F.cross_entropy(logits, targets, reduction="none") * weights)
         torch.testing.assert_close(fedsld_loss(logits, targets, prior), expected)
 
+    def test_printed_ratio_weight_normalized_hypothesis(self):
+        logits = torch.tensor([[2.0, 0.0], [1.0, 1.0], [0.0, 2.0]])
+        targets = torch.tensor([0, 0, 1])
+        prior = torch.tensor([0.25, 0.75])
+        batch_prior = torch.tensor([2 / 3, 1 / 3])
+        weights = batch_prior[targets] / prior[targets]
+        expected = torch.sum(F.cross_entropy(logits, targets, reduction="none") * weights) / weights.sum()
+        actual = fedsld_loss(logits, targets, prior, weight_normalized=True)
+        torch.testing.assert_close(actual, expected)
+
+    def test_inverse_ratio_weight_normalized_hypothesis(self):
+        logits = torch.tensor([[2.0, 0.0], [1.0, 1.0], [0.0, 2.0]])
+        targets = torch.tensor([0, 0, 1])
+        prior = torch.tensor([0.25, 0.75])
+        batch_prior = torch.tensor([2 / 3, 1 / 3])
+        weights = prior[targets] / batch_prior[targets]
+        expected = torch.sum(F.cross_entropy(logits, targets, reduction="none") * weights) / weights.sum()
+        actual = fedsld_loss(
+            logits, targets, prior,
+            ratio="global_over_batch", weight_normalized=True,
+        )
+        torch.testing.assert_close(actual, expected)
+
 
 class PartitionTests(unittest.TestCase):
+    def test_stratified_dataset_split_is_complete_disjoint_and_reproducible(self):
+        labels = np.repeat(np.arange(3), [20, 30, 50])
+        train_a, test_a = stratified_split_indices(labels, 0.2, seed=4)
+        train_b, test_b = stratified_split_indices(labels, 0.2, seed=4)
+        self.assertEqual(train_a, train_b)
+        self.assertEqual(test_a, test_b)
+        self.assertEqual(80, len(train_a))
+        self.assertEqual(20, len(test_a))
+        self.assertFalse(set(train_a) & set(test_a))
+        self.assertEqual(list(range(100)), sorted(train_a + test_a))
+        self.assertEqual([4, 6, 10], np.bincount(labels[test_a]).tolist())
+
     def test_practical_plan_has_paper_shards(self):
         plan = practical_plan(8, seed=7)
         for row in plan.fractions:
@@ -92,6 +128,8 @@ class ResumeCheckpointTests(unittest.TestCase):
             learning_rate=0.01,
             proximal_mu=0.01,
             seed=42,
+            dataset_split="official",
+            stratified_test_fraction=None,
             exclude_official_val=False,
         )
 

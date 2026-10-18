@@ -25,10 +25,27 @@ from .partition import (
 )
 
 
+ALGORITHM_DESCRIPTIONS = {
+    "fedavg": "Unmodified cross-entropy control.",
+    "fedprox": "Cross-entropy plus the configured FedProx proximal term.",
+    "fedsld": (
+        "Literal Equation (3): p_batch/p_global weights with a batch-size mean."
+    ),
+    "fedsld_weightnorm": (
+        "Diagnostic hypothesis: printed p_batch/p_global weights normalized by "
+        "the sum of sample weights."
+    ),
+    "fedsld_inverse": (
+        "Diagnostic hypothesis: reversed p_global/p_batch importance weights "
+        "normalized by the sum of sample weights."
+    ),
+}
+
+
 def parse_args():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--dataset", choices=["organamnist", "pathmnist", "bloodmnist"], required=True)
-    parser.add_argument("--algorithm", choices=["fedavg", "fedprox", "fedsld"], required=True)
+    parser.add_argument("--algorithm", choices=sorted(ALGORITHM_DESCRIPTIONS), required=True)
     parser.add_argument("--partition", choices=["practical", "pathological"], required=True)
     parser.add_argument("--num-clients", type=int, default=12)
     parser.add_argument("--rounds", type=int, default=None)
@@ -40,6 +57,21 @@ def parse_args():
     parser.add_argument("--device", choices=["auto", "cpu", "cuda"], default="auto")
     parser.add_argument("--data-root", default="data")
     parser.add_argument("--output-dir", default="results/reference")
+    parser.add_argument(
+        "--dataset-split",
+        choices=["official", "stratified"],
+        default="official",
+        help="Official MedMNIST split or an explicit paper-style stratified hypothesis.",
+    )
+    parser.add_argument(
+        "--stratified-test-fraction",
+        type=float,
+        default=None,
+        help=(
+            "Test fraction for --dataset-split stratified; by default it matches "
+            "the official MedMNIST test-set size."
+        ),
+    )
     parser.add_argument(
         "--checkpoint-every",
         type=int,
@@ -93,6 +125,8 @@ def _run_signature(args, rounds: int):
         "learning_rate": args.learning_rate,
         "proximal_mu": args.proximal_mu,
         "seed": args.seed,
+        "dataset_split": args.dataset_split,
+        "stratified_test_fraction": args.stratified_test_fraction,
         "official_validation_merged_into_train": not args.exclude_official_val,
     }
 
@@ -154,6 +188,14 @@ def main():
         raise ValueError("epochs, batch size, and learning rate must be positive")
     if args.checkpoint_every < 0:
         raise ValueError("checkpoint-every must be non-negative")
+    if args.stratified_test_fraction is not None and not (
+        0 < args.stratified_test_fraction < 1
+    ):
+        raise ValueError("stratified-test-fraction must be in (0, 1)")
+    if args.dataset_split == "official" and args.stratified_test_fraction is not None:
+        raise ValueError("stratified-test-fraction requires --dataset-split stratified")
+    if args.dataset_split == "stratified" and args.exclude_official_val:
+        raise ValueError("stratified mode pools official train, val, and test")
     rounds = args.rounds if args.rounds is not None else (80 if args.partition == "practical" else 160)
     if rounds <= 0:
         raise ValueError("rounds must be positive")
@@ -169,6 +211,9 @@ def main():
         args.dataset,
         root=args.data_root,
         include_validation_in_train=not args.exclude_official_val,
+        split_mode=args.dataset_split,
+        split_seed=args.seed,
+        stratified_test_fraction=args.stratified_test_fraction,
     )
     plan = (
         practical_plan(bundle.num_classes, args.num_clients, args.seed)
@@ -191,10 +236,13 @@ def main():
 
     output = Path(args.output_dir) / args.dataset / args.partition / args.algorithm
     output.mkdir(parents=True, exist_ok=True)
+    run_label = f"seed{args.seed}"
+    if args.dataset_split == "stratified":
+        run_label += "_stratified"
     checkpoint_path = (
         Path(args.checkpoint_path)
         if args.checkpoint_path
-        else output / f"seed{args.seed}_resume.pt"
+        else output / f"{run_label}_resume.pt"
     )
     signature = _run_signature(args, rounds)
 
@@ -225,7 +273,7 @@ def main():
     print(
         f"FedSLD reconstruction: dataset={args.dataset}, algorithm={args.algorithm}, "
         f"partition={args.partition}, clients={args.num_clients}, rounds={rounds}, "
-        f"local_epochs={args.local_epochs}, device={device}",
+        f"local_epochs={args.local_epochs}, split={args.dataset_split}, device={device}",
         flush=True,
     )
     print(f"Client training samples: {[len(values) for values in train_partitions]}", flush=True)
@@ -298,6 +346,10 @@ def main():
     result = {
         "study": "FedSLD independent reconstruction",
         "source": "arXiv:2110.08378v1",
+        "algorithm_interpretation": ALGORITHM_DESCRIPTIONS[args.algorithm],
+        "reconstruction_hypothesis": args.algorithm in {
+            "fedsld_weightnorm", "fedsld_inverse"
+        } or args.dataset_split == "stratified",
         "paper_test_used_every_round": True,
         "metric": "BTA: highest combined test accuracy across rounds",
         "warning": "BTA selects the best test round and is not a locked-test estimate.",
@@ -319,6 +371,9 @@ def main():
         "dataset": {
             "train_samples": len(bundle.train),
             "test_samples": len(bundle.test),
+            "split_mode": bundle.split_mode,
+            "test_fraction": bundle.test_fraction,
+            "split_seed": args.seed if bundle.split_mode == "stratified" else None,
             "num_classes": bundle.num_classes,
             "in_channels": bundle.in_channels,
         },
@@ -337,11 +392,11 @@ def main():
         "history": history,
     }
     timestamp = dt.datetime.now().strftime("%Y%m%d_%H%M%S")
-    path = output / f"seed{args.seed}_{timestamp}.json"
+    path = output / f"{run_label}_{timestamp}.json"
     with path.open("w", encoding="utf-8") as handle:
         json.dump(result, handle, indent=2)
-    final_checkpoint = output / f"seed{args.seed}_{timestamp}_final.pt"
-    best_checkpoint = output / f"seed{args.seed}_{timestamp}_best_bta.pt"
+    final_checkpoint = output / f"{run_label}_{timestamp}_final.pt"
+    best_checkpoint = output / f"{run_label}_{timestamp}_best_bta.pt"
     torch.save(_state_dict_cpu(model), final_checkpoint)
     if best_test_state is None:
         raise RuntimeError("no best-test checkpoint was captured")
