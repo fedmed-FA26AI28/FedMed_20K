@@ -186,7 +186,7 @@ class FedMedAIServer(fl.server.Server):
                         acc_fed = float(evaluate_metrics_fed.get("accuracy", 0.0))
                         print(
                             f"\n{'='*60}\n"
-                            f"  [Server] Round {current_round} Distributed Client Evaluation (FedBN Paper Setting)\n"
+                            f"  [Server] Round {current_round} Distributed Client Evaluation\n"
                             f"  Loss: {loss_fed:.4f} | Accuracy: {acc_fed:.4f} ({acc_fed*100:.2f}%)\n"
                             f"{'='*60}\n"
                         )
@@ -410,13 +410,21 @@ def main():
         "--dataset",
         type=str,
         default=yaml_cfg.get("dataset", "bloodmnist"),
-        help=f"Dataset name (default: {yaml_cfg.get('dataset', 'bloodmnist')})",
+        help=f"Dataset name (bloodmnist, pathmnist, organamnist, dermamnist) (default: {yaml_cfg.get('dataset', 'bloodmnist')})",
     )
     parser.add_argument(
         "--strategy",
         type=str,
         default=yaml_cfg.get("strategy", "fedavg"),
-        choices=["fedavg", "fedprox", "fednova", "fedbn", "scaffold"],
+        choices=[
+            "fedavg",
+            "fedprox",
+            "fednova",
+            "fedbn",
+            "scaffold",
+            "fedbn_scaffold",
+            "proposed",
+        ],
         help=f"FL aggregation strategy (default: {yaml_cfg.get('strategy', 'fedavg')})",
     )
     parser.add_argument(
@@ -645,22 +653,32 @@ def main():
         "early_stop_metric": args.early_stop_metric,
     }
 
-    if args.server_eval and args.strategy != "fedbn":
+    fedbn_strategies = (
+        "fedbn", "proposed",
+        "fedbn_scaffold", "bn_scaffold", "scaffold_fedbn",
+    )
+
+    if args.server_eval and args.strategy not in fedbn_strategies:
         strategy_kwargs["evaluate_fn"] = _get_evaluate_fn(
             dataset_name=args.dataset,
             num_classes=num_classes,
             recorder=recorder,
             model_name=args.model,
         )
-    elif args.strategy == "fedbn":
-        print("  [Server] FedBN Official Setting: Centralized server evaluation is disabled.\n"
+    elif args.strategy in fedbn_strategies:
+        print("  [Server] Centralized server evaluation is disabled.\n"
               "           Model performance is evaluated via distributed client evaluation.")
 
-    if args.strategy == "fedprox":
+    strat_key = args.strategy.lower()
+    if strat_key == "fedprox":
         strategy_kwargs["proximal_mu"] = args.proximal_mu
-    elif args.strategy in ("fedbn", "fednova"):
+    elif strat_key in ("fedbn", "fednova"):
         strategy_kwargs["model"] = initial_model
-    elif args.strategy == "scaffold":
+    elif strat_key in (
+        "scaffold",
+        "fedbn_scaffold", "bn_scaffold", "scaffold_fedbn",
+        "proposed",
+    ):
         strategy_kwargs["num_total_clients"] = args.min_clients
         strategy_kwargs["model"] = initial_model
 
@@ -699,13 +717,15 @@ def main():
     print(f"  Avg Round Time : {summary.get('avg_round_time_seconds', 0):.1f}s")
     print(f"  Best Metric    : {summary.get('best_metric', 'N/A')} (Round {summary.get('best_round', 'N/A')})")
     print(f"  Early Stopped  : {summary.get('early_stopped', False)}")
-    if args.strategy == "fedprox":
-        print(f"  Proximal mu    : {summary.get('proximal_mu', args.proximal_mu)}")
-    elif args.strategy == "fedbn":
+    if "proximal_mu" in summary or args.strategy == "fedprox":
+        print(f"  Proximal mu    : {summary.get('proximal_mu', getattr(args, 'proximal_mu', 'N/A'))}")
+    if "num_bn_layers_local" in summary:
         print(f"  Local BN Layers: {summary.get('num_bn_layers_local', 'N/A')}")
         print(f"  Aggregated Non-BN: {summary.get('num_non_bn_layers_aggregated', 'N/A')}")
-    elif args.strategy == "scaffold":
+    if "server_c_norm" in summary:
         print(f"  Final Server c Norm: {summary.get('server_c_norm', 'N/A')}")
+    if "tau_eff" in summary:
+        print(f"  Final tau_eff  : {summary.get('tau_eff', 'N/A')}")
     print(f"{'='*60}\n")
 
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -740,13 +760,15 @@ def main():
         "best_metric": summary.get("best_metric"),
         "best_round": summary.get("best_round"),
     }
-    if args.strategy == "fedprox":
-        extra_metadata["proximal_mu"] = args.proximal_mu
-    elif args.strategy == "fedbn":
+    if "proximal_mu" in summary or args.strategy == "fedprox":
+        extra_metadata["proximal_mu"] = summary.get("proximal_mu", getattr(args, "proximal_mu", None))
+    if "num_bn_layers_local" in summary:
         extra_metadata["num_bn_layers_local"] = summary.get("num_bn_layers_local")
         extra_metadata["num_non_bn_layers_aggregated"] = summary.get("num_non_bn_layers_aggregated")
-    elif args.strategy == "scaffold":
+    if "server_c_norm" in summary:
         extra_metadata["server_c_norm"] = summary.get("server_c_norm")
+    if "tau_eff" in summary:
+        extra_metadata["tau_eff"] = summary.get("tau_eff")
 
     print("[Server] Generating and saving CSV metrics, comparison plots, and rich fl_results.json...")
     saved_artifacts = strategy.save_artifacts(save_dir=save_dir, extra_metadata=extra_metadata)

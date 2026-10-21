@@ -1,0 +1,82 @@
+{
+    "run_name": "test_proposed_pathmnist",
+    "timestamp": "20261019_113116",
+    "config": {
+        "num_clients": 12,
+        "datasets": [
+            "pathmnist"
+        ],
+        "partitions": [
+            "practical"
+        ],
+        "strategies": [
+            "proposed"
+        ],
+        "rounds": 40,
+        "local_epochs": 5,
+        "batch_size": 256,
+        "learning_rate": 0.01,
+        "model": "cnn",
+        "optimizer": "adam",
+        "momentum": 0.0,
+        "weight_decay": "1e-4",
+        "seed": 42,
+        "augment": true,
+        "random_crop": true,
+        "random_flip": true,
+        "lr_mode": "fixed",
+        "client_lr_patience": 2,
+        "client_lr_factor": 0.5,
+        "client_lr_min": 1e-06,
+        "lr_decay_steps": 3,
+        "lr_decay_gamma": 0.5,
+        "proximal_mu": 0.01,
+        "server_eval": true,
+        "local_test": true,
+        "early_stop_patience": 0,
+        "early_stop_metric": "accuracy",
+        "device": "auto",
+        "device_type": "pc",
+        "pin_memory": true,
+        "num_workers": 0,
+        "client_cpu_threads": 1,
+        "server_host": "127.0.0.1",
+        "timeout_per_run": 0,
+        "auto_partition": true,
+        "save_client_metrics": true,
+        "output_dir": "results/simulation",
+        "name": null,
+        "generate_comparison_plots": true
+    },
+    "total_wall_clock_time_seconds": 130.00728034973145,
+    "total_runs": 1,
+    "completed_runs": 1,
+    "results": [
+        {
+            "strategy": "proposed",
+            "partition_mode": "dirichlet_0.3",
+            "dataset": "pathmnist",
+            "model": "cnn",
+            "optimizer": "adam",
+            "momentum": 0.0,
+            "seed": 42,
+            "num_clients": 2,
+            "rounds_requested": 1,
+            "rounds_completed": 0,
+            "local_epochs": 5,
+            "batch_size": 256,
+            "lr_mode": "fixed",
+            "learning_rate": 0.01,
+            "final_test_accuracy": 0.0,
+            "best_test_accuracy": 0.0,
+            "best_round": 0,
+            "final_test_loss": 0.0,
+            "best_test_loss": 0.0,
+            "total_time_seconds": 129.98735356330872,
+            "avg_round_time_seconds": 0.0,
+            "early_stopped": false,
+            "status": "timeout",
+            "run_dir": "results\\simulation\\test_proposed_pathmnist\\pathmnist\\dirichlet_0.3\\proposed"
+        }
+    ]
+}

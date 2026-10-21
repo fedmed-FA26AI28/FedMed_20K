@@ -1,4 +1,4 @@
-"""Data loading and preprocessing utilities for MedMNIST datasets (e.g. BloodMNIST, PathMNIST, OrganAMNIST)."""
+"""Data loading and preprocessing utilities for MedMNIST datasets (BloodMNIST, PathMNIST, OrganAMNIST, DermaMNIST)."""
 
 import torch
 import torchvision.transforms as transforms
@@ -13,16 +13,20 @@ def get_medmnist_datasets(
     random_crop: bool = True,
     random_flip: bool = True,
     crop_padding: int = 2,
+    mmap_mode: str = "r",
+    load_val: bool = True,
 ):
     """Load and return MedMNIST dataset splits.
 
     Args:
-        dataset_name (str): Name of the dataset (e.g. 'bloodmnist', 'pathmnist', 'organamnist').
+        dataset_name (str): Name of the dataset (e.g. 'bloodmnist', 'pathmnist', 'organamnist', 'dermamnist').
         download (bool): Automatically download data if not present locally.
         augment (bool): Master toggle for training set data augmentation (default: True).
         random_crop (bool): Apply RandomCrop with reflection padding to train set (default: True).
         random_flip (bool): Apply RandomHorizontalFlip to train set (default: True).
         crop_padding (int): Padding size for RandomCrop (default: 2 for 28x28 images).
+        mmap_mode (str): Memory map mode ('r' for shared OS page cache, None for in-memory copy).
+        load_val (bool): Whether to instantiate validation split (set False to conserve memory in clients).
 
     Returns:
         tuple: (train_dataset, val_dataset, test_dataset, num_classes)
@@ -60,9 +64,9 @@ def get_medmnist_datasets(
     train_list.append(transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]))
     train_transform = transforms.Compose(train_list)
 
-    train_dataset = DataClass(split='train', transform=train_transform, download=download)
-    val_dataset = DataClass(split='val', transform=val_test_transform, download=download)
-    test_dataset = DataClass(split='test', transform=val_test_transform, download=download)
+    train_dataset = DataClass(split='train', transform=train_transform, download=download, mmap_mode=mmap_mode)
+    val_dataset = DataClass(split='val', transform=val_test_transform, download=download, mmap_mode=mmap_mode) if load_val else None
+    test_dataset = DataClass(split='test', transform=val_test_transform, download=download, mmap_mode=mmap_mode)
 
     return train_dataset, val_dataset, test_dataset, num_classes
 

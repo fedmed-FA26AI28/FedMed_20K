@@ -1,137 +1,112 @@
 # ==============================================================================
-# FedMedAI: Federated Learning Experiment Configuration
+# FedMedAI: Real Multi-Device Client Experiment Configuration
 # ==============================================================================
-# This configuration file defines parameters for the FL server (server/server.py),
-# FL clients (client/client.py), data partition generator (experiments/run_partition.py),
-# and centralized baseline training (experiments/train_centralized.py).
+# This configuration file defines parameters for live physical distributed FL
+# execution across multiple machines / edge devices (e.g., PC server, PC clients,
+# and NVIDIA Jetson edge nodes communicating over LAN sockets).
 #
-# You can change any parameter below directly in this file without needing to pass
-# inline command-line arguments. CLI arguments will override values specified here
-# only if explicitly provided.
+# Execution:
+#   Server: python -m server.server --config configs/experiment.yaml
+#   Client: python -m client.client --config configs/experiment.yaml --client_id <ID> --server_address <SERVER_IP>:8080
 # ==============================================================================
-
-# ──────────────────────────────────────────────────────────────────────────────
-# QUICK PRESETS (Uncomment / edit values in the sections below to switch modes)
-# ──────────────────────────────────────────────────────────────────────────────
-#
-# [PRESET 1: FedSLD Paper Baseline Replication (Luo & Wu, ISBI 2022 - Table 2)]
-#   dataset: pathmnist (or organamnist)
-#   partition_mode: practical
-#   strategy: fedavg
-#   model: baseline             # Classic 4-layer CNN (~570K params, no BatchNorm)
-#   optimizer: sgd              # Pure Vanilla SGD
-#   momentum: 0.0               # Pure SGD (paper uses 0.0 momentum)
-#   learning_rate: 0.01         # Paper base learning rate eta = 0.01
-#   lr_mode: fixed              # Constant learning rate across all rounds
-#   batch_size: 256             # Paper mini-batch size B = 256
-#   local_epochs: 5             # Paper local epochs E = 5
-#   rounds: 80                  # Paper communication rounds R = 80
-#   num_clients: 12             # 12 clients in federation
-#   local_test: true            # Tracks BMCTA (Best Mean Client Test Acc) & BTA
-#
-# [PRESET 2: FedMedAI Modern Optimized FL]
-#   dataset: bloodmnist
-#   partition_mode: dirichlet_0.3
-#   strategy: fedavg            # fedavg | fedprox | fednova | fedbn | scaffold
-#   model: cnn                  # Modern CNN (~20K params, BatchNorm + AdaptiveAvgPool)
-#   optimizer: adam             # Fast adaptive optimizer
-#   learning_rate: 0.001        # Adam default learning rate
-#   lr_mode: client_loss        # Adaptive local loss reduction per client
-#   batch_size: 32              # Standard batch size
-#   local_epochs: 5
-#   rounds: 50
-#   num_clients: 3
-# ──────────────────────────────────────────────────────────────────────────────
 
 # --- Dataset and Architecture ---
-dataset: pathmnist                 # Dataset: 'bloodmnist', 'pathmnist', 'organamnist'
-model: baseline                   # Architecture: 'baseline' (FedSLD classic CNN ~570K) or 'cnn' (Modern ~20K)
-optimizer: sgd                    # Client optimizer: 'sgd' (reproduces FedSLD paper) or 'adam' (Modern)
-momentum: 0.0                     # SGD momentum (0.0 = Pure SGD matching paper; 0.9 = accelerated momentum)
-weight_decay: 0.0                 # L2 weight decay penalty (0.0 = disabled)
-seed: 42                          # Global random seed for reproducible initialization & partitioning
-name: null                        # Optional designated run folder name (e.g. 'baseline_repro'); defaults to timestamp if null
+# Supported datasets: 'bloodmnist', 'pathmnist', 'organamnist', 'dermamnist'
+dataset: pathmnist
+# Supported models: 'cnn' (Modern ~20K params with BatchNorm) or 'baseline' (FedSLD ~570K params)
+model: cnn
+optimizer: adam                   # Client optimizer: 'adam' or 'sgd'
+momentum: 0.0                     # SGD momentum (0.0 for pure SGD)
+weight_decay: 1e-4                # L2 regularization penalty (0.0 to disable)
+seed: 42                          # Global random seed for reproducibility
+name: null                        # Optional designated run folder name (defaults to timestamp)
 
 # --- Data Augmentation (Training split only) ---
-augment: true                     # Master toggle for train set augmentation (true = enabled, false = disabled)
-random_crop: true                 # Random crop with reflection padding (default: true)
-random_flip: true                 # Random horizontal flip (default: true)
+augment: true                     # Toggle training data augmentation
+random_crop: true                 # Random crop with reflection padding
+random_flip: true                 # Random horizontal flip
 
-# --- Partitioning Configuration (experiments/run_partition.py & client.py) ---
-partition_mode: practical         # Partition mode: 'practical', 'pathological', 'dirichlet_0.3', 'dirichlet_0.1', 'dirichlet_1.0'
-partition_save_dir: data/partitions # Directory to store generated partition JSON files
-num_clients: 12                   # Total number of clients in federation (practical mode strictly requires 12)
-min_clients: 12                   # Minimum connected clients before server starts round (must match num_clients)
-
-# Client count options for ablation studies
-num_clients_options: [3, 5, 12]
-
-# Non-IID Dirichlet concentration alpha values (for reference/batch partition generation)
-alpha_values: [1.0, 0.3, 0.1]
+# --- Partitioning Configuration ---
+# Partition mode: 'practical', 'pathological', 'dirichlet_0.3', 'dirichlet_0.1', 'dirichlet_1.0'
+partition_mode: practical
+partition_save_dir: data/partitions
+num_clients: 12                   # Total number of physical clients participating in the federation
+min_clients: 12                   # Minimum connected clients before server starts the round
 
 # --- Server & FL Training Hyperparameters ---
-strategy: fedavg                  # FL aggregation strategy: 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold'
-rounds: 80                        # Total federated communication rounds (Paper: 80)
-fl_rounds: 80                     # Alias for rounds (backwards compatibility)
-local_epochs: 5                   # Local training epochs on each client per round (Paper: 5)
-batch_size: 256                   # Client mini-batch size (Paper: 256; Modern: 32)
-learning_rate: 0.01              # Base initial learning rate (Paper SGD: 0.01; Modern Adam: 0.001)
+# Supported strategies: 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold', 'proposed'
+strategy: proposed
+rounds: 40                        # Total federated communication rounds
+fl_rounds: 40                     # Alias for rounds
+local_epochs: 5                   # Local training epochs per round on each client
+batch_size: 256                   # Client DataLoader mini-batch size
+learning_rate: 0.01               # Initial base learning rate
 
 # --- Learning Rate (LR) Scheduling Mode ---
 # Options:
-#   'fixed'       : Constant learning rate across all rounds and clients (FedSLD paper setting)
-#   'client_loss' : Server passes initial LR on Round 1; each client independently reduces LR on local loss plateau
-#   'server_decay': Server computes global step decay every N rounds and synchronizes across all clients
+#   'fixed'       : Constant learning rate across all rounds
+#   'client_loss' : Server provides initial LR; each client reduces LR on local plateau
+#   'server_decay': Server computes step decay every N rounds
 lr_mode: fixed
 
 # Settings for 'client_loss' mode:
-client_lr_patience: 2             # Local epochs without loss improvement before reducing LR
-client_lr_factor: 0.5             # Multiplicative factor of LR reduction (new_lr = lr * factor)
-client_lr_min: 0.000001           # Minimum learning rate lower bound
+client_lr_patience: 2             # Local epochs without improvement before reducing LR
+client_lr_factor: 0.5             # Multiplicative factor of LR reduction
+client_lr_min: 0.000001           # Minimum learning rate bound
 
 # Settings for 'server_decay' mode:
-lr_decay_steps: 3                # Decay learning rate every N rounds
+lr_decay_steps: 3                 # Decay learning rate every N rounds
 lr_decay_gamma: 0.5               # Multiplicative decay factor
 
 # --- Evaluation & Early Stopping ---
-local_test: true                 # Evaluate on client-specific local test partition and track BMCTA/BTA (FedSLD Table 2)
-server_eval: true                # Run centralized evaluation on global test set each round at Server
-early_stop_patience: 0           # Rounds without metric improvement before stopping (0 = disabled, run all rounds)
+local_test: true                  # Evaluate on client-specific local test partition (BMCTA / BTA tracking)
+server_eval: true                 # Evaluate on global server test set each round
+early_stop_patience: 0            # Rounds without improvement before stopping (0 = disabled)
 early_stop_metric: accuracy       # Target metric to monitor: 'accuracy' or 'loss'
 
 # --- Algorithm-Specific Hyperparameters ---
-# FedProx proximal term coefficient mu (0.0 = standard FedAvg, 0.01 - 0.1 = FedProx)
-proximal_mu: 0.01
+proximal_mu: 0.01                 # FedProx proximal coefficient (0.0 = FedAvg)
 
 # --- Hardware & Client Execution ---
 device_type: pc                   # Hardware profile: 'pc', 'jetson_orin', 'jetson_nano'
-num_workers: 0                   # DataLoader workers (0 = safest for Windows/Linux main process loading)
-pin_memory: true                 # Pinned memory for CUDA transfer acceleration
-save_metrics: true               # Save local client CSV metrics and ping logs
+num_workers: 0                    # DataLoader workers (0 is safest for socket clients)
+pin_memory: true                  # Pinned memory for CUDA transfer acceleration
+save_metrics: true                # Save local client CSV metrics and ping logs
 
 # --- Network & Server Communication ---
-server_host: "0.0.0.0"            # Server listen address (use "0.0.0.0" on server; clients connect to server LAN IP)
-server_port: 8080                # Server listen port
+server_host: "0.0.0.0"            # Server socket bind host ("0.0.0.0" to listen on all interfaces)
+server_port: 8080                 # Server listen port
+server_address: "127.0.0.1:8080"  # Target server address used by clients connecting over LAN
+
+# --- Physical Deployment Topology (PC & Jetson Cluster) ---
+# Defines device profile resolution across participating hardware nodes:
+#   pc           : Standard PC / laptop clients
+#   orin_only    : Jetson Orin edge nodes
+#   nano_only    : Jetson Nano edge nodes
+#   heterogeneous: Mixed PC + Jetson cluster (resolved via configs/jetson.yaml)
+deployment_mode: heterogeneous
+
+# Active client IDs participating in this physical deployment (null = all registered clients)
+active_clients: null
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Centralized Baseline Training Run Parameters (experiments/train_centralized.py)
+# Centralized Baseline Training (experiments/train_centralized.py)
 # ──────────────────────────────────────────────────────────────────────────────
 centralized:
-  dataset: pathmnist              # Dataset for centralized training: 'pathmnist', 'organamnist', 'bloodmnist'
-  model: baseline                 # Architecture: 'baseline' (FedSLD classic CNN) or 'cnn' (Modern)
-  optimizer: sgd                  # Optimizer: 'sgd' or 'adam'
-  momentum: 0.0                   # Momentum for SGD
-  epochs: 100                     # Maximum training epochs for centralized baseline
-  batch_size: 256                 # DataLoader mini-batch size
-  learning_rate: 0.01             # Initial learning rate
-  lr_patience: 5                  # Epochs without validation loss improvement before reducing LR
-  lr_factor: 0.5                  # Multiplicative factor of LR reduction
-  min_lr: 0.000001                # Minimum learning rate lower bound
-  early_stop_patience: 15         # Early stopping patience (epochs without val loss improvement)
-  seed: 42                        # Random seed for reproducibility
-  name: null                      # Optional designated run folder name (e.g. 'centralized_pathmnist'); defaults to timestamp if null
+  dataset: pathmnist              # Options: 'bloodmnist', 'pathmnist', 'organamnist', 'dermamnist'
+  model: baseline                 # Options: 'baseline' (FedSLD classic CNN) or 'cnn' (Modern)
+  optimizer: sgd                  # Options: 'sgd' or 'adam'
+  momentum: 0.0
+  epochs: 100
+  batch_size: 256
+  learning_rate: 0.01
+  lr_patience: 5
+  lr_factor: 0.5
+  min_lr: 0.000001
+  early_stop_patience: 15
+  seed: 42
+  name: null
 
-# Flat aliases for centralized run parameters (backwards compatibility)
 centralized_epochs: 100
 centralized_batch_size: 256
 centralized_learning_rate: 0.01
@@ -139,17 +114,3 @@ centralized_early_stop_patience: 15
 centralized_lr_patience: 5
 centralized_lr_factor: 0.5
 centralized_min_lr: 0.000001
-
-# ──────────────────────────────────────────────────────────────────────────────
-# Deployment Mode & Client Topology (Physical Multi-PC / Jetson Edge Cluster)
-# ──────────────────────────────────────────────────────────────────────────────
-# Defines how the system resolves hardware profiles for participating physical clients:
-#   simulation   : All clients run on 1 PC. Every client uses 'pc' profile.
-#   orin_only    : Only Jetson Orin devices. Every client uses 'jetson_orin' profile.
-#   nano_only    : Only Jetson Nano devices. Every client uses 'jetson_nano' profile.
-#   heterogeneous: Mixed Orin + Nano cluster. Clients resolve profile dynamically
-#                  from client_registry in configs/jetson.yaml.
-deployment_mode: simulation
-
-# List of client IDs participating in physical deployment (set to null for simulation mode)
-active_clients: null
