@@ -28,7 +28,14 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 import flwr as fl
 from flwr.common import NDArrays, Scalar
 
-from models import get_model, set_seed, get_parameters, set_parameters, set_parameters_fedbn
+from models import (
+    get_model,
+    set_seed,
+    get_parameters,
+    set_parameters,
+    set_parameters_fedbn,
+    is_bn_key,
+)
 from datasets.medmnist_code import get_medmnist_datasets
 from datasets.partition import load_partition, get_client_dataloader, get_partition_path
 from utils.path_utils import sanitize_run_name
@@ -111,13 +118,17 @@ def _local_train(
                     if p.grad is not None:
                         accum.add_(p.grad)
 
-            # SCAFFOLD drift correction: g_i - c_i + c = g_i + (c - c_i)
-            if scaffold_drift is not None:
-                for p, drift in zip(trainable_params, scaffold_drift):
-                    if p.grad is not None:
-                        p.grad.data.add_(drift)
-
             optimizer.step()
+
+            # SCAFFOLD drift correction (NVFlare decoupled post-step):
+            # Applying drift directly to parameters post-step avoids polluting the optimizer's
+            # momentum buffer (or Adam moment vectors), ensuring mathematical stability
+            # under SGD momentum (e.g. beta=0.9), Adam, and dynamic LR schedules.
+            if scaffold_drift is not None:
+                step_lr = float(optimizer.param_groups[0]["lr"])
+                with torch.no_grad():
+                    for p, drift in zip(trainable_params, scaffold_drift):
+                        p.data.add_(drift, alpha=-step_lr)
             total_steps += 1
 
             running_loss += loss.item() * images.size(0)
@@ -298,8 +309,14 @@ class FedMedAIClient(fl.client.NumPyClient):
         """Receive global model, train locally, return updated weights + metrics."""
         strategy = str(config.get("strategy", self.strategy or "fedavg")).lower()
         num_model_layers = len(get_parameters(self.model))
-        is_scaffold = (strategy == "scaffold") or (len(parameters) == 2 * num_model_layers)
-        is_fedbn = (strategy == "fedbn")
+        fedbn_strategies = (
+            "fedbn", "proposed", "fedbn_scaffold", "bn_scaffold", "scaffold_fedbn",
+        )
+        scaffold_strategies = (
+            "scaffold", "proposed", "fedbn_scaffold", "bn_scaffold", "scaffold_fedbn",
+        )
+        is_scaffold = (strategy in scaffold_strategies) or (len(parameters) == 2 * num_model_layers)
+        is_fedbn = strategy in fedbn_strategies
 
         initial_weights = None
         server_c = None
@@ -313,16 +330,22 @@ class FedMedAIClient(fl.client.NumPyClient):
                 initial_weights = parameters
                 server_c = [np.zeros_like(p) for p in initial_weights]
 
-            set_parameters(self.model, initial_weights)
+            if is_fedbn:
+                set_parameters_fedbn(self.model, initial_weights)
+            else:
+                set_parameters(self.model, initial_weights)
 
             if self.client_control_variate is None:
                 self.client_control_variate = [np.zeros_like(p) for p in initial_weights]
 
             # Construct drift correction terms (server_c - client_c) for trainable parameters
+            # Under FedBN, BatchNorm layers must NOT receive drift correction to preserve local adaptation
             sd_keys = list(self.model.state_dict().keys())
             named_params = dict(self.model.named_parameters())
             scaffold_drift = [
                 torch.as_tensor(s - c, device=self.device, dtype=named_params[k].dtype)
+                if (not is_fedbn or not is_bn_key(self.model, k))
+                else torch.zeros_like(named_params[k])
                 for k, s, c in zip(sd_keys, server_c, self.client_control_variate)
                 if k in named_params
             ]
@@ -458,15 +481,21 @@ class FedMedAIClient(fl.client.NumPyClient):
             trainable_idx = 0
             for idx, k in enumerate(sd_keys):
                 if k in named_params:
-                    if grad_avg is not None and trainable_idx < len(grad_avg):
-                        # Option 2: Exact empirical loss gradient average (optimizer-agnostic)
-                        c_i_new = grad_avg[trainable_idx]
-                        d_c = c_i_new - self.client_control_variate[idx]
+                    is_bn = is_fedbn and is_bn_key(self.model, k)
+                    if not is_bn:
+                        if grad_avg is not None and trainable_idx < len(grad_avg):
+                            # Option 2: Exact empirical loss gradient average (optimizer-agnostic)
+                            c_i_new = grad_avg[trainable_idx]
+                            d_c = c_i_new - self.client_control_variate[idx]
+                        else:
+                            # Fallback Option 1: displacement-based
+                            lr = float(self.optimizer.param_groups[0]["lr"])
+                            d_c = (1.0 / (K * lr)) * (initial_weights[idx] - updated_model_params[idx]) - server_c[idx]
+                            c_i_new = self.client_control_variate[idx] + d_c
                     else:
-                        # Fallback Option 1: displacement-based
-                        lr = float(self.optimizer.param_groups[0]["lr"])
-                        d_c = (1.0 / (K * lr)) * (initial_weights[idx] - updated_model_params[idx]) - server_c[idx]
-                        c_i_new = self.client_control_variate[idx] + d_c
+                        # BatchNorm layer under FedBN: zero control variate drift
+                        d_c = np.zeros_like(updated_model_params[idx], dtype=np.float64)
+                        c_i_new = np.zeros_like(updated_model_params[idx], dtype=np.float64)
                     trainable_idx += 1
                 else:
                     # Non-trainable buffer: zero delta
@@ -586,7 +615,10 @@ class FedMedAIClient(fl.client.NumPyClient):
             self.ping_logger.log_ping(server_round=int(eval_round), event="evaluate")
 
         strategy = str(config.get("strategy", self.strategy or "fedavg")).lower()
-        if strategy == "fedbn":
+        fedbn_eval_strats = (
+            "fedbn", "proposed", "fedbn_scaffold", "bn_scaffold", "scaffold_fedbn",
+        )
+        if strategy in fedbn_eval_strats:
             # Retain local BN statistics and evaluate non-BN global layers
             set_parameters_fedbn(self.model, parameters)
         else:
@@ -678,7 +710,7 @@ def main():
         help="Path to partition JSON. If None, auto-detect from data/partitions/",
     )
     parser.add_argument(
-        "--dataset", type=str, default=yaml_cfg.get("dataset", "bloodmnist"), help=f"Dataset name (default: {yaml_cfg.get('dataset', 'bloodmnist')})"
+        "--dataset", type=str, default=yaml_cfg.get("dataset", "bloodmnist"), help=f"Dataset name (bloodmnist, pathmnist, organamnist, dermamnist) (default: {yaml_cfg.get('dataset', 'bloodmnist')})"
     )
     parser.add_argument(
         "--partition_mode", type=str, default=yaml_cfg.get("partition_mode", yaml_cfg.get("partition", "dirichlet_0.3")), help=f"Partition mode (default: {yaml_cfg.get('partition_mode', yaml_cfg.get('partition', 'dirichlet_0.3'))})"
@@ -748,7 +780,15 @@ def main():
         "--strategy",
         type=str,
         default=yaml_cfg.get("strategy", "fedavg"),
-        choices=["fedavg", "fedprox", "fednova", "fedbn", "scaffold"],
+        choices=[
+            "fedavg",
+            "fedprox",
+            "fednova",
+            "fedbn",
+            "scaffold",
+            "fedbn_scaffold",
+            "proposed",
+        ],
         help=f"FL strategy (default: {yaml_cfg.get('strategy', 'fedavg')})",
     )
     parser.add_argument(

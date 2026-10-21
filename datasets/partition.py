@@ -1,4 +1,4 @@
-"""Trien khai cac thuat toan chia nho dataset (IID va non-IID qua phan phoi Dirichlet, Pathological, Practical) cho cac client."""
+"""Dataset partitioning utilities (Dirichlet, Pathological, and Practical non-IID distributions)."""
 import os
 import sys
 import json
@@ -11,7 +11,7 @@ from torch.utils.data import DataLoader, Subset
 from typing import List, Dict, Tuple, Optional, Union, Any
 from medmnist import INFO
 
-# Duong dan mac dinh den file config
+# Default configuration directory
 _CONFIG_DIR = Path(__file__).resolve().parent.parent / "configs"
 
 
@@ -43,8 +43,8 @@ def resolve_device_type(client_id: int) -> str:
     registry = hw_cfg.get("client_registry", {})
     if client_id not in registry:
         raise ValueError(
-            f"client_id={client_id} khong co trong client_registry cua jetson.yaml. "
-            f"Cac ID hop le: {sorted(registry.keys())}"
+            f"client_id={client_id} is not present in client_registry of jetson.yaml. "
+            f"Valid IDs: {sorted(registry.keys())}"
         )
     return registry[client_id]
 
@@ -145,41 +145,44 @@ def dirichlet_partition(dataset, num_clients: int, alpha: float, seed: int = 42,
 
 def pathological_partition(dataset, num_clients: int, seed: int = 42,
                            test_dataset=None) -> Union[List[List[int]], Tuple[List[List[int]], List[List[int]]]]:
-    """Pathological Non-IID from FedSLD paper: Each client gets 2 random classes.
+    """Pathological Non-IID: assigns a small subset of classes per client (FedSLD benchmark).
 
-    If test_dataset is provided, partitions the test set using the exact same assigned classes
-    and proportional distribution per client, guaranteeing identical label distributions.
-    Decouples train and test RNG passes so train splits are 100% deterministic regardless of whether test_dataset is passed.
+    For K >= 1 clients:
+    - If num_clients * 2 >= num_classes, each client gets 2 random classes (standard FedSLD setting).
+    - If num_clients * 2 < num_classes, classes_per_client scales to ceil(num_classes / num_clients)
+      to guarantee all classes are covered across the federation with zero sample loss.
+    - If test_dataset is provided, partitions the test set using the exact same class assignments
+      and proportions per client, guaranteeing identical label distributions.
     """
     rng = np.random.RandomState(seed)
     labels = _extract_labels(dataset)
     num_classes = len(np.unique(labels))
 
-    # Assign 2 random classes to each client
-    # Ensure every class is assigned to at least one client to prevent dropped samples
-    max_attempts = 1000
-    for attempt in range(max_attempts):
-        client_classes = [rng.choice(num_classes, 2, replace=False).tolist() for _ in range(num_clients)]
-        class_to_clients = {c: [] for c in range(num_classes)}
-        for cid, classes in enumerate(client_classes):
-            for c in classes:
-                class_to_clients[c].append(cid)
-        if all(len(clients) > 0 for clients in class_to_clients.values()):
-            break
+    if num_clients * 2 < num_classes:
+        classes_per_client = max(2, int(np.ceil(num_classes / num_clients)))
     else:
-        # Fallback: force assign each class to at least one client
-        client_classes = [[] for _ in range(num_clients)]
-        for c in range(num_classes):
-            client_classes[c % num_clients].append(c)
-        for cid in range(num_clients):
-            while len(client_classes[cid]) < 2:
-                c = int(rng.choice(num_classes))
-                if c not in client_classes[cid]:
-                    client_classes[cid].append(c)
-        class_to_clients = {c: [] for c in range(num_classes)}
-        for cid, classes in enumerate(client_classes):
-            for c in classes:
-                class_to_clients[c].append(cid)
+        classes_per_client = min(2, num_classes)
+    classes_per_client = max(1, min(classes_per_client, num_classes))
+
+    # Guaranteed class coverage across clients
+    client_classes = [[] for _ in range(num_clients)]
+    shuffled_classes = list(range(num_classes))
+    rng.shuffle(shuffled_classes)
+
+    for i, c in enumerate(shuffled_classes):
+        client_classes[i % num_clients].append(c)
+
+    for cid in range(num_clients):
+        available = [c for c in range(num_classes) if c not in client_classes[cid]]
+        needed = classes_per_client - len(client_classes[cid])
+        if needed > 0 and available:
+            chosen = rng.choice(available, min(needed, len(available)), replace=False).tolist()
+            client_classes[cid].extend(chosen)
+
+    class_to_clients = {c: [] for c in range(num_classes)}
+    for cid, classes in enumerate(client_classes):
+        for c in classes:
+            class_to_clients[c].append(cid)
 
     client_indices = [[] for _ in range(num_clients)]
     class_proportions = {}
@@ -189,12 +192,10 @@ def pathological_partition(dataset, num_clients: int, seed: int = 42,
         class_indices = np.where(labels == class_id)[0]
         rng.shuffle(class_indices)
 
-        # Divide samples randomly among assigned clients
         proportions = rng.dirichlet(np.ones(len(assigned_clients)))
         proportions = proportions / proportions.sum()
         class_proportions[class_id] = proportions
 
-        # Divide samples among assigned clients
         if len(class_indices) >= len(assigned_clients):
             remaining = len(class_indices) - len(assigned_clients)
             counts = 1 + (proportions * remaining).astype(int)
@@ -248,32 +249,43 @@ def pathological_partition(dataset, num_clients: int, seed: int = 42,
 
 def practical_partition(dataset, num_clients: int, seed: int = 42,
                         test_dataset=None) -> Union[List[List[int]], Tuple[List[List[int]], List[List[int]]]]:
-    """Practical Non-IID from FedSLD paper: 12 shards per class (10x1%, 1x10%, 1x80%).
+    """Practical Non-IID simulating clinical cross-institution imbalance (FedSLD benchmark).
 
+    For K = 12 clients, exactly replicates the FedSLD paper setting: 12 shards per class
+    (10 x 1%, 1 x 10%, 1 x 80%).
+    For arbitrary K >= 1 clients:
+    - K = 1: [1.0]
+    - K = 2: [0.2, 0.8]
+    - K >= 3: One dominant site (80%), one medium site (10%), and the remaining (K - 2)
+      smaller sites share 10% equally (0.1 / (K - 2)).
     If test_dataset is provided, shards the test set using the exact same shard proportions
     and client assignments per class, guaranteeing identical label distributions.
-    Training partition is decoupled from test partition so train splits are 100% deterministic
-    regardless of whether test_dataset is passed.
     """
-    if num_clients != 12:
-        raise ValueError("practical_partition requires exactly 12 clients according to the FedSLD paper.")
-
     labels = _extract_labels(dataset)
     num_classes = len(np.unique(labels))
 
-    # Phase 1: Partition training set (independent RNG sequence)
+    # Resolve shard proportions for arbitrary num_clients
+    if num_clients == 1:
+        shard_props = [1.0]
+    elif num_clients == 2:
+        shard_props = [0.2, 0.8]
+    elif num_clients == 12:
+        shard_props = [0.01] * 10 + [0.1, 0.8]
+    else:
+        small_prop = 0.1 / (num_clients - 2)
+        shard_props = [small_prop] * (num_clients - 2) + [0.1, 0.8]
+
+    # Phase 1: Partition training set
     rng = np.random.RandomState(seed)
     client_indices = [[] for _ in range(num_clients)]
     class_shard_map = {}
-
-    shard_props = [0.01]*10 + [0.1, 0.8]
 
     for class_id in range(num_classes):
         class_indices = np.where(labels == class_id)[0]
         rng.shuffle(class_indices)
         N = len(class_indices)
 
-        if N >= 12:
+        if N >= num_clients:
             shard_counts = [max(1, int(p * N)) for p in shard_props[:-1]]
             diff = N - sum(shard_counts)
             if diff >= 0:
@@ -287,8 +299,7 @@ def practical_partition(dataset, num_clients: int, seed: int = 42,
             diff = N - sum(shard_counts)
             shard_counts[-1] += diff
 
-        # Shuffle shards and assign to clients
-        shard_indices = list(range(12))
+        shard_indices = list(range(num_clients))
         rng.shuffle(shard_indices)
         class_shard_map[class_id] = shard_indices
 
@@ -312,7 +323,7 @@ def practical_partition(dataset, num_clients: int, seed: int = 42,
         test_rng.shuffle(t_class_indices)
         t_N = len(t_class_indices)
 
-        if t_N >= 12:
+        if t_N >= num_clients:
             t_shard_counts = [max(1, int(p * t_N)) for p in shard_props[:-1]]
             t_diff = t_N - sum(t_shard_counts)
             if t_diff >= 0:

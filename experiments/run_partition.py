@@ -20,7 +20,7 @@ def load_yaml_config(config_path: str = "configs/experiment.yaml") -> dict:
         return {}
 
 # Benchmark grid defaults
-DEFAULT_DATASETS = ["bloodmnist", "pathmnist", "organamnist"]
+DEFAULT_DATASETS = ["bloodmnist", "pathmnist", "organamnist", "dermamnist"]
 DEFAULT_PARTITIONS = ["dirichlet_0.3", "dirichlet_0.1", "pathological", "practical"]
 DEFAULT_NUM_CLIENTS = 12
 DEFAULT_SEED = 42
@@ -130,7 +130,7 @@ def main():
         parents=[pre_parser],
     )
     parser.add_argument("--dataset", type=str, default=default_dataset,
-                        help=f"Dataset name (e.g., bloodmnist, pathmnist) (default: {default_dataset})")
+                        help=f"Dataset name (e.g., bloodmnist, pathmnist, organamnist, dermamnist) (default: {default_dataset})")
     parser.add_argument("--partition_mode", type=str, default=default_partition,
                         help=f"Partition mode (e.g., dirichlet_0.3, pathological, practical) (default: {default_partition})")
     parser.add_argument("--num_clients", type=int, default=default_num_clients,

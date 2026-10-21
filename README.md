@@ -1,68 +1,138 @@
-Dưới đây là bản thảo cho tệp README.md. Bản hướng dẫn này được thiết kế với văn phong kỹ thuật chuẩn mực, rõ ràng, giúp bất kỳ ai đọc vào cũng có thể tự tay thiết lập và vận hành hệ thống phần cứng một cách trơn tru.
+# FedMedAI: Heterogeneous Edge-Device Federated Learning for Medical Image Classification
 
-# Triển Khai Federated Learning  Trên Cụm NVIDIA Jetson
-
-Tài liệu này hướng dẫn chi tiết quy trình triển khai thuật toán Học liên kết (Federated Learning) sử dụng framework Flower, huấn luyện mạng CNN trên bộ dữ liệu y tế BloodMNIST với các thiết bị biên là NVIDIA Jetson.
+FedMedAI is an enterprise-grade Federated Learning (FL) framework designed for medical imaging classification benchmarks under severe non-IID data distributions (Dirichlet, Pathological, and Practical cross-institution partitions). It provides seamless support for centralized baselines, distributed physical multi-device execution (PC server and NVIDIA Jetson Orin/Nano edge clients over LAN), and automated local multi-client simulation.
 
 ---
 
-## 1. Yêu Cầu Hệ Thống
+## 1. Key Features
 
-| Thành phần | Yêu cầu chi tiết |
-| --- | --- |
-| **Máy chủ (Server)** | 01 Laptop/PC (Windows/Linux/macOS) |
-| **Máy khách (Clients)** | 03 bo mạch NVIDIA Jetson Nano/Orin |
-| **Hạ tầng mạng** | 01 Router Wi-Fi/LAN nội bộ |
-| **Thiết bị phụ trợ** | 01 USB Flash Drive |
-| **Phần mềm lõi** | Python 3.8+, thư viện `flwr`, `medmnist`, `scikit-learn` |
-| **Môi trường Jetson** | PyTorch phiên bản hỗ trợ CUDA (Tối ưu GPU Maxwell) |
-
-## 2. Tiền Xử Lý Dữ Liệu Ngoại Tuyến (Laptop)
-
-* Chạy tệp mã nguồn `prepare_data.py` trên Laptop để tự động tải và chia bộ dữ liệu BloodMNIST theo phân phối Dirichlet.
-* Kiểm tra thư mục `data` vừa được tạo ra để đảm bảo có đủ các tệp nhị phân dữ liệu cho từng máy khách.
-* Chép toàn bộ thư mục `data` cùng hai tệp mã nguồn là `common.py` và `client.py` vào USB.
-
-## 3. Triển Khai Vật Lý (Thiết Bị Jetson)
-
-* Cắm USB vào từng bo mạch Jetson và tạo một thư mục dự án cục bộ mới.
-* Chép hai tệp `common.py` và `client.py` vào thư mục dự án vừa tạo trên Jetson.
-* Chép đúng thư mục dữ liệu cá nhân hóa (ví dụ: chỉ chép `data/client_0`) từ USB sang thiết bị Jetson số 0 để đảm bảo tính phân tán dữ liệu khắt khe.
-* Mở terminal trên thiết bị Jetson và chạy lệnh cài đặt các thư viện cần thiết nếu môi trường chưa có sẵn.
-
-Làm việc với phần cứng nhúng (như Jetson hay Raspberry Pi) lần đầu tiên đúng là sẽ hơi bỡ ngỡ vì chúng chạy hệ điều hành Ubuntu thuần túy và thường giao tiếp qua dòng lệnh. Tuy nhiên, bản chất nó chỉ là một chiếc máy tính thu nhỏ.
-
-Để bạn hoàn toàn tự tin khi thao tác thật, mình đã viết lại Phần 4 "cầm tay chỉ việc" chi tiết nhất có thể. Bạn có thể thay thế phần này vào tệp README:
+- **Benchmark Datasets**: Native integration with MedMNIST datasets:
+  - `pathmnist`: Colon pathology (9 classes, 3 channels RGB, 28x28)
+  - `bloodmnist`: Peripheral blood cell types (8 classes, 3 channels RGB, 28x28)
+  - `organamnist`: Abdominal CT organ patches (11 classes, 1-to-3 channels, 28x28)
+  - `dermamnist`: Dermatoscopy pigmented skin lesions (7 classes, 3 channels RGB, 28x28)
+- **Aggregation Strategies**:
+  - `fedavg`: Vanilla Federated Averaging (McMahan et al., 2017)
+  - `fedprox`: Proximal regularization for system heterogeneity (Li et al., 2020)
+  - `fednova`: Normalized averaging for step-count heterogeneity (Wang et al., 2020)
+  - `fedbn`: Local Batch Normalization for feature/domain shift (Li et al., 2021)
+  - `scaffold`: Control variates for client drift correction (Karimireddy et al., 2020)
+  - `proposed`: Synergistic integration of FedBN and SCAFFOLD (alias: `fedbn_scaffold`)
+- **Non-IID Partition Schemes**:
+  - `practical`: Shards per class modeling clinical institution size disparity (FedSLD benchmark). Fully generalized for arbitrary client counts $K \ge 1$ with exact 100% FedSLD reproduction when $K = 12$.
+  - `pathological`: Subsets of classes assigned to clients, dynamically scaling to guarantee 100% class coverage across the federation without sample loss.
+  - `dirichlet_X.X`: Continuous label distribution non-IID with concentration parameter $\alpha \in \{0.1, 0.3, 1.0\}$.
+- **Dual Configuration System**:
+  - `configs/experiment.yaml`: Dedicated solely to physical multi-device client execution over local network (PC and NVIDIA Jetson edge nodes).
+  - `configs/simulation.yaml`: Dedicated solely to automated multi-client local simulation runs and matrix grids.
+- **Hardware Telemetry & Profiling**: Automated monitoring of per-client round times, epoch throughput, ping latency, memory consumption, and straggler detection.
 
 ---
 
-## 4. Vận Hành Hệ Thống Xuyên Mạng (Live Execution) chi tiết
+## 2. System Requirements
 
-**4.1. Cố định địa chỉ mạng cho Server (Laptop)**
-
-* Đảm bảo Laptop và tất cả các máy Jetson đều đang kết nối vào chung một cục phát Wi-Fi.
-* Trên Laptop (Windows), mở ứng dụng **Command Prompt** (cmd) và gõ lệnh `ipconfig`.
-* Tìm dòng **IPv4 Address** (ví dụ: `192.168.1.15`). Hãy ghi nhớ dãy số này vì đây là "tọa độ" để các máy Jetson tìm về Laptop.
-* Tắt tạm thời Windows Defender Firewall (hoặc phần mềm diệt virus) trên Laptop để các thiết bị bên ngoài có thể gửi dữ liệu vào cổng 8080.
-
-**4.2. Giao tiếp và sửa mã nguồn trên Jetson**
-Vì Jetson là một máy tính độc lập, bạn có hai cách để thao tác với nó:
-
-* **Cách dễ nhất:** Cắm một màn hình vào cổng HDMI của Jetson, cắm chuột và bàn phím qua cổng USB. Thao tác trên giao diện màn hình y hệt như dùng một chiếc máy tính bình thường.
-* **Cách chuyên nghiệp (SSH):** Mở terminal trên Laptop và gõ lệnh `ssh tên_đăng_nhập@IP_của_Jetson` để điều khiển Jetson từ xa (không cần cắm thêm màn hình ngoài).
-* Bất kể dùng cách nào, hãy mở terminal trên Jetson, đi đến thư mục chứa tệp `client.py` và dùng lệnh chỉnh sửa văn bản (ví dụ: gõ `nano client.py`).
-* Tìm dòng khai báo địa chỉ máy chủ và thay thế bằng IP của Laptop mà bạn vừa lấy ở Bước 4.1 (ví dụ: `server_address="192.168.1.15:8080"`). Bấm Ctrl+O, Enter để lưu và Ctrl+X để thoát. Lặp lại bước này cho tất cả các máy Jetson.
-
-**4.3. Thứ tự khởi chạy hệ thống (Cực kỳ quan trọng)**
-
-* **Khởi động Trạm Chỉ Huy:** Trên Laptop, mở terminal trong thư mục dự án và gõ lệnh: `python server.py`. Màn hình sẽ hiện thông báo máy chủ đang lắng nghe trên cổng 8080 và chặn luồng (đứng yên) để chờ.
-* **Đánh thức các Điểm Biên:** Lần lượt di chuyển sang các máy Jetson, mở terminal và gõ lệnh: `python client.py`.
-* Khi máy Jetson cuối cùng gõ xong lệnh, Server sẽ nhận diện đủ số lượng thiết bị và ngay lập tức gửi tập lệnh bắt đầu Vòng 1.
-
-**4.4. Theo dõi diễn biến huấn luyện**
-
-* Trên màn hình của các máy Jetson, bạn sẽ thấy thông báo nhận trọng số và bắt đầu tải các batch dữ liệu (thể hiện qua thanh tiến trình Train/Loss). Lõi tản nhiệt của Jetson sẽ bắt đầu quay mạnh vì GPU đang chạy hết công suất.
-* Trên màn hình Laptop, sau mỗi vòng giao tiếp, hệ thống sẽ in ra thông số độ chính xác toàn cục (Global Metrics) và dòng chữ thông báo đã lưu tệp `.pth`.
+| Component | Specification |
+| :--- | :--- |
+| **Operating System** | Windows 10/11, Linux (Ubuntu 20.04/22.04 LTS), or JetPack (L4T) |
+| **Python** | Python 3.8+ (Recommended: Python 3.10/3.11 virtual environment) |
+| **Core Libraries** | `flwr>=1.7.0`, `torch>=2.0.0`, `torchvision`, `medmnist`, `pyyaml`, `scikit-learn`, `matplotlib`, `pandas`, `psutil` |
+| **Hardware (Physical Deployment)** | 1 Central PC/Server + multiple physical clients (PC, Jetson Orin Nano, Jetson Nano 4GB) connected to the same LAN |
 
 ---
 
+## 3. Directory Layout
+
+```
+FedMedAI_Study/
+├── algorithms/                 # FL Strategy implementations
+│   ├── base.py                 # Unified base FL strategy class with metrics aggregation
+│   ├── fedavg.py               # Vanilla FedAvg
+│   ├── fedprox.py              # FedProx strategy
+│   ├── fednova.py              # FedNova strategy
+│   ├── fedbn.py                # FedBN strategy
+│   ├── scaffold.py             # SCAFFOLD strategy with control variates
+│   └── proposed.py             # Proposed Strategy (FedBN + SCAFFOLD)
+├── client/                     # FL Client execution logic
+│   ├── client.py               # Main Flower client implementation and CLI
+│   ├── train.py                # Local training loop and optimizer handlers
+│   ├── evaluate.py             # Local evaluation routines
+│   └── system_monitor.py       # Hardware resource and latency telemetry
+├── configs/                    # Configuration files
+│   ├── experiment.yaml         # Real multi-device physical execution config
+│   ├── simulation.yaml         # Automated simulation benchmark config
+│   └── jetson.yaml             # Hardware-specific profiles (PC, Orin, Nano)
+├── datasets/                   # Data loaders and partitioning
+│   ├── medmnist_code.py        # MedMNIST loading, memory-mapping, and transforms
+│   └── partition.py            # Non-IID partitioning algorithms and visualizers
+├── experiments/                # Experiment scripts
+│   ├── run_partition.py        # Standalone dataset partitioning CLI
+│   ├── train_centralized.py    # Centralized upper-bound benchmark training
+│   └── run_simulation.py       # Automated multi-client simulation harness
+├── models/                     # Deep learning architectures
+│   ├── cnn.py                  # Modern CNN (~20K parameters, BatchNorm)
+│   ├── baseline.py             # Classic 4-layer CNN (~570K parameters, no BatchNorm)
+│   └── factory.py              # Model instantiation factory
+├── monitoring/                 # Metrics recording and dashboard utilities
+│   ├── metrics.py              # FL metrics tracking and publication figures
+│   └── dashboard.py            # Real-time monitoring dashboard
+└── server/                     # FL Server execution
+    └── server.py               # Flower server harness and evaluation hooks
+```
+
+---
+
+## 4. Quickstart Guide
+
+### 4.1. Prerequisites & Environment Setup
+
+Activate the virtual environment:
+- **Windows PowerShell**:
+  ```powershell
+  D:\FPT\KLTN\FED\.venv\Scripts\Activate.ps1
+  ```
+- **Linux / Jetson Bash**:
+  ```bash
+  source .venv/bin/activate
+  ```
+
+### 4.2. Centralized Baseline Training
+
+Train a centralized upper-bound model on the entire dataset:
+```bash
+python -m experiments.train_centralized --dataset pathmnist --model cnn --epochs 100 --batch_size 256 --lr 0.01
+```
+
+### 4.3. Data Partitioning
+
+Generate non-IID partition splits with paired local test sets:
+```bash
+# Practical partition on PathMNIST for 12 clients
+python -m experiments.run_partition --dataset pathmnist --partition_mode practical --num_clients 12 --local_test
+
+# Pathological partition on DermaMNIST for 5 clients
+python -m experiments.run_partition --dataset dermamnist --partition_mode pathological --num_clients 5 --local_test
+```
+
+### 4.4. Real Multi-Device Deployment (Physical Clients over LAN)
+
+1. **Start Server** on the central machine:
+   ```bash
+   python -m server.server --config configs/experiment.yaml
+   ```
+2. **Start Clients** on edge devices:
+   ```bash
+   # Client 0 (e.g., PC client)
+   python -m client.client --config configs/experiment.yaml --client_id 0 --server_address 192.168.1.100:8080
+
+   # Client 1 (e.g., Jetson Orin edge node)
+   python -m client.client --config configs/experiment.yaml --client_id 1 --server_address 192.168.1.100:8080 --device_type jetson_orin
+   ```
+
+### 4.5. Automated Multi-Client Simulation
+
+Run an automated simulation across strategies and partitions on a single machine:
+```bash
+python -m experiments.run_simulation --config configs/simulation.yaml
+```
+
+For complete CLI options and detailed step-by-step guides, refer to [run.md](run.md).

@@ -222,6 +222,7 @@ def run_single_experiment(
     augment: bool = True,
     random_crop: bool = True,
     random_flip: bool = True,
+    client_module: str = "experiments.simulation_client",
 ) -> Dict[str, Any]:
     """Execute a single FL training run (1 Server + N Clients) as isolated subprocesses."""
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -239,7 +240,7 @@ def run_single_experiment(
 
     # Build server command
     server_cmd = [
-        python_exe, "-m", "server.server",
+        python_exe, "-u", "-m", "server.server",
         "--config", str(config_path),
         "--strategy", strategy,
         "--dataset", dataset_name,
@@ -276,11 +277,23 @@ def run_single_experiment(
 
     server_log_file = open(server_log_path, "w", encoding="utf-8")
     
+    lock_path = run_dir / ".gpu.lock"
+    if lock_path.exists():
+        try:
+            lock_path.unlink()
+        except Exception:
+            pass
+
     env = os.environ.copy()
+    env["PYTHONUNBUFFERED"] = "1"
+    env["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+    env["FEDMEDAI_SIMULATION_LOCK_PATH"] = str(lock_path.resolve())
     if client_cpu_threads > 0:
         env["OMP_NUM_THREADS"] = str(client_cpu_threads)
         env["MKL_NUM_THREADS"] = str(client_cpu_threads)
         env["OPENBLAS_NUM_THREADS"] = str(client_cpu_threads)
+        env["VECLIB_MAXIMUM_THREADS"] = str(client_cpu_threads)
+        env["NUMEXPR_NUM_THREADS"] = str(client_cpu_threads)
 
     server_proc = subprocess.Popen(
         server_cmd,
@@ -300,7 +313,7 @@ def run_single_experiment(
         if not wait_for_server(host, port, timeout=180.0):
             raise TimeoutError(f"Server on {host}:{port} did not start listening within timeout.")
 
-        print(f"  [Server] Listening. Launching {num_clients} client workers...")
+        print(f"  [Server] Listening. Launching {num_clients} client workers (Module: {client_module})...")
 
         for cid in range(num_clients):
             c_dir = clients_dir / f"client_{cid}"
@@ -310,7 +323,7 @@ def run_single_experiment(
             client_log_files.append(c_log_file)
 
             client_cmd = [
-                python_exe, "-m", "client.client",
+                python_exe, "-u", "-m", client_module,
                 "--config", str(config_path),
                 "--dataset", dataset_name,
                 "--client_id", str(cid),
@@ -364,6 +377,7 @@ def run_single_experiment(
             client_procs.append(c_proc)
 
         loop_start = time.time()
+
         while True:
             server_exit = server_proc.poll()
             if server_exit is not None:
@@ -423,6 +437,11 @@ def run_single_experiment(
         server_log_file.close()
         for f in client_log_files:
             f.close()
+        if lock_path.exists():
+            try:
+                lock_path.unlink()
+            except Exception:
+                pass
 
     total_wall_time = time.time() - run_start_time
 
@@ -557,6 +576,9 @@ STRATEGY_COLORS = {
     "fednova": "#ea580c",
     "fedbn": "#9333ea",
     "scaffold": "#dc2626",
+    "fedbn_scaffold": "#0891b2",
+    "bn_scaffold": "#0891b2",
+    "scaffold_fedbn": "#0891b2",
     "proposed": "#0891b2",
 }
 
@@ -566,6 +588,9 @@ STRATEGY_MARKERS = {
     "fednova": "^",
     "fedbn": "D",
     "scaffold": "v",
+    "fedbn_scaffold": "P",
+    "bn_scaffold": "P",
+    "scaffold_fedbn": "P",
     "proposed": "P",
 }
 
@@ -782,7 +807,7 @@ def generate_markdown_report(
             sub = sub_d[sub_d["partition_mode"] == p]
             if not sub.empty:
                 best_row = sub.loc[sub["best_test_accuracy"].idxmax()]
-                lines.append(f"- **Partition = {p}:** 🏆 **{best_row['strategy'].upper()}** achieved **{best_row['best_test_accuracy']*100:.2f}%** accuracy in Round {int(best_row['best_round'])} (runtime: {best_row['total_time_seconds']:.1f}s).")
+                lines.append(f"- **Partition = {p}:** **[BEST] {best_row['strategy'].upper()}** achieved **{best_row['best_test_accuracy']*100:.2f}%** accuracy in Round {int(best_row['best_round'])} (runtime: {best_row['total_time_seconds']:.1f}s).")
         lines.append("")
 
     has_bmcta = "bmcta" in df_summary.columns and df_summary["bmcta"].notna().any()
@@ -812,7 +837,7 @@ def generate_markdown_report(
             bta_val = f"**{row['bta']*100:.2f}%** (R{int(row.get('bta_round', 0))})" if pd.notna(row.get("bta")) else "N/A"
             model_col = f"`{row['model']}` | " if has_model else ""
             opt_col = f"`{row['optimizer']}` | " if has_opt else ""
-            aug_col = f"{'✅' if row.get('augment', True) else '❌'} | " if has_aug else ""
+            aug_col = f"{'Yes' if row.get('augment', True) else 'No'} | " if has_aug else ""
             lines.append(f"| **{row['dataset']}** | {model_col}{opt_col}{aug_col}**{row['strategy'].upper()}** | `{row['partition_mode']}` | {row['final_test_accuracy']*100:.2f}% | **{row['best_test_accuracy']*100:.2f}%** | {bmcta_val} | {bta_val} | R{int(row['best_round'])} | {row['final_test_loss']:.4f} | {row['total_time_seconds']:.1f}s |")
     else:
         header = f"| Dataset |{model_hdr}{opt_hdr}{aug_hdr} Strategy | Partition | Final Acc (%) | Best Acc (%) | Best Round | Final Loss | Total Time |"
@@ -827,7 +852,7 @@ def generate_markdown_report(
         for _, row in df_summary.iterrows():
             model_col = f"`{row['model']}` | " if has_model else ""
             opt_col = f"`{row['optimizer']}` | " if has_opt else ""
-            aug_col = f"{'✅' if row.get('augment', True) else '❌'} | " if has_aug else ""
+            aug_col = f"{'Yes' if row.get('augment', True) else 'No'} | " if has_aug else ""
             lines.append(f"| **{row['dataset']}** | {model_col}{opt_col}{aug_col}**{row['strategy'].upper()}** | `{row['partition_mode']}` | {row['final_test_accuracy']*100:.2f}% | **{row['best_test_accuracy']*100:.2f}%** | R{int(row['best_round'])} | {row['final_test_loss']:.4f} | {row['total_time_seconds']:.1f}s |")
 
     with open(output_path, "w", encoding="utf-8") as f:
@@ -842,7 +867,7 @@ def main():
     parser = argparse.ArgumentParser(description="FedMedAI Automated Multi-Strategy & Multi-Partition Simulation")
     parser.add_argument("--config", type=str, default="configs/simulation.yaml")
     parser.add_argument("--num_clients", type=int, default=None)
-    parser.add_argument("--datasets", type=str, nargs="+", default=None)
+    parser.add_argument("--datasets", type=str, nargs="+", default=None, help="Datasets to benchmark (e.g. bloodmnist pathmnist organamnist dermamnist)")
     parser.add_argument("--partitions", type=str, nargs="+", default=None)
     parser.add_argument("--strategies", type=str, nargs="+", default=None)
     parser.add_argument("--rounds", type=int, default=None)
@@ -866,6 +891,15 @@ def main():
     parser.add_argument("--augment", dest="augment", action=argparse.BooleanOptionalAction, default=None, help="Enable/disable training data augmentation")
     parser.add_argument("--random_crop", dest="random_crop", action=argparse.BooleanOptionalAction, default=None, help="Enable/disable random crop during training")
     parser.add_argument("--random_flip", dest="random_flip", action=argparse.BooleanOptionalAction, default=None, help="Enable/disable random horizontal flip during training")
+    parser.add_argument("--client_module", type=str, default=None, help="Python module to launch for clients (default: reads from config, fallback 'client.client')")
+    parser.add_argument("--early_stop_patience", type=int, default=None, help="Patience rounds for early stopping (0 = disabled)")
+    parser.add_argument("--early_stop_metric", type=str, choices=["accuracy", "loss"], default=None, help="Metric to monitor for early stopping")
+    parser.add_argument("--lr_decay_steps", type=int, default=None, help="Communication rounds between step decays in server_decay mode")
+    parser.add_argument("--lr_decay_gamma", type=float, default=None, help="Multiplicative decay factor in server_decay mode")
+    parser.add_argument("--client_lr_patience", type=int, default=None, help="Local epochs without improvement before reducing client LR")
+    parser.add_argument("--client_lr_factor", type=float, default=None, help="Factor for reducing client LR on plateau")
+    parser.add_argument("--client_lr_min", type=float, default=None, help="Minimum client learning rate bound")
+    parser.add_argument("--proximal_mu", type=float, default=None, help="Proximal coefficient for FedProx")
 
     args = parser.parse_args()
     cfg = load_yaml_config(args.config)
@@ -897,14 +931,15 @@ def main():
     client_cpu_threads = args.client_cpu_threads if args.client_cpu_threads is not None else cfg.get("client_cpu_threads", 1)
     learning_rate = args.learning_rate if args.learning_rate is not None else cfg.get("learning_rate", cfg.get("lr", 0.01))
     lr_mode = args.lr_mode if args.lr_mode is not None else cfg.get("lr_mode", "fixed")
-    client_lr_patience = cfg.get("client_lr_patience", 2)
-    client_lr_factor = cfg.get("client_lr_factor", 0.5)
-    client_lr_min = cfg.get("client_lr_min", 1e-6)
-    lr_decay_steps = cfg.get("lr_decay_steps", 3)
-    lr_decay_gamma = cfg.get("lr_decay_gamma", 0.5)
-    proximal_mu = cfg.get("proximal_mu", 0.01)
-    early_stop_patience = cfg.get("early_stop_patience", 0)
-    early_stop_metric = cfg.get("early_stop_metric", "accuracy")
+    client_module = args.client_module if args.client_module is not None else cfg.get("client_module", "client.client")
+    client_lr_patience = args.client_lr_patience if args.client_lr_patience is not None else cfg.get("client_lr_patience", 2)
+    client_lr_factor = args.client_lr_factor if args.client_lr_factor is not None else cfg.get("client_lr_factor", 0.5)
+    client_lr_min = args.client_lr_min if args.client_lr_min is not None else cfg.get("client_lr_min", 1e-6)
+    lr_decay_steps = args.lr_decay_steps if args.lr_decay_steps is not None else cfg.get("lr_decay_steps", 3)
+    lr_decay_gamma = args.lr_decay_gamma if args.lr_decay_gamma is not None else cfg.get("lr_decay_gamma", 0.5)
+    proximal_mu = args.proximal_mu if args.proximal_mu is not None else cfg.get("proximal_mu", 0.01)
+    early_stop_patience = args.early_stop_patience if args.early_stop_patience is not None else cfg.get("early_stop_patience", 0)
+    early_stop_metric = args.early_stop_metric if args.early_stop_metric is not None else cfg.get("early_stop_metric", "accuracy")
     server_eval = args.server_eval if args.server_eval is not None else cfg.get("server_eval", True)
     local_test = args.local_test if args.local_test is not None else cfg.get("local_test", False)
     device_type = cfg.get("device_type", "pc")
@@ -957,6 +992,7 @@ def main():
     print(f"  Rounds per Run   : {rounds}")
     print(f"  Local Epochs     : {local_epochs}")
     print(f"  Local Test Eval  : {'Enabled (BMCTA/BTA tracking)' if local_test else 'Disabled (Global Test)'}")
+    print(f"  Client Module    : {client_module} ({'Parallel Execution' if client_module == 'client.client' else 'Sequential GPU Lock'})")
     print(f"  Timeout per Run  : {timeout_desc}")
     print(f"  Datasets         : {datasets}")
     print(f"  Partitions       : {partitions}")
@@ -1022,6 +1058,7 @@ def main():
                     config_path=args.config,
                     num_workers=num_workers,
                     client_cpu_threads=client_cpu_threads,
+                    client_module=client_module,
                 )
 
                 summary_row = {k: v for k, v in metrics.items() if k != "rounds_history"}
