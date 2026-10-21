@@ -11,6 +11,12 @@ Tài liệu này hướng dẫn chi tiết quy trình triển khai thuật toán
 For the validation-only experiment matrix, native 64×64 data, model comparisons,
 locked final-test procedure, and Jetson measurements, see [RESEARCH_STUDY.md](RESEARCH_STUDY.md).
 
+The proposed **Coverage-IW** research methodology, equations, ablations, data
+boundaries, and acceptance criteria are documented in
+[methodology/README.md](methodology/README.md). It is currently a research
+specification and must not be described as validated until the matched
+experiments are complete.
+
 Run the proposed client-private coverage-aware objective with many virtual
 clients on one machine:
 
