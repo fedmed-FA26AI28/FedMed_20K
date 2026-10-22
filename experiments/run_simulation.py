@@ -56,10 +56,21 @@ def get_free_port() -> int:
         return s.getsockname()[1]
 
 
-def wait_for_server(host: str, port: int, timeout: float = 20.0) -> bool:
-    """Poll server socket until it starts accepting TCP connections."""
+def wait_for_server(
+    host: str,
+    port: int,
+    server_proc: Optional[subprocess.Popen] = None,
+    timeout: float = 20.0,
+) -> bool:
+    """Poll server socket until it starts accepting TCP connections.
+    
+    If server_proc is provided, actively checks if the process has terminated
+    early to fail fast rather than idling for the entire timeout duration.
+    """
     start_time = time.time()
     while time.time() - start_time < timeout:
+        if server_proc is not None and server_proc.poll() is not None:
+            return False
         try:
             with socket.create_connection((host, port), timeout=1.0):
                 return True
@@ -312,7 +323,26 @@ def run_single_experiment(
     run_metrics: Dict[str, Any] = {}
 
     try:
-        if not wait_for_server(host, port, timeout=180.0):
+        if not wait_for_server(host, port, server_proc=server_proc, timeout=180.0):
+            server_exit = server_proc.poll()
+            if server_exit is not None:
+                server_log_file.flush()
+                err_snippet = ""
+                if server_log_path.exists():
+                    try:
+                        with open(server_log_path, "r", encoding="utf-8", errors="ignore") as f:
+                            lines = f.readlines()
+                            err_snippet = "".join(lines[-25:]).strip()
+                    except Exception:
+                        pass
+                raise RuntimeError(
+                    f"Server process terminated unexpectedly on startup (exit code {server_exit}).\n"
+                    f"  {'='*55}\n"
+                    f"  Tail of {server_log_path}:\n"
+                    f"  {'='*55}\n"
+                    f"{err_snippet or '  (no output recorded in server.log)'}\n"
+                    f"  {'='*55}"
+                )
             raise TimeoutError(f"Server on {host}:{port} did not start listening within timeout.")
 
         print(f"  [Server] Listening. Launching {num_clients} client workers (Module: {client_module})...")
@@ -432,6 +462,7 @@ def run_single_experiment(
         raise
     except Exception as e:
         status = f"error: {type(e).__name__}"
+        print(f"\n  [Run Error] {strategy.upper()} ({partition_mode}) failed:\n{e}\n")
         server_proc.kill()
         for c_proc in client_procs:
             c_proc.kill()
