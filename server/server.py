@@ -598,7 +598,7 @@ def main():
     server_ipv4 = get_device_ipv4()
 
     from datasets.medmnist_code import get_medmnist_datasets
-    _, _, _, num_classes = get_medmnist_datasets(args.dataset, download=False)
+    _, _, _, num_classes = get_medmnist_datasets(args.dataset, download=True)
 
     print(f"\n{'='*60}")
     print(f"  FedMedAI FL Server")
