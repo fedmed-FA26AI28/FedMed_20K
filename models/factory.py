@@ -17,6 +17,7 @@ from models.cnn import (
     is_bn_key,
 )
 from models.baseline import BaselineCNN, ClassicCNN, PaperCNN
+from models.baseline_bn import BaselineBN, BaselineCNN_BN, ClassicBN, PaperBN
 
 
 def set_seed(seed: int = 42) -> None:
@@ -43,7 +44,13 @@ def get_model(
       - 'baseline' / 'paper' / 'classic_cnn': Classic 4-layer CNN from FedSLD paper (Luo & Wu 2022) without BatchNorm (~1.62M parameters).
     """
     key = str(model_name).lower().strip().replace("-", "_")
-    if key in ("baseline", "paper", "classic", "classic_cnn", "baseline_cnn"):
+    if key in ("baseline_bn", "baselinecnn_bn", "baseline_cnn_bn", "classic_bn", "paper_bn"):
+        return BaselineBN(
+            num_classes=num_classes,
+            in_channels=in_channels,
+            input_size=input_size,
+        )
+    elif key in ("baseline", "paper", "classic", "classic_cnn", "baseline_cnn"):
         return BaselineCNN(
             num_classes=num_classes,
             in_channels=in_channels,
@@ -53,5 +60,5 @@ def get_model(
         return CNN(num_classes=num_classes)
     else:
         raise ValueError(
-            f"Unknown model name '{model_name}'. Available options: 'cnn', 'baseline'."
+            f"Unknown model name '{model_name}'. Available options: 'cnn', 'baseline', 'baseline_bn'."
         )

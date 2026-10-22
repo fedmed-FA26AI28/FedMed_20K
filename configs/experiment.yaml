@@ -57,6 +57,7 @@ client_lr_min: 0.000001           # Minimum learning rate bound
 # Settings for 'server_decay' mode:
 lr_decay_steps: 3                 # Decay learning rate every N rounds
 lr_decay_gamma: 0.5               # Multiplicative decay factor
+server_lr_min: 0.00001            # Minimum learning rate lower bound for server decay
 
 # --- Evaluation & Early Stopping ---
 local_test: true                  # Evaluate on client-specific local test partition (BMCTA / BTA tracking)
@@ -94,7 +95,7 @@ active_clients: null
 # ──────────────────────────────────────────────────────────────────────────────
 centralized:
   dataset: pathmnist              # Options: 'bloodmnist', 'pathmnist', 'organamnist', 'dermamnist'
-  model: baseline                 # Options: 'baseline' (FedSLD classic CNN) or 'cnn' (Modern)
+  model: baseline                 # Options: 'baseline' (FedSLD classic CNN), 'baseline_bn' (Baseline with BN), or 'cnn' (Modern)
   optimizer: sgd                  # Options: 'sgd' or 'adam'
   momentum: 0.0
   epochs: 100

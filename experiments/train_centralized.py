@@ -439,7 +439,7 @@ def parse_args():
                         help="Explicit directory path to save centralized artifacts (overrides default results/centralized/<name>).")
     parser.add_argument("--dataset", type=str, default=default_dataset,
                         help=f"Dataset name (e.g. 'bloodmnist', 'pathmnist', 'organamnist', 'dermamnist') (default: {default_dataset}).")
-    parser.add_argument("--model", type=str, default=default_model, choices=["cnn", "baseline", "paper", "classic_cnn"],
+    parser.add_argument("--model", type=str, default=default_model, choices=["cnn", "baseline", "paper", "classic_cnn", "baseline_bn", "baselinecnn_bn", "classic_bn"],
                         help=f"Model architecture (default: {default_model}).")
     parser.add_argument("--optimizer", type=str, default=default_optimizer, choices=["adam", "sgd"],
                         help=f"Optimizer type: 'adam' or 'sgd' (default: {default_optimizer}).")
