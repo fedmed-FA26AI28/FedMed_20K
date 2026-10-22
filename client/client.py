@@ -814,7 +814,7 @@ def main():
         "--model",
         type=str,
         default=yaml_cfg.get("model", "cnn"),
-        choices=["cnn", "baseline", "paper", "classic_cnn"],
+        choices=["cnn", "baseline", "paper", "classic_cnn", "baseline_bn", "baselinecnn_bn", "classic_bn"],
         help=f"Model architecture (default: {yaml_cfg.get('model', 'cnn')})",
     )
     parser.add_argument(

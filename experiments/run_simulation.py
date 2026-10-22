@@ -201,6 +201,7 @@ def run_single_experiment(
     client_lr_min: float,
     lr_decay_steps: int,
     lr_decay_gamma: float,
+    server_lr_min: float,
     proximal_mu: float,
     early_stop_patience: int,
     early_stop_metric: str,
@@ -259,6 +260,7 @@ def run_single_experiment(
         "--client_lr_min", str(client_lr_min),
         "--lr_decay_steps", str(lr_decay_steps),
         "--lr_decay_gamma", str(lr_decay_gamma),
+        "--server_lr_min", str(server_lr_min),
         "--proximal_mu", str(proximal_mu),
         "--early_stop_patience", str(early_stop_patience),
         "--early_stop_metric", early_stop_metric,
@@ -883,7 +885,7 @@ def main():
     parser.add_argument("--client_cpu_threads", type=int, default=None)
     parser.add_argument("--server_eval", dest="server_eval", action=argparse.BooleanOptionalAction, default=None)
     parser.add_argument("--local_test", dest="local_test", action=argparse.BooleanOptionalAction, default=None, help="Partition test set across clients and track BMCTA/BTA")
-    parser.add_argument("--model", type=str, default=None, choices=["cnn", "baseline", "paper", "classic_cnn"], help="Model architecture ('cnn' or 'baseline')")
+    parser.add_argument("--model", type=str, default=None, choices=["cnn", "baseline", "paper", "classic_cnn", "baseline_bn", "baselinecnn_bn", "classic_bn"], help="Model architecture ('cnn', 'baseline', or 'baseline_bn')")
     parser.add_argument("--optimizer", type=str, default=None, choices=["adam", "sgd"], help="Optimizer type ('adam' or 'sgd')")
     parser.add_argument("--momentum", type=float, default=None, help="Momentum for SGD optimizer")
     parser.add_argument("--weight_decay", type=float, default=None, help="Weight decay penalty")
@@ -896,6 +898,7 @@ def main():
     parser.add_argument("--early_stop_metric", type=str, choices=["accuracy", "loss"], default=None, help="Metric to monitor for early stopping")
     parser.add_argument("--lr_decay_steps", type=int, default=None, help="Communication rounds between step decays in server_decay mode")
     parser.add_argument("--lr_decay_gamma", type=float, default=None, help="Multiplicative decay factor in server_decay mode")
+    parser.add_argument("--server_lr_min", "--lr_decay_min", type=float, default=None, help="Minimum learning rate floor for server_decay mode")
     parser.add_argument("--client_lr_patience", type=int, default=None, help="Local epochs without improvement before reducing client LR")
     parser.add_argument("--client_lr_factor", type=float, default=None, help="Factor for reducing client LR on plateau")
     parser.add_argument("--client_lr_min", type=float, default=None, help="Minimum client learning rate bound")
@@ -937,6 +940,7 @@ def main():
     client_lr_min = args.client_lr_min if args.client_lr_min is not None else cfg.get("client_lr_min", 1e-6)
     lr_decay_steps = args.lr_decay_steps if args.lr_decay_steps is not None else cfg.get("lr_decay_steps", 3)
     lr_decay_gamma = args.lr_decay_gamma if args.lr_decay_gamma is not None else cfg.get("lr_decay_gamma", 0.5)
+    server_lr_min = args.server_lr_min if args.server_lr_min is not None else cfg.get("server_lr_min", cfg.get("lr_decay_min", 1e-5))
     proximal_mu = args.proximal_mu if args.proximal_mu is not None else cfg.get("proximal_mu", 0.01)
     early_stop_patience = args.early_stop_patience if args.early_stop_patience is not None else cfg.get("early_stop_patience", 0)
     early_stop_metric = args.early_stop_metric if args.early_stop_metric is not None else cfg.get("early_stop_metric", "accuracy")
@@ -1038,6 +1042,7 @@ def main():
                     client_lr_min=client_lr_min,
                     lr_decay_steps=lr_decay_steps,
                     lr_decay_gamma=lr_decay_gamma,
+                    server_lr_min=server_lr_min,
                     proximal_mu=proximal_mu,
                     early_stop_patience=early_stop_patience,
                     early_stop_metric=early_stop_metric,

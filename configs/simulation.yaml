@@ -42,7 +42,7 @@ rounds: 40                        # Total federated communication rounds
 local_epochs: 5                   # Local training epochs on each client per round
 batch_size: 256                   # Client training mini-batch size
 learning_rate: 0.01               # Base initial learning rate
-model: cnn                        # Architecture: 'cnn' (Modern ~20K params with BatchNorm) or 'baseline' (~570K params)
+model: cnn                        # Architecture: 'cnn' (Modern ~20K params with BatchNorm), 'baseline' (~570K params without BN), or 'baseline_bn' (~571K params with BN)
 optimizer: adam                   # Optimizer: 'adam' or 'sgd'
 momentum: 0.0                     # SGD momentum (0.0 for pure SGD)
 weight_decay: 1e-4                # L2 regularization penalty (0.0 = none)
@@ -63,11 +63,12 @@ lr_mode: fixed
 # Settings for 'client_loss' mode:
 client_lr_patience: 2             # Local epochs without improvement before reducing LR
 client_lr_factor: 0.5             # Multiplicative factor of LR reduction
-client_lr_min: 0.000001           # Minimum learning rate lower bound
+client_lr_min: 0.00001           # Minimum learning rate lower bound
 
 # Settings for 'server_decay' mode:
-lr_decay_steps: 3                 # Decay learning rate every N rounds
+lr_decay_steps: 8                 # Decay learning rate every N rounds
 lr_decay_gamma: 0.5               # Multiplicative decay factor
+server_lr_min: 0.00001            # Minimum learning rate lower bound for server decay (prevents LR starvation)
 
 # --- Algorithm-Specific Hyperparameters ---
 proximal_mu: 0.01                 # FedProx proximal coefficient (0.0 = FedAvg)

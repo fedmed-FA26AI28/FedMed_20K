@@ -158,10 +158,12 @@ class FedStrategyBase(FlwrFedAvg):
         loss: Optional[float] = None,
         parameters: Optional[Parameters] = None,
     ) -> bool:
-        """Evaluate early stopping conditions against monitored metric."""
-        if self.early_stop_patience <= 0:
-            return False
-
+        """Evaluate early stopping conditions and track best model parameters.
+        
+        Best parameter checkpointing is decoupled from early-stopping patience:
+        _best_metric, _best_round, and _best_parameters are continuously tracked
+        across all rounds even when early_stop_patience <= 0 (disabled).
+        """
         if self._last_checked_round == server_round:
             return self.should_stop
         self._last_checked_round = server_round
@@ -180,33 +182,38 @@ class FedStrategyBase(FlwrFedAvg):
                 self._best_round = server_round
                 self._rounds_without_improvement = 0
                 if parameters is not None:
-                    self._best_parameters = parameters
+                    self._best_parameters = Parameters(
+                        tensors=list(parameters.tensors),
+                        tensor_type=parameters.tensor_type,
+                    )
                 log(
                     INFO,
-                    "[EarlyStop] Round %d: new best %s = %.4f",
+                    "[BestModel] Round %d: new best %s = %.4f",
                     server_round,
                     self.early_stop_metric,
                     current,
                 )
             else:
                 self._rounds_without_improvement += 1
-                log(
-                    INFO,
-                    "[EarlyStop] Round %d: no improvement for %d rounds (best=%.4f, current=%.4f)",
-                    server_round,
-                    self._rounds_without_improvement,
-                    self._best_metric if self._best_metric is not None else 0.0,
-                    current,
-                )
-                if self._rounds_without_improvement >= self.early_stop_patience:
+                if self.early_stop_patience > 0:
                     log(
-                        WARNING,
-                        "[EarlyStop] Stopping at round %d - no improvement in %d rounds.",
+                        INFO,
+                        "[EarlyStop] Round %d: no improvement for %d/%d rounds (best=%.4f, current=%.4f)",
                         server_round,
+                        self._rounds_without_improvement,
                         self.early_stop_patience,
+                        self._best_metric if self._best_metric is not None else 0.0,
+                        current,
                     )
-                    self.should_stop = True
-                    return True
+                    if self._rounds_without_improvement >= self.early_stop_patience:
+                        log(
+                            WARNING,
+                            "[EarlyStop] Stopping at round %d - no improvement in %d rounds.",
+                            server_round,
+                            self.early_stop_patience,
+                        )
+                        self.should_stop = True
+                        return True
         return self.should_stop
 
     def get_best_parameters(self) -> Optional[Parameters]:
@@ -335,7 +342,7 @@ class FedStrategyBase(FlwrFedAvg):
                     is_server_eval=False,
                 )
 
-        if self.early_stop_patience > 0 and metrics_aggregated:
+        if metrics_aggregated:
             self.check_early_stopping(
                 server_round=server_round,
                 metrics=metrics_aggregated,

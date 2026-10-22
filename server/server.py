@@ -282,6 +282,7 @@ def _make_on_fit_config_fn(
     lr_mode: str = "client_loss",
     lr_decay_steps: int = 3,
     lr_decay_gamma: float = 0.5,
+    server_lr_min: float = 1e-5,
     proximal_mu: float = 0.0,
     client_lr_patience: int = 2,
     client_lr_factor: float = 0.5,
@@ -325,22 +326,24 @@ def _make_on_fit_config_fn(
                 learning_rate,
             )
         elif mode in ("server_decay", "server", "step"):
-            # Synchronized global step decay: lr = initial_lr * (gamma ** ((round - 1) // steps))
+            # Synchronized global step decay: lr = max(initial_lr * (gamma ** ((round - 1) // steps)), server_lr_min)
             if lr_decay_steps > 0 and server_round > 1:
                 step_count = (server_round - 1) // lr_decay_steps
-                scheduled_lr = learning_rate * (lr_decay_gamma ** step_count)
+                decayed_lr = learning_rate * (lr_decay_gamma ** step_count)
+                scheduled_lr = max(decayed_lr, server_lr_min)
             else:
-                scheduled_lr = learning_rate
+                scheduled_lr = max(learning_rate, server_lr_min)
             config["learning_rate"] = float(scheduled_lr)
             log(
                 INFO,
-                "[Server] Config for Round %d: strategy=%s, local_epochs=%d, LR=%.6f (server_decay step=%d, gamma=%.2f)",
+                "[Server] Config for Round %d: strategy=%s, local_epochs=%d, LR=%.6f (server_decay step=%d, gamma=%.2f, min=%.6f)",
                 server_round,
                 strategy_name.upper(),
                 local_epochs,
                 scheduled_lr,
                 lr_decay_steps,
                 lr_decay_gamma,
+                server_lr_min,
             )
         else:
             # 'client_loss' mode: server sends initial LR on Round 1 only
@@ -473,6 +476,13 @@ def main():
         help=f"Multiplicative factor of LR decay for 'server_decay' mode (default: {yaml_cfg.get('lr_decay_gamma', 0.5)})",
     )
     parser.add_argument(
+        "--server_lr_min",
+        "--lr_decay_min",
+        type=float,
+        default=yaml_cfg.get("server_lr_min", yaml_cfg.get("lr_decay_min", 1e-5)),
+        help=f"Minimum learning rate floor for 'server_decay' mode (default: {yaml_cfg.get('server_lr_min', yaml_cfg.get('lr_decay_min', 1e-5))})",
+    )
+    parser.add_argument(
         "--client_lr_patience",
         type=int,
         default=yaml_cfg.get("client_lr_patience", 2),
@@ -538,7 +548,7 @@ def main():
         "--model",
         type=str,
         default=yaml_cfg.get("model", "cnn"),
-        choices=["cnn", "baseline", "paper", "classic_cnn"],
+        choices=["cnn", "baseline", "paper", "classic_cnn", "baseline_bn", "baselinecnn_bn", "classic_bn"],
         help=f"Model architecture to train (default: {yaml_cfg.get('model', 'cnn')})",
     )
     parser.add_argument(
@@ -641,6 +651,7 @@ def main():
             lr_mode=args.lr_mode,
             lr_decay_steps=args.lr_decay_steps,
             lr_decay_gamma=args.lr_decay_gamma,
+            server_lr_min=args.server_lr_min,
             proximal_mu=args.proximal_mu if args.strategy == "fedprox" else 0.0,
             client_lr_patience=args.client_lr_patience,
             client_lr_factor=args.client_lr_factor,
@@ -752,6 +763,7 @@ def main():
         "initial_learning_rate": args.learning_rate,
         "lr_decay_steps": args.lr_decay_steps,
         "lr_decay_gamma": args.lr_decay_gamma,
+        "server_lr_min": args.server_lr_min,
         "server_eval_enabled": args.server_eval,
         "server_address": f"{args.host}:{args.port}",
         "early_stop_patience": args.early_stop_patience,

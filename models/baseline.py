@@ -91,6 +91,8 @@ def set_parameters(model: nn.Module, parameters: List[np.ndarray]) -> None:
 ClassicCNN = BaselineCNN
 PaperCNN = BaselineCNN
 
+from models.baseline_bn import BaselineBN, BaselineCNN_BN, ClassicBN, PaperBN
+
 
 if __name__ == "__main__":
     model = BaselineCNN(num_classes=9, in_channels=3, input_size=(28, 28))

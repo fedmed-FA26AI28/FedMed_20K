@@ -11,6 +11,7 @@ from models.cnn import (
     is_bn_key,
 )
 from models.baseline import BaselineCNN, ClassicCNN, PaperCNN
+from models.baseline_bn import BaselineBN, BaselineCNN_BN, ClassicBN, PaperBN
 from models.factory import get_model, set_seed
 
 __all__ = [
@@ -19,6 +20,10 @@ __all__ = [
     "BaselineCNN",
     "ClassicCNN",
     "PaperCNN",
+    "BaselineBN",
+    "BaselineCNN_BN",
+    "ClassicBN",
+    "PaperBN",
     "get_model",
     "set_seed",
     "get_parameters",
