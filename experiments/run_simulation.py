@@ -5,7 +5,11 @@ data partition modes, and datasets.
 """
 
 import argparse
+import atexit
+import ctypes
 import datetime
+import gc
+import glob
 import json
 import os
 import re
@@ -16,6 +20,11 @@ import sys
 import time
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
+
+try:
+    import psutil
+except ImportError:
+    psutil = None
 
 import matplotlib
 matplotlib.use("Agg")
@@ -45,8 +54,121 @@ from utils.path_utils import sanitize_run_name
 
 
 # ──────────────────────────────────────────────────────────────────────────────
-# Helper Functions: Network, Sockets & Environment
+# Helper Functions: Network, Sockets, Logging & Resource Reclamation
 # ──────────────────────────────────────────────────────────────────────────────
+
+class DualLogger:
+    """Tee logger that writes simultaneously to console stream and terminal.log file."""
+
+    def __init__(self, filepath: Path, original_stream):
+        self.filepath = Path(filepath)
+        self.original_stream = original_stream
+        self.filepath.parent.mkdir(parents=True, exist_ok=True)
+        self.file = open(self.filepath, "a", encoding="utf-8", buffering=1)
+
+    def write(self, message):
+        try:
+            self.original_stream.write(message)
+            self.original_stream.flush()
+        except Exception:
+            pass
+        try:
+            self.file.write(message)
+            self.file.flush()
+        except Exception:
+            pass
+
+    def flush(self):
+        try:
+            self.original_stream.flush()
+        except Exception:
+            pass
+        try:
+            self.file.flush()
+        except Exception:
+            pass
+
+    def close(self):
+        try:
+            self.file.close()
+        except Exception:
+            pass
+
+
+def reclaim_system_resources(
+    server_proc: Optional[subprocess.Popen] = None,
+    client_procs: Optional[List[subprocess.Popen]] = None,
+) -> None:
+    """Reclaim system RAM, GPU VRAM, POSIX shared memory, and reaped processes after a run.
+    
+    Cross-platform safe: operates cleanly on both Windows (PC) and Linux (Cloud VM / Jetson).
+    """
+    # 1. Ensure all child and client/server processes are terminated and reaped (preventing zombies)
+    procs: List[subprocess.Popen] = []
+    if server_proc is not None:
+        procs.append(server_proc)
+    if client_procs:
+        procs.extend(client_procs)
+
+    for p in procs:
+        try:
+            if psutil is not None:
+                try:
+                    parent = psutil.Process(p.pid)
+                    for child in parent.children(recursive=True):
+                        try:
+                            child.kill()
+                        except Exception:
+                            pass
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    pass
+            if p.poll() is None:
+                p.kill()
+            p.wait(timeout=2)
+        except Exception:
+            pass
+
+    # 2. Python garbage collection
+    gc.collect()
+
+    # 3. Host virtual memory / heap trimming
+    if sys.platform.startswith("linux"):
+        # Linux: instruct glibc to release free memory arenas back to the OS kernel
+        try:
+            libc = ctypes.CDLL("libc.so.6")
+            libc.malloc_trim(0)
+        except Exception:
+            pass
+        # Linux: clean orphaned PyTorch DataLoader shared memory segments in /dev/shm
+        try:
+            for shm_pattern in ("/dev/shm/torch_*", "/dev/shm/cuda_*"):
+                for shm_path in glob.glob(shm_pattern):
+                    try:
+                        os.unlink(shm_path)
+                    except OSError:
+                        pass
+        except Exception:
+            pass
+    elif sys.platform == "win32":
+        # Windows PC: flush unreferenced working set pages back to standby pool
+        try:
+            ctypes.windll.kernel32.SetProcessWorkingSetSize(
+                ctypes.windll.kernel32.GetCurrentProcess(), -1, -1
+            )
+        except Exception:
+            pass
+
+    # 4. Clean PyTorch CUDA memory and IPC caches if PyTorch has initialized CUDA
+    if "torch" in sys.modules:
+        try:
+            import torch
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+                if hasattr(torch.cuda, "ipc_collect"):
+                    torch.cuda.ipc_collect()
+        except Exception:
+            pass
+
 
 def get_free_port() -> int:
     """Find and return an available ephemeral TCP port on localhost."""
@@ -475,6 +597,8 @@ def run_single_experiment(
                 lock_path.unlink()
             except Exception:
                 pass
+        # Complete cross-platform resource and memory reclamation (RAM, VRAM, shm, process reaping)
+        reclaim_system_resources(server_proc=server_proc, client_procs=client_procs)
 
     total_wall_time = time.time() - run_start_time
 
@@ -1013,12 +1137,30 @@ def main():
         base_output_dir = Path(cfg.get("output_dir", "results/simulation")) / timestamp_str
     base_output_dir.mkdir(parents=True, exist_ok=True)
 
+    # Initialize live terminal.log mirroring so SSH/headless progress is always preserved
+    terminal_log_path = base_output_dir / "terminal.log"
+    orig_stdout = sys.stdout
+    orig_stderr = sys.stderr
+    dual_stdout = DualLogger(terminal_log_path, orig_stdout)
+    dual_stderr = DualLogger(terminal_log_path, orig_stderr)
+    sys.stdout = dual_stdout
+    sys.stderr = dual_stderr
+
+    def _close_dual_loggers():
+        sys.stdout = orig_stdout
+        sys.stderr = orig_stderr
+        dual_stdout.close()
+        dual_stderr.close()
+
+    atexit.register(_close_dual_loggers)
+
     timeout_desc = f"{timeout_per_run}s" if timeout_per_run > 0 else "Disabled (Infinite)"
     print(f"\n{'='*70}")
     print(f"  FedMedAI Automated Simulation Benchmark")
     print(f"{'='*70}")
     print(f"  Run Name         : {run_name or timestamp_str}")
     print(f"  Output Directory : {base_output_dir}")
+    print(f"  Terminal Log     : {terminal_log_path}")
     print(f"  Model            : {model.upper()}")
     print(f"  Optimizer        : {optimizer.upper()}" + (f" (momentum={momentum})" if optimizer == "sgd" else ""))
     print(f"  Augmentation     : {'Enabled' if augment else 'Disabled'} (crop={random_crop}, flip={random_flip})")
@@ -1120,6 +1262,9 @@ def main():
                 df_summary_temp = pd.DataFrame(results_list)
                 df_summary_temp.to_csv(base_output_dir / "simulation_summary.csv", index=False)
 
+                # Inter-run settle delay: allows TCP sockets in TIME_WAIT to clear and GPU memory to settle
+                time.sleep(1.0)
+
     total_sim_time = time.time() - sim_start_time
 
     df_summary = pd.DataFrame(results_list)
@@ -1181,7 +1326,11 @@ def main():
     print(f"{'='*75}")
     print(f"  Artifacts Saved in Directory: {base_output_dir}")
     print(f"  - Executive Report     : {report_path.name}")
+    print(f"  - Terminal Log         : {terminal_log_path.name}")
     print(f"{'='*75}\n")
+
+    _close_dual_loggers()
+
 
 if __name__ == "__main__":
     main()

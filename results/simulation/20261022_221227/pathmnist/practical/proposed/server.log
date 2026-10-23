@@ -1,0 +1,721 @@
+
+============================================================
+  FedMedAI FL Server
+  Config Source: configs/simulation.yaml
+  Dataset      : pathmnist (Classes: 9)
+  Model        : BASELINE_BN
+  Optimizer    : SGD (momentum=0.9)
+  Seed         : 42
+  Strategy     : PROPOSED
+  Server IPv4  : 192.168.0.113
+  Client Target: 192.168.0.113:64710
+  Rounds       : 80
+  Min Clients  : 12
+  Local Epochs : 5
+  LR Mode      : FIXED
+  Base LR      : 0.01
+  LR Policy    : Fixed constant learning rate across all rounds
+  Early Stop   : Patience=0 (metric: accuracy)
+  Server Eval  : True
+  Local Test   : True
+  Listen       : 127.0.0.1:64710
+============================================================
+
+  [Server] Centralized server evaluation is disabled.
+           Model performance is evaluated via distributed client evaluation.
+[Server] Strategy created: FedProposedStrategy
+[Server] Waiting for 12 clients on 127.0.0.1:64710 (Connect target: 192.168.0.113:64710)...
+
+[93mWARNING [0m:   DEPRECATED FEATURE: flwr.server.start_server() is deprecated.
+	Instead, use the `flower-superlink` CLI command to start a SuperLink as shown below:
+
+		$ flower-superlink --insecure
+
+	To view usage and all available options, run:
+
+		$ flower-superlink --help
+
+	Using `start_server()` is deprecated.
+
+            This is a deprecated feature. It will be removed
+            entirely in future versions of Flower.
+        
+[92mINFO [0m:      Starting Flower server, config: num_rounds=80, no round_timeout
+[92mINFO [0m:      Flower ECE: gRPC server running (80 rounds), SSL is disabled
+[92mINFO [0m:      [INIT]
+[92mINFO [0m:      Using initial global parameters provided by strategy
+[92mINFO [0m:      Starting evaluation of initial global parameters
+[92mINFO [0m:      Evaluation returned no results (`None`)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 1]
+[92mINFO [0m:      [Server] Config for Round 1: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 3 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 1 | 81.5s | clients=12 | c_norm=0.2963 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 1 Eval | MCTA: 16.56% (BMCTA: 16.56% @ R1) | Combined: 32.31% (BTA: 32.31% @ R1)
+[92mINFO [0m:      [BestModel] Round 1: new best accuracy = 0.3231
+
+============================================================
+  [Server] Round 1 Distributed Client Evaluation
+  Loss: 2.2765 | Accuracy: 0.3231 (32.31%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 2]
+[92mINFO [0m:      [Server] Config for Round 2: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 4 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 2 | 62.6s | clients=12 | c_norm=0.1936 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 2 Eval | MCTA: 22.07% (BMCTA: 22.07% @ R2) | Combined: 35.54% (BTA: 35.54% @ R2)
+[92mINFO [0m:      [BestModel] Round 2: new best accuracy = 0.3554
+
+============================================================
+  [Server] Round 2 Distributed Client Evaluation
+  Loss: 3.3905 | Accuracy: 0.3554 (35.54%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 3]
+[92mINFO [0m:      [Server] Config for Round 3: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 5 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 3 | 61.7s | clients=12 | c_norm=0.1163 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 3 Eval | MCTA: 28.34% (BMCTA: 28.34% @ R3) | Combined: 37.86% (BTA: 37.86% @ R3)
+[92mINFO [0m:      [BestModel] Round 3: new best accuracy = 0.3786
+
+============================================================
+  [Server] Round 3 Distributed Client Evaluation
+  Loss: 3.0188 | Accuracy: 0.3786 (37.86%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 4]
+[92mINFO [0m:      [Server] Config for Round 4: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 2 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 4 | 61.7s | clients=12 | c_norm=0.1030 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 4 Eval | MCTA: 33.75% (BMCTA: 33.75% @ R4) | Combined: 37.99% (BTA: 37.99% @ R4)
+[92mINFO [0m:      [BestModel] Round 4: new best accuracy = 0.3799
+
+============================================================
+  [Server] Round 4 Distributed Client Evaluation
+  Loss: 3.6206 | Accuracy: 0.3799 (37.99%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 5]
+[92mINFO [0m:      [Server] Config for Round 5: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 3 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 5 | 62.1s | clients=12 | c_norm=0.1107 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 5 Eval | MCTA: 28.24% (BMCTA: 33.75% @ R4) | Combined: 27.59% (BTA: 37.99% @ R4)
+
+============================================================
+  [Server] Round 5 Distributed Client Evaluation
+  Loss: 3.4644 | Accuracy: 0.2759 (27.59%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 6]
+[92mINFO [0m:      [Server] Config for Round 6: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 6 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 6 | 63.5s | clients=12 | c_norm=0.0885 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 6 Eval | MCTA: 52.93% (BMCTA: 52.93% @ R6) | Combined: 49.29% (BTA: 49.29% @ R6)
+[92mINFO [0m:      [BestModel] Round 6: new best accuracy = 0.4929
+
+============================================================
+  [Server] Round 6 Distributed Client Evaluation
+  Loss: 2.2846 | Accuracy: 0.4929 (49.29%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 7]
+[92mINFO [0m:      [Server] Config for Round 7: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 2 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 7 | 62.4s | clients=12 | c_norm=0.0835 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 7 Eval | MCTA: 28.66% (BMCTA: 52.93% @ R6) | Combined: 33.36% (BTA: 49.29% @ R6)
+
+============================================================
+  [Server] Round 7 Distributed Client Evaluation
+  Loss: 3.4941 | Accuracy: 0.3336 (33.36%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 8]
+[92mINFO [0m:      [Server] Config for Round 8: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 8 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 8 | 62.7s | clients=12 | c_norm=0.0819 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 8 Eval | MCTA: 40.64% (BMCTA: 52.93% @ R6) | Combined: 53.69% (BTA: 53.69% @ R8)
+[92mINFO [0m:      [BestModel] Round 8: new best accuracy = 0.5369
+
+============================================================
+  [Server] Round 8 Distributed Client Evaluation
+  Loss: 1.8547 | Accuracy: 0.5369 (53.69%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 9]
+[92mINFO [0m:      [Server] Config for Round 9: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 10 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 9 | 62.4s | clients=12 | c_norm=0.0759 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 9 Eval | MCTA: 58.74% (BMCTA: 58.74% @ R9) | Combined: 58.73% (BTA: 58.73% @ R9)
+[92mINFO [0m:      [BestModel] Round 9: new best accuracy = 0.5873
+
+============================================================
+  [Server] Round 9 Distributed Client Evaluation
+  Loss: 1.4517 | Accuracy: 0.5873 (58.73%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 10]
+[92mINFO [0m:      [Server] Config for Round 10: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 3 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 10 | 63.9s | clients=12 | c_norm=0.0677 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 10 Eval | MCTA: 48.93% (BMCTA: 58.74% @ R9) | Combined: 51.84% (BTA: 58.73% @ R9)
+
+============================================================
+  [Server] Round 10 Distributed Client Evaluation
+  Loss: 2.7137 | Accuracy: 0.5184 (51.84%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 11]
+[92mINFO [0m:      [Server] Config for Round 11: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 8 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 11 | 62.7s | clients=12 | c_norm=0.0867 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 11 Eval | MCTA: 39.50% (BMCTA: 58.74% @ R9) | Combined: 54.04% (BTA: 58.73% @ R9)
+
+============================================================
+  [Server] Round 11 Distributed Client Evaluation
+  Loss: 3.1801 | Accuracy: 0.5404 (54.04%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 12]
+[92mINFO [0m:      [Server] Config for Round 12: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 3 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 12 | 63.3s | clients=12 | c_norm=0.0839 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 12 Eval | MCTA: 55.68% (BMCTA: 58.74% @ R9) | Combined: 64.05% (BTA: 64.05% @ R12)
+[92mINFO [0m:      [BestModel] Round 12: new best accuracy = 0.6405
+
+============================================================
+  [Server] Round 12 Distributed Client Evaluation
+  Loss: 1.2489 | Accuracy: 0.6405 (64.05%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 13]
+[92mINFO [0m:      [Server] Config for Round 13: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 7 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 13 | 62.1s | clients=12 | c_norm=0.0740 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 13 Eval | MCTA: 53.61% (BMCTA: 58.74% @ R9) | Combined: 60.58% (BTA: 64.05% @ R12)
+
+============================================================
+  [Server] Round 13 Distributed Client Evaluation
+  Loss: 1.6768 | Accuracy: 0.6058 (60.58%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 14]
+[92mINFO [0m:      [Server] Config for Round 14: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 5 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 14 | 62.9s | clients=12 | c_norm=0.0658 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 14 Eval | MCTA: 59.22% (BMCTA: 59.22% @ R14) | Combined: 65.13% (BTA: 65.13% @ R14)
+[92mINFO [0m:      [BestModel] Round 14: new best accuracy = 0.6513
+
+============================================================
+  [Server] Round 14 Distributed Client Evaluation
+  Loss: 1.3372 | Accuracy: 0.6513 (65.13%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 15]
+[92mINFO [0m:      [Server] Config for Round 15: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 11 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 15 | 64.8s | clients=12 | c_norm=0.0690 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 15 Eval | MCTA: 58.57% (BMCTA: 59.22% @ R14) | Combined: 64.42% (BTA: 65.13% @ R14)
+
+============================================================
+  [Server] Round 15 Distributed Client Evaluation
+  Loss: 1.4598 | Accuracy: 0.6442 (64.42%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 16]
+[92mINFO [0m:      [Server] Config for Round 16: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 7 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 16 | 64.6s | clients=12 | c_norm=0.0699 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 16 Eval | MCTA: 52.51% (BMCTA: 59.22% @ R14) | Combined: 58.50% (BTA: 65.13% @ R14)
+
+============================================================
+  [Server] Round 16 Distributed Client Evaluation
+  Loss: 1.6815 | Accuracy: 0.5850 (58.50%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 17]
+[92mINFO [0m:      [Server] Config for Round 17: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 3 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 17 | 62.8s | clients=12 | c_norm=0.0637 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 17 Eval | MCTA: 68.88% (BMCTA: 68.88% @ R17) | Combined: 72.73% (BTA: 72.73% @ R17)
+[92mINFO [0m:      [BestModel] Round 17: new best accuracy = 0.7273
+
+============================================================
+  [Server] Round 17 Distributed Client Evaluation
+  Loss: 0.9894 | Accuracy: 0.7273 (72.73%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 18]
+[92mINFO [0m:      [Server] Config for Round 18: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 4 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 18 | 63.3s | clients=12 | c_norm=0.0608 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 18 Eval | MCTA: 66.01% (BMCTA: 68.88% @ R17) | Combined: 69.92% (BTA: 72.73% @ R17)
+
+============================================================
+  [Server] Round 18 Distributed Client Evaluation
+  Loss: 1.2195 | Accuracy: 0.6992 (69.92%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 19]
+[92mINFO [0m:      [Server] Config for Round 19: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 1 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 19 | 62.8s | clients=12 | c_norm=0.0652 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 19 Eval | MCTA: 60.27% (BMCTA: 68.88% @ R17) | Combined: 64.94% (BTA: 72.73% @ R17)
+
+============================================================
+  [Server] Round 19 Distributed Client Evaluation
+  Loss: 1.3889 | Accuracy: 0.6494 (64.94%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 20]
+[92mINFO [0m:      [Server] Config for Round 20: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 6 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 20 | 63.0s | clients=12 | c_norm=0.0634 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 20 Eval | MCTA: 68.86% (BMCTA: 68.88% @ R17) | Combined: 71.60% (BTA: 72.73% @ R17)
+
+============================================================
+  [Server] Round 20 Distributed Client Evaluation
+  Loss: 1.0503 | Accuracy: 0.7160 (71.60%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 21]
+[92mINFO [0m:      [Server] Config for Round 21: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 4 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 21 | 62.9s | clients=12 | c_norm=0.0651 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 21 Eval | MCTA: 63.95% (BMCTA: 68.88% @ R17) | Combined: 68.55% (BTA: 72.73% @ R17)
+
+============================================================
+  [Server] Round 21 Distributed Client Evaluation
+  Loss: 1.2381 | Accuracy: 0.6855 (68.55%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 22]
+[92mINFO [0m:      [Server] Config for Round 22: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 6 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 22 | 63.3s | clients=12 | c_norm=0.0639 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 22 Eval | MCTA: 65.20% (BMCTA: 68.88% @ R17) | Combined: 70.53% (BTA: 72.73% @ R17)
+
+============================================================
+  [Server] Round 22 Distributed Client Evaluation
+  Loss: 1.2248 | Accuracy: 0.7053 (70.53%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 23]
+[92mINFO [0m:      [Server] Config for Round 23: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 10 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 23 | 63.0s | clients=12 | c_norm=0.0642 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 23 Eval | MCTA: 66.05% (BMCTA: 68.88% @ R17) | Combined: 70.31% (BTA: 72.73% @ R17)
+
+============================================================
+  [Server] Round 23 Distributed Client Evaluation
+  Loss: 1.4279 | Accuracy: 0.7031 (70.31%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 24]
+[92mINFO [0m:      [Server] Config for Round 24: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 1 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 24 | 63.1s | clients=12 | c_norm=0.0615 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 24 Eval | MCTA: 69.53% (BMCTA: 69.53% @ R24) | Combined: 70.40% (BTA: 72.73% @ R17)
+
+============================================================
+  [Server] Round 24 Distributed Client Evaluation
+  Loss: 1.0518 | Accuracy: 0.7040 (70.40%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 25]
+[92mINFO [0m:      [Server] Config for Round 25: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 0 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 25 | 62.8s | clients=12 | c_norm=0.0629 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 25 Eval | MCTA: 68.61% (BMCTA: 69.53% @ R24) | Combined: 74.23% (BTA: 74.23% @ R25)
+[92mINFO [0m:      [BestModel] Round 25: new best accuracy = 0.7423
+
+============================================================
+  [Server] Round 25 Distributed Client Evaluation
+  Loss: 0.9536 | Accuracy: 0.7423 (74.23%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 26]
+[92mINFO [0m:      [Server] Config for Round 26: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 7 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 26 | 62.2s | clients=12 | c_norm=0.0577 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 26 Eval | MCTA: 63.84% (BMCTA: 69.53% @ R24) | Combined: 65.57% (BTA: 74.23% @ R25)
+
+============================================================
+  [Server] Round 26 Distributed Client Evaluation
+  Loss: 1.3737 | Accuracy: 0.6557 (65.57%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 27]
+[92mINFO [0m:      [Server] Config for Round 27: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 9 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 27 | 62.6s | clients=12 | c_norm=0.0573 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 27 Eval | MCTA: 71.28% (BMCTA: 71.28% @ R27) | Combined: 72.44% (BTA: 74.23% @ R25)
+
+============================================================
+  [Server] Round 27 Distributed Client Evaluation
+  Loss: 1.0025 | Accuracy: 0.7244 (72.44%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 28]
+[92mINFO [0m:      [Server] Config for Round 28: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 6 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 28 | 63.0s | clients=12 | c_norm=0.0609 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 28 Eval | MCTA: 60.35% (BMCTA: 71.28% @ R27) | Combined: 60.81% (BTA: 74.23% @ R25)
+
+============================================================
+  [Server] Round 28 Distributed Client Evaluation
+  Loss: 1.7054 | Accuracy: 0.6081 (60.81%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 29]
+[92mINFO [0m:      [Server] Config for Round 29: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 10 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 29 | 62.9s | clients=12 | c_norm=0.0659 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 29 Eval | MCTA: 70.63% (BMCTA: 71.28% @ R27) | Combined: 72.44% (BTA: 74.23% @ R25)
+
+============================================================
+  [Server] Round 29 Distributed Client Evaluation
+  Loss: 1.0033 | Accuracy: 0.7244 (72.44%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 30]
+[92mINFO [0m:      [Server] Config for Round 30: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 2 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 30 | 63.2s | clients=12 | c_norm=0.0601 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 30 Eval | MCTA: 71.63% (BMCTA: 71.63% @ R30) | Combined: 74.15% (BTA: 74.23% @ R25)
+
+============================================================
+  [Server] Round 30 Distributed Client Evaluation
+  Loss: 0.9978 | Accuracy: 0.7415 (74.15%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 31]
+[92mINFO [0m:      [Server] Config for Round 31: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 0 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 31 | 62.3s | clients=12 | c_norm=0.0611 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 31 Eval | MCTA: 58.59% (BMCTA: 71.63% @ R30) | Combined: 61.64% (BTA: 74.23% @ R25)
+
+============================================================
+  [Server] Round 31 Distributed Client Evaluation
+  Loss: 1.7599 | Accuracy: 0.6164 (61.64%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 32]
+[92mINFO [0m:      [Server] Config for Round 32: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 11 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 32 | 62.1s | clients=12 | c_norm=0.0656 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 32 Eval | MCTA: 67.30% (BMCTA: 71.63% @ R30) | Combined: 66.53% (BTA: 74.23% @ R25)
+
+============================================================
+  [Server] Round 32 Distributed Client Evaluation
+  Loss: 1.3790 | Accuracy: 0.6653 (66.53%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 33]
+[92mINFO [0m:      [Server] Config for Round 33: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 10 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 33 | 62.1s | clients=12 | c_norm=0.0591 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 33 Eval | MCTA: 68.84% (BMCTA: 71.63% @ R30) | Combined: 70.45% (BTA: 74.23% @ R25)
+
+============================================================
+  [Server] Round 33 Distributed Client Evaluation
+  Loss: 1.1466 | Accuracy: 0.7045 (70.45%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 34]
+[92mINFO [0m:      [Server] Config for Round 34: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 11 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 34 | 62.8s | clients=12 | c_norm=0.0588 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 34 Eval | MCTA: 72.80% (BMCTA: 72.80% @ R34) | Combined: 70.99% (BTA: 74.23% @ R25)
+
+============================================================
+  [Server] Round 34 Distributed Client Evaluation
+  Loss: 1.2204 | Accuracy: 0.7099 (70.99%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 35]
+[92mINFO [0m:      [Server] Config for Round 35: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 5 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 35 | 63.5s | clients=12 | c_norm=0.0496 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 35 Eval | MCTA: 70.35% (BMCTA: 72.80% @ R34) | Combined: 72.01% (BTA: 74.23% @ R25)
+
+============================================================
+  [Server] Round 35 Distributed Client Evaluation
+  Loss: 1.1699 | Accuracy: 0.7201 (72.01%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 36]
+[92mINFO [0m:      [Server] Config for Round 36: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 9 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 36 | 61.8s | clients=12 | c_norm=0.0539 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 36 Eval | MCTA: 72.65% (BMCTA: 72.80% @ R34) | Combined: 73.41% (BTA: 74.23% @ R25)
+
+============================================================
+  [Server] Round 36 Distributed Client Evaluation
+  Loss: 1.0608 | Accuracy: 0.7341 (73.41%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 37]
+[92mINFO [0m:      [Server] Config for Round 37: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 8 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 37 | 63.5s | clients=12 | c_norm=0.0571 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 37 Eval | MCTA: 69.30% (BMCTA: 72.80% @ R34) | Combined: 72.08% (BTA: 74.23% @ R25)
+
+============================================================
+  [Server] Round 37 Distributed Client Evaluation
+  Loss: 1.3391 | Accuracy: 0.7208 (72.08%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 38]
+[92mINFO [0m:      [Server] Config for Round 38: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 1 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 38 | 61.9s | clients=12 | c_norm=0.0512 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 38 Eval | MCTA: 71.43% (BMCTA: 72.80% @ R34) | Combined: 75.04% (BTA: 75.04% @ R38)
+[92mINFO [0m:      [BestModel] Round 38: new best accuracy = 0.7504
+
+============================================================
+  [Server] Round 38 Distributed Client Evaluation
+  Loss: 0.9275 | Accuracy: 0.7504 (75.04%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 39]
+[92mINFO [0m:      [Server] Config for Round 39: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 8 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 39 | 64.1s | clients=12 | c_norm=0.0581 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 39 Eval | MCTA: 70.99% (BMCTA: 72.80% @ R34) | Combined: 74.36% (BTA: 75.04% @ R38)
+
+============================================================
+  [Server] Round 39 Distributed Client Evaluation
+  Loss: 1.0870 | Accuracy: 0.7436 (74.36%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 40]
+[92mINFO [0m:      [Server] Config for Round 40: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 1 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 5 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 40 | 63.2s | clients=12 | c_norm=0.0610 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 40 Eval | MCTA: 71.70% (BMCTA: 72.80% @ R34) | Combined: 72.41% (BTA: 75.04% @ R38)
+
+============================================================
+  [Server] Round 40 Distributed Client Evaluation
+  Loss: 1.0796 | Accuracy: 0.7241 (72.41%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 41]
+[92mINFO [0m:      [Server] Config for Round 41: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 5 (IPv4: 192.168.0.113, pc) | Client 1 (IPv4: 192.168.0.113, pc) | Client 4 (IPv4: 192.168.0.113, pc) | Client 3 (IPv4: 192.168.0.113, pc) | Client 6 (IPv4: 192.168.0.113, pc) | Client 8 (IPv4: 192.168.0.113, pc) | Client 9 (IPv4: 192.168.0.113, pc) | Client 10 (IPv4: 192.168.0.113, pc) | Client 11 (IPv4: 192.168.0.113, pc) | Client 2 (IPv4: 192.168.0.113, pc) | Client 0 (IPv4: 192.168.0.113, pc) | Client 7 (IPv4: 192.168.0.113, pc)
+[92mINFO [0m:      [Proposed: FedBN+SCAFFOLD] Round 41 | 61.3s | clients=12 | c_norm=0.0492 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [Proposed] Round 41 Eval | MCTA: 63.76% (BMCTA: 72.80% @ R34) | Combined: 67.97% (BTA: 75.04% @ R38)
+
+============================================================
+  [Server] Round 41 Distributed Client Evaluation
+  Loss: 1.3851 | Accuracy: 0.6797 (67.97%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 42]
+[92mINFO [0m:      [Server] Config for Round 42: strategy=PROPOSED, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      Flower server terminated gracefully.
