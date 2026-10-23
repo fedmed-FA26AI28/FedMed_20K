@@ -2,9 +2,9 @@
 [Client 5] Augmentation: augment=True, crop=True, flip=True
 [Client 5] Assigned 896 training samples
 [Client 5] Using local test partition: 68 samples
-[Client 5] [Ping] Init (init) -> 127.0.0.1:44119 | Latency: 0.03 ms | Status: SUCCESS
-[Client 5] Initialized on cpu (pc) | IPv4: 10.20.103.160 | train_samples=896 | Optimizer: SGD | LR Mode: server_decay (Initial LR: 0.01)
-[Client 5] Connecting to 127.0.0.1:44119...
+[Client 5] [Ping] Init (init) -> 127.0.0.1:44727 | Latency: 0.04 ms | Status: SUCCESS
+[Client 5] Initialized on cuda (pc) | IPv4: 10.20.103.160 | train_samples=896 | Optimizer: SGD | LR Mode: server_decay (Initial LR: 0.01)
+[Client 5] Connecting to 127.0.0.1:44727...
 [93mWARNING [0m:   DEPRECATED FEATURE: flwr.client.start_numpy_client() is deprecated. 
 	Instead, use `flwr.client.start_client()` by ensuring you first call the `.to_client()` method as shown below: 
 	flwr.client.start_client(
@@ -31,423 +31,88 @@
             entirely in future versions of Flower.
         
 [92mINFO [0m:      
-[92mINFO [0m:      Received: train message 3a621177-50fc-46c6-8c40-33a8341f5023
+[92mINFO [0m:      Received: train message 917be178-7cc4-4222-95a8-1eb9e441ffb7
 [Client 5] Round 1: Server decayed LR = 0.010000
-[Client 5] [Ping] Round 1 (fit) -> 127.0.0.1:44119 | Latency: 0.02 ms | Status: SUCCESS
-/home/ezycloudx-admin/FedMed_20K/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:759: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-  super().__init__(loader)
-  [Client] Epoch [1/5] LR=0.010000 | Loss=2.1740 Acc=0.1730 | 0.71s
-  [Client] Epoch [2/5] LR=0.010000 | Loss=1.9331 Acc=0.3929 | 0.81s
-  [Client] Epoch [3/5] LR=0.010000 | Loss=1.6683 Acc=0.4453 | 0.72s
-  [Client] Epoch [4/5] LR=0.010000 | Loss=1.4368 Acc=0.4967 | 0.60s
-  [Client] Epoch [5/5] LR=0.010000 | Loss=1.2569 Acc=0.5402 | 0.62s
-[Client 5] fit done | Round 1 | IPv4: 10.20.103.160 | loss=1.2569 acc=0.5402 | round_time=3.46s | avg_epoch=0.69s | weights=2230.8KB
+[Client 5] [Ping] Round 1 (fit) -> 127.0.0.1:44727 | Latency: 0.03 ms | Status: SUCCESS
+  [Client] Epoch [1/5] LR=0.010000 | Loss=2.1740 Acc=0.1730 | 0.49s
+  [Client] Epoch [2/5] LR=0.010000 | Loss=1.9332 Acc=0.3917 | 0.16s
+  [Client] Epoch [3/5] LR=0.010000 | Loss=1.6686 Acc=0.4453 | 0.15s
+  [Client] Epoch [4/5] LR=0.010000 | Loss=1.4373 Acc=0.4944 | 0.15s
+  [Client] Epoch [5/5] LR=0.010000 | Loss=1.2572 Acc=0.5402 | 0.15s
+[Client 5] fit done | Round 1 | IPv4: 10.20.103.160 | loss=1.2572 acc=0.5402 | round_time=1.11s | avg_epoch=0.22s | weights=2230.8KB
 [92mINFO [0m:      Sent reply
 [92mINFO [0m:      
-[92mINFO [0m:      Received: evaluate message bd44ccc6-0e2c-4c62-ad9a-eb2fb3abc462
-[Client 5] evaluate | loss=1.6117 acc=0.6471
+[92mINFO [0m:      Received: evaluate message 93ccbbef-7f2c-4321-8a4b-06dccb62a9e6
+[Client 5] evaluate | loss=1.6552 acc=0.6176
 [92mINFO [0m:      Sent reply
 [92mINFO [0m:      
-[92mINFO [0m:      Received: train message f4e0f982-c807-4094-8ed3-5da75f67b57e
+[92mINFO [0m:      Received: train message 6b24dad1-2a73-4eaf-88f1-b99e4ac03ee4
 [Client 5] Round 2: Server decayed LR = 0.010000
-[Client 5] [Ping] Round 2 (fit) -> 127.0.0.1:44119 | Latency: 0.02 ms | Status: SUCCESS
-/home/ezycloudx-admin/FedMed_20K/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:759: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-  super().__init__(loader)
-  [Client] Epoch [1/5] LR=0.010000 | Loss=1.3698 Acc=0.5525 | 1.40s
-  [Client] Epoch [2/5] LR=0.010000 | Loss=1.1121 Acc=0.6205 | 1.41s
-  [Client] Epoch [3/5] LR=0.010000 | Loss=1.0070 Acc=0.6473 | 1.37s
-  [Client] Epoch [4/5] LR=0.010000 | Loss=0.9441 Acc=0.6529 | 1.36s
-  [Client] Epoch [5/5] LR=0.010000 | Loss=0.9029 Acc=0.6641 | 0.82s
-[Client 5] fit done | Round 2 | IPv4: 10.20.103.160 | loss=0.9029 acc=0.6641 | round_time=6.35s | avg_epoch=1.27s | weights=2230.8KB
+[Client 5] [Ping] Round 2 (fit) -> 127.0.0.1:44727 | Latency: 0.04 ms | Status: SUCCESS
+  [Client] Epoch [1/5] LR=0.010000 | Loss=1.3742 Acc=0.5536 | 0.16s
+  [Client] Epoch [2/5] LR=0.010000 | Loss=1.1133 Acc=0.6217 | 0.15s
+  [Client] Epoch [3/5] LR=0.010000 | Loss=1.0101 Acc=0.6362 | 0.28s
+  [Client] Epoch [4/5] LR=0.010000 | Loss=0.9389 Acc=0.6540 | 0.15s
+  [Client] Epoch [5/5] LR=0.010000 | Loss=0.9027 Acc=0.6574 | 0.15s
+[Client 5] fit done | Round 2 | IPv4: 10.20.103.160 | loss=0.9027 acc=0.6574 | round_time=0.88s | avg_epoch=0.18s | weights=2230.8KB
 [92mINFO [0m:      Sent reply
 [92mINFO [0m:      
-[92mINFO [0m:      Received: evaluate message b20386fe-bc4c-4a64-b06d-3fee3444459d
-[Client 5] evaluate | loss=1.1688 acc=0.6765
+[92mINFO [0m:      Received: evaluate message ff60eae1-4a36-4424-8d9e-cb39f63eafb1
+[Client 5] evaluate | loss=1.1355 acc=0.6618
 [92mINFO [0m:      Sent reply
 [92mINFO [0m:      
-[92mINFO [0m:      Received: train message 1cd3a8f0-ed66-41c9-9280-12a4b1924012
+[92mINFO [0m:      Received: train message 2418248e-4373-47a5-94f1-829feb1e57d5
 [Client 5] Round 3: Server decayed LR = 0.010000
-[Client 5] [Ping] Round 3 (fit) -> 127.0.0.1:44119 | Latency: 0.01 ms | Status: SUCCESS
-/home/ezycloudx-admin/FedMed_20K/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:759: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-  super().__init__(loader)
-  [Client] Epoch [1/5] LR=0.010000 | Loss=0.9739 Acc=0.6551 | 1.40s
-  [Client] Epoch [2/5] LR=0.010000 | Loss=0.8913 Acc=0.6886 | 1.36s
-  [Client] Epoch [3/5] LR=0.010000 | Loss=0.8149 Acc=0.6998 | 0.71s
-  [Client] Epoch [4/5] LR=0.010000 | Loss=0.7730 Acc=0.7277 | 0.69s
-  [Client] Epoch [5/5] LR=0.010000 | Loss=0.7420 Acc=0.7333 | 0.75s
-[Client 5] fit done | Round 3 | IPv4: 10.20.103.160 | loss=0.7420 acc=0.7333 | round_time=4.91s | avg_epoch=0.98s | weights=2230.8KB
+[Client 5] [Ping] Round 3 (fit) -> 127.0.0.1:44727 | Latency: 0.01 ms | Status: SUCCESS
+  [Client] Epoch [1/5] LR=0.010000 | Loss=0.9641 Acc=0.6719 | 0.16s
+  [Client] Epoch [2/5] LR=0.010000 | Loss=0.8730 Acc=0.6830 | 0.18s
+  [Client] Epoch [3/5] LR=0.010000 | Loss=0.8131 Acc=0.7109 | 0.31s
+  [Client] Epoch [4/5] LR=0.010000 | Loss=0.7995 Acc=0.7176 | 0.32s
+  [Client] Epoch [5/5] LR=0.010000 | Loss=0.7532 Acc=0.7154 | 0.19s
+[Client 5] fit done | Round 3 | IPv4: 10.20.103.160 | loss=0.7532 acc=0.7154 | round_time=1.15s | avg_epoch=0.23s | weights=2230.8KB
 [92mINFO [0m:      Sent reply
 [92mINFO [0m:      
-[92mINFO [0m:      Received: evaluate message 5ae4c9d8-5661-477f-a510-8751cbf272b7
-[Client 5] evaluate | loss=1.4942 acc=0.6029
+[92mINFO [0m:      Received: evaluate message 45202423-6a84-4c53-be3f-b44d946096b7
+[Client 5] evaluate | loss=1.2287 acc=0.5588
 [92mINFO [0m:      Sent reply
 [92mINFO [0m:      
-[92mINFO [0m:      Received: train message 1d77f843-239c-4c55-9399-bd507a44f23f
+[92mINFO [0m:      Received: train message 1ac34bab-fed1-460d-ae12-3177a515f4bb
 [Client 5] Round 4: Server decayed LR = 0.010000
-[Client 5] [Ping] Round 4 (fit) -> 127.0.0.1:44119 | Latency: 0.03 ms | Status: SUCCESS
-/home/ezycloudx-admin/FedMed_20K/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:759: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-  super().__init__(loader)
-  [Client] Epoch [1/5] LR=0.010000 | Loss=0.8255 Acc=0.6886 | 1.13s
-  [Client] Epoch [2/5] LR=0.010000 | Loss=0.7655 Acc=0.7254 | 0.77s
-  [Client] Epoch [3/5] LR=0.010000 | Loss=0.7317 Acc=0.7533 | 1.31s
-  [Client] Epoch [4/5] LR=0.010000 | Loss=0.6774 Acc=0.7645 | 0.63s
-  [Client] Epoch [5/5] LR=0.010000 | Loss=0.6502 Acc=0.7600 | 0.61s
-[Client 5] fit done | Round 4 | IPv4: 10.20.103.160 | loss=0.6502 acc=0.7600 | round_time=4.45s | avg_epoch=0.89s | weights=2230.8KB
+[Client 5] [Ping] Round 4 (fit) -> 127.0.0.1:44727 | Latency: 0.02 ms | Status: SUCCESS
+  [Client] Epoch [1/5] LR=0.010000 | Loss=0.8190 Acc=0.7065 | 0.30s
+  [Client] Epoch [2/5] LR=0.010000 | Loss=0.7700 Acc=0.7277 | 0.17s
+  [Client] Epoch [3/5] LR=0.010000 | Loss=0.7379 Acc=0.7489 | 0.17s
+  [Client] Epoch [4/5] LR=0.010000 | Loss=0.6956 Acc=0.7545 | 0.22s
+  [Client] Epoch [5/5] LR=0.010000 | Loss=0.6525 Acc=0.7545 | 0.34s
+[Client 5] fit done | Round 4 | IPv4: 10.20.103.160 | loss=0.6525 acc=0.7545 | round_time=1.21s | avg_epoch=0.24s | weights=2230.8KB
 [92mINFO [0m:      Sent reply
 [92mINFO [0m:      
-[92mINFO [0m:      Received: evaluate message 1fba44c1-7396-4afc-bcea-6da0aac3702c
-[Client 5] evaluate | loss=1.2802 acc=0.6176
+[92mINFO [0m:      Received: evaluate message 863e3b37-a297-4444-b009-2bb330acadba
+[Client 5] evaluate | loss=1.4570 acc=0.5588
 [92mINFO [0m:      Sent reply
 [92mINFO [0m:      
-[92mINFO [0m:      Received: train message 38c5a4ce-b778-41fd-82e2-43bb11a749a8
+[92mINFO [0m:      Received: train message b6c3a121-87f7-4878-88a3-1381ae08d9f0
 [Client 5] Round 5: Server decayed LR = 0.010000
-[Client 5] [Ping] Round 5 (fit) -> 127.0.0.1:44119 | Latency: 0.02 ms | Status: SUCCESS
-/home/ezycloudx-admin/FedMed_20K/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:759: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-  super().__init__(loader)
-  [Client] Epoch [1/5] LR=0.010000 | Loss=0.7676 Acc=0.7310 | 0.63s
-  [Client] Epoch [2/5] LR=0.010000 | Loss=0.6853 Acc=0.7522 | 0.61s
-  [Client] Epoch [3/5] LR=0.010000 | Loss=0.6505 Acc=0.7857 | 0.97s
-  [Client] Epoch [4/5] LR=0.010000 | Loss=0.6309 Acc=0.7768 | 0.62s
-  [Client] Epoch [5/5] LR=0.010000 | Loss=0.6071 Acc=0.7924 | 0.60s
-[Client 5] fit done | Round 5 | IPv4: 10.20.103.160 | loss=0.6071 acc=0.7924 | round_time=3.43s | avg_epoch=0.69s | weights=2230.8KB
+[Client 5] [Ping] Round 5 (fit) -> 127.0.0.1:44727 | Latency: 0.02 ms | Status: SUCCESS
+  [Client] Epoch [1/5] LR=0.010000 | Loss=0.7917 Acc=0.7132 | 0.27s
+  [Client] Epoch [2/5] LR=0.010000 | Loss=0.6995 Acc=0.7467 | 0.33s
+  [Client] Epoch [3/5] LR=0.010000 | Loss=0.6531 Acc=0.7645 | 0.26s
+  [Client] Epoch [4/5] LR=0.010000 | Loss=0.6202 Acc=0.7768 | 0.27s
+  [Client] Epoch [5/5] LR=0.010000 | Loss=0.6268 Acc=0.7768 | 0.20s
+[Client 5] fit done | Round 5 | IPv4: 10.20.103.160 | loss=0.6268 acc=0.7768 | round_time=1.34s | avg_epoch=0.27s | weights=2230.8KB
 [92mINFO [0m:      Sent reply
 [92mINFO [0m:      
-[92mINFO [0m:      Received: evaluate message 06f4c1dc-0dc9-4d94-923e-77d1900d78f9
-[Client 5] evaluate | loss=1.3369 acc=0.5735
+[92mINFO [0m:      Received: evaluate message e30f92f7-4cb0-4356-ba3d-66589283b36f
+[Client 5] evaluate | loss=1.3369 acc=0.5588
 [92mINFO [0m:      Sent reply
 [92mINFO [0m:      
-[92mINFO [0m:      Received: train message 3a38941c-8967-4302-a819-4356f9578b90
+[92mINFO [0m:      Received: train message d0d31def-3fe5-48ab-adbc-f156f46ee721
 [Client 5] Round 6: Server decayed LR = 0.010000
-[Client 5] [Ping] Round 6 (fit) -> 127.0.0.1:44119 | Latency: 0.05 ms | Status: SUCCESS
-/home/ezycloudx-admin/FedMed_20K/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:759: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-  super().__init__(loader)
-  [Client] Epoch [1/5] LR=0.010000 | Loss=0.6959 Acc=0.7433 | 1.41s
-  [Client] Epoch [2/5] LR=0.010000 | Loss=0.6211 Acc=0.7913 | 1.38s
-  [Client] Epoch [3/5] LR=0.010000 | Loss=0.5943 Acc=0.7935 | 1.36s
-  [Client] Epoch [4/5] LR=0.010000 | Loss=0.5779 Acc=0.7835 | 1.32s
-  [Client] Epoch [5/5] LR=0.010000 | Loss=0.5461 Acc=0.8058 | 1.04s
-[Client 5] fit done | Round 6 | IPv4: 10.20.103.160 | loss=0.5461 acc=0.8058 | round_time=6.51s | avg_epoch=1.30s | weights=2230.8KB
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: evaluate message 3a987145-73e0-4918-bf98-391db0506763
-[Client 5] evaluate | loss=1.3227 acc=0.5735
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: train message 72e4ffdf-9fc7-4da9-a133-9e4387f2047a
-[Client 5] Round 7: Server decayed LR = 0.010000
-[Client 5] [Ping] Round 7 (fit) -> 127.0.0.1:44119 | Latency: 0.02 ms | Status: SUCCESS
-/home/ezycloudx-admin/FedMed_20K/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:759: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-  super().__init__(loader)
-  [Client] Epoch [1/5] LR=0.010000 | Loss=0.6579 Acc=0.7645 | 0.62s
-  [Client] Epoch [2/5] LR=0.010000 | Loss=0.6034 Acc=0.7824 | 0.60s
-  [Client] Epoch [3/5] LR=0.010000 | Loss=0.5839 Acc=0.7969 | 0.61s
-  [Client] Epoch [4/5] LR=0.010000 | Loss=0.5272 Acc=0.8192 | 0.67s
-  [Client] Epoch [5/5] LR=0.010000 | Loss=0.5088 Acc=0.8181 | 0.71s
-[Client 5] fit done | Round 7 | IPv4: 10.20.103.160 | loss=0.5088 acc=0.8181 | round_time=3.21s | avg_epoch=0.64s | weights=2230.8KB
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: evaluate message 8309c04a-be22-498c-935c-d9b6c698fdaf
-[Client 5] evaluate | loss=0.9785 acc=0.6324
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: train message ee06b17a-fd95-4736-b530-1df4d9599bb4
-[Client 5] Round 8: Server decayed LR = 0.010000
-[Client 5] [Ping] Round 8 (fit) -> 127.0.0.1:44119 | Latency: 0.02 ms | Status: SUCCESS
-/home/ezycloudx-admin/FedMed_20K/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:759: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-  super().__init__(loader)
-  [Client] Epoch [1/5] LR=0.010000 | Loss=0.6102 Acc=0.7746 | 1.36s
-  [Client] Epoch [2/5] LR=0.010000 | Loss=0.5628 Acc=0.8013 | 1.36s
-  [Client] Epoch [3/5] LR=0.010000 | Loss=0.5258 Acc=0.8237 | 0.89s
-  [Client] Epoch [4/5] LR=0.010000 | Loss=0.5211 Acc=0.8270 | 0.65s
-  [Client] Epoch [5/5] LR=0.010000 | Loss=0.4870 Acc=0.8237 | 0.76s
-[Client 5] fit done | Round 8 | IPv4: 10.20.103.160 | loss=0.4870 acc=0.8237 | round_time=5.01s | avg_epoch=1.00s | weights=2230.8KB
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: evaluate message f3635de5-3bff-4286-b805-e65ff841c1bc
-[Client 5] evaluate | loss=1.3105 acc=0.6176
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: train message 453fc6e5-188c-49c9-82cd-ade543347617
-[Client 5] Round 9: Server decayed LR = 0.010000
-[Client 5] [Ping] Round 9 (fit) -> 127.0.0.1:44119 | Latency: 0.02 ms | Status: SUCCESS
-/home/ezycloudx-admin/FedMed_20K/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:759: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-  super().__init__(loader)
-  [Client] Epoch [1/5] LR=0.010000 | Loss=0.5945 Acc=0.7935 | 0.84s
-  [Client] Epoch [2/5] LR=0.010000 | Loss=0.5510 Acc=0.8069 | 0.60s
-  [Client] Epoch [3/5] LR=0.010000 | Loss=0.5288 Acc=0.8192 | 0.59s
-  [Client] Epoch [4/5] LR=0.010000 | Loss=0.5141 Acc=0.8304 | 0.60s
-  [Client] Epoch [5/5] LR=0.010000 | Loss=0.4642 Acc=0.8415 | 0.61s
-[Client 5] fit done | Round 9 | IPv4: 10.20.103.160 | loss=0.4642 acc=0.8415 | round_time=3.23s | avg_epoch=0.65s | weights=2230.8KB
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: evaluate message 9007d81b-3f79-4726-b8b0-122fde57b92d
-[Client 5] evaluate | loss=0.8953 acc=0.7206
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: train message 27b43ecc-ea1b-4317-8f40-21c2d60c322b
-[Client 5] Round 10: Server decayed LR = 0.010000
-[Client 5] [Ping] Round 10 (fit) -> 127.0.0.1:44119 | Latency: 0.04 ms | Status: SUCCESS
-/home/ezycloudx-admin/FedMed_20K/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:759: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-  super().__init__(loader)
-  [Client] Epoch [1/5] LR=0.010000 | Loss=0.5629 Acc=0.7946 | 0.61s
-  [Client] Epoch [2/5] LR=0.010000 | Loss=0.5282 Acc=0.7991 | 0.62s
-  [Client] Epoch [3/5] LR=0.010000 | Loss=0.4824 Acc=0.8304 | 0.63s
-  [Client] Epoch [4/5] LR=0.010000 | Loss=0.4378 Acc=0.8382 | 0.61s
-  [Client] Epoch [5/5] LR=0.010000 | Loss=0.4508 Acc=0.8393 | 0.60s
-[Client 5] fit done | Round 10 | IPv4: 10.20.103.160 | loss=0.4508 acc=0.8393 | round_time=3.07s | avg_epoch=0.61s | weights=2230.8KB
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: evaluate message c2c090e6-b9d2-4579-b091-9819d3d08346
-[Client 5] evaluate | loss=1.6075 acc=0.5735
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: train message a4b18541-e37a-4471-ac7c-f643a8117ee4
-[Client 5] Round 11: Server decayed LR = 0.010000
-[Client 5] [Ping] Round 11 (fit) -> 127.0.0.1:44119 | Latency: 0.03 ms | Status: SUCCESS
-/home/ezycloudx-admin/FedMed_20K/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:759: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-  super().__init__(loader)
-  [Client] Epoch [1/5] LR=0.010000 | Loss=0.5716 Acc=0.7946 | 0.80s
-  [Client] Epoch [2/5] LR=0.010000 | Loss=0.5284 Acc=0.8114 | 0.85s
-  [Client] Epoch [3/5] LR=0.010000 | Loss=0.4873 Acc=0.8270 | 0.62s
-  [Client] Epoch [4/5] LR=0.010000 | Loss=0.5064 Acc=0.8192 | 0.77s
-  [Client] Epoch [5/5] LR=0.010000 | Loss=0.4381 Acc=0.8504 | 0.76s
-[Client 5] fit done | Round 11 | IPv4: 10.20.103.160 | loss=0.4381 acc=0.8504 | round_time=3.79s | avg_epoch=0.76s | weights=2230.8KB
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: evaluate message d18f736f-495c-4e5c-8ed9-9ef6c5456589
-[Client 5] evaluate | loss=1.2200 acc=0.5735
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: train message b2458e93-154b-4b0c-a36c-705278e6ea78
-[Client 5] Round 12: Server decayed LR = 0.010000
-[Client 5] [Ping] Round 12 (fit) -> 127.0.0.1:44119 | Latency: 0.04 ms | Status: SUCCESS
-/home/ezycloudx-admin/FedMed_20K/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:759: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-  super().__init__(loader)
-  [Client] Epoch [1/5] LR=0.010000 | Loss=0.5242 Acc=0.8125 | 0.61s
-  [Client] Epoch [2/5] LR=0.010000 | Loss=0.4775 Acc=0.8415 | 0.75s
-  [Client] Epoch [3/5] LR=0.010000 | Loss=0.4471 Acc=0.8482 | 0.78s
-  [Client] Epoch [4/5] LR=0.010000 | Loss=0.4155 Acc=0.8516 | 1.23s
-  [Client] Epoch [5/5] LR=0.010000 | Loss=0.4075 Acc=0.8717 | 0.60s
-[Client 5] fit done | Round 12 | IPv4: 10.20.103.160 | loss=0.4075 acc=0.8717 | round_time=3.97s | avg_epoch=0.79s | weights=2230.8KB
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: evaluate message 8dc294bc-0f0b-4f94-8cbd-11d2e5fa7ffb
-[Client 5] evaluate | loss=1.1731 acc=0.6618
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: train message 6a974fb4-f2bd-4e12-959f-16ed41422a23
-[Client 5] Round 13: Server decayed LR = 0.010000
-[Client 5] [Ping] Round 13 (fit) -> 127.0.0.1:44119 | Latency: 0.03 ms | Status: SUCCESS
-/home/ezycloudx-admin/FedMed_20K/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:759: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-  super().__init__(loader)
-  [Client] Epoch [1/5] LR=0.010000 | Loss=0.6044 Acc=0.7891 | 0.60s
-  [Client] Epoch [2/5] LR=0.010000 | Loss=0.5051 Acc=0.8192 | 0.62s
-  [Client] Epoch [3/5] LR=0.010000 | Loss=0.4516 Acc=0.8460 | 0.59s
-  [Client] Epoch [4/5] LR=0.010000 | Loss=0.4033 Acc=0.8560 | 0.61s
-  [Client] Epoch [5/5] LR=0.010000 | Loss=0.3981 Acc=0.8627 | 0.60s
-[Client 5] fit done | Round 13 | IPv4: 10.20.103.160 | loss=0.3981 acc=0.8627 | round_time=3.02s | avg_epoch=0.60s | weights=2230.8KB
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: evaluate message 6603eabf-badb-43ab-980e-ba14a8066dd9
-[Client 5] evaluate | loss=1.1112 acc=0.7059
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: train message 8a86652e-96b4-49c8-9532-576c79f7fa37
-[Client 5] Round 14: Server decayed LR = 0.010000
-[Client 5] [Ping] Round 14 (fit) -> 127.0.0.1:44119 | Latency: 0.02 ms | Status: SUCCESS
-/home/ezycloudx-admin/FedMed_20K/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:759: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-  super().__init__(loader)
-  [Client] Epoch [1/5] LR=0.010000 | Loss=0.4866 Acc=0.8203 | 1.38s
-  [Client] Epoch [2/5] LR=0.010000 | Loss=0.4414 Acc=0.8527 | 1.40s
-  [Client] Epoch [3/5] LR=0.010000 | Loss=0.4053 Acc=0.8728 | 1.37s
-  [Client] Epoch [4/5] LR=0.010000 | Loss=0.3953 Acc=0.8650 | 1.34s
-  [Client] Epoch [5/5] LR=0.010000 | Loss=0.3786 Acc=0.8672 | 1.31s
-[Client 5] fit done | Round 14 | IPv4: 10.20.103.160 | loss=0.3786 acc=0.8672 | round_time=6.80s | avg_epoch=1.36s | weights=2230.8KB
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: evaluate message c38275ab-250a-4c28-8726-4793075e3626
-[Client 5] evaluate | loss=1.1694 acc=0.6765
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: train message b66deed8-995c-4e30-b177-4dcc517c3b29
-[Client 5] Round 15: Server decayed LR = 0.010000
-[Client 5] [Ping] Round 15 (fit) -> 127.0.0.1:44119 | Latency: 0.02 ms | Status: SUCCESS
-/home/ezycloudx-admin/FedMed_20K/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:759: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-  super().__init__(loader)
-  [Client] Epoch [1/5] LR=0.010000 | Loss=0.4912 Acc=0.8248 | 0.72s
-  [Client] Epoch [2/5] LR=0.010000 | Loss=0.4529 Acc=0.8304 | 0.61s
-  [Client] Epoch [3/5] LR=0.010000 | Loss=0.4141 Acc=0.8504 | 0.65s
-  [Client] Epoch [4/5] LR=0.010000 | Loss=0.3772 Acc=0.8616 | 0.65s
-  [Client] Epoch [5/5] LR=0.010000 | Loss=0.3658 Acc=0.8795 | 0.96s
-[Client 5] fit done | Round 15 | IPv4: 10.20.103.160 | loss=0.3658 acc=0.8795 | round_time=3.59s | avg_epoch=0.72s | weights=2230.8KB
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: evaluate message c51db251-937d-41b2-94df-f13eb62aad3c
-[Client 5] evaluate | loss=1.0818 acc=0.6471
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: train message abfb7847-b92e-4b64-8c84-238b073e4e1e
-[Client 5] Round 16: Server decayed LR = 0.005000
-[Client 5] [Ping] Round 16 (fit) -> 127.0.0.1:44119 | Latency: 0.02 ms | Status: SUCCESS
-/home/ezycloudx-admin/FedMed_20K/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:759: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-  super().__init__(loader)
-  [Client] Epoch [1/5] LR=0.005000 | Loss=0.4639 Acc=0.8337 | 0.67s
-  [Client] Epoch [2/5] LR=0.005000 | Loss=0.4123 Acc=0.8583 | 0.62s
-  [Client] Epoch [3/5] LR=0.005000 | Loss=0.4086 Acc=0.8527 | 1.34s
-  [Client] Epoch [4/5] LR=0.005000 | Loss=0.3778 Acc=0.8705 | 1.37s
-  [Client] Epoch [5/5] LR=0.005000 | Loss=0.3603 Acc=0.8694 | 1.31s
-[Client 5] fit done | Round 16 | IPv4: 10.20.103.160 | loss=0.3603 acc=0.8694 | round_time=5.30s | avg_epoch=1.06s | weights=2230.8KB
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: evaluate message 6f69bca0-c457-4bc0-bd9f-c735511cb1b6
-[Client 5] evaluate | loss=0.8775 acc=0.7206
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: train message 5ac709ae-f0cc-49bf-8e7f-7602bdccf3b0
-[Client 5] Round 17: Server decayed LR = 0.005000
-[Client 5] [Ping] Round 17 (fit) -> 127.0.0.1:44119 | Latency: 0.03 ms | Status: SUCCESS
-/home/ezycloudx-admin/FedMed_20K/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:759: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-  super().__init__(loader)
-  [Client] Epoch [1/5] LR=0.005000 | Loss=0.4211 Acc=0.8527 | 0.83s
-  [Client] Epoch [2/5] LR=0.005000 | Loss=0.4027 Acc=0.8549 | 1.36s
-  [Client] Epoch [3/5] LR=0.005000 | Loss=0.3821 Acc=0.8750 | 1.35s
-  [Client] Epoch [4/5] LR=0.005000 | Loss=0.3543 Acc=0.8761 | 1.29s
-  [Client] Epoch [5/5] LR=0.005000 | Loss=0.3452 Acc=0.8850 | 1.30s
-[Client 5] fit done | Round 17 | IPv4: 10.20.103.160 | loss=0.3452 acc=0.8850 | round_time=6.13s | avg_epoch=1.23s | weights=2230.8KB
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: evaluate message d9d8eb03-62c3-4560-aac1-810297a8d614
-[Client 5] evaluate | loss=0.8290 acc=0.7500
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: train message 3dfbf4c3-bfe7-4c2d-87f5-80f6c881c2d8
-[Client 5] Round 18: Server decayed LR = 0.005000
-[Client 5] [Ping] Round 18 (fit) -> 127.0.0.1:44119 | Latency: 0.02 ms | Status: SUCCESS
-/home/ezycloudx-admin/FedMed_20K/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:759: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-  super().__init__(loader)
-  [Client] Epoch [1/5] LR=0.005000 | Loss=0.4361 Acc=0.8404 | 0.97s
-  [Client] Epoch [2/5] LR=0.005000 | Loss=0.4063 Acc=0.8605 | 0.62s
-  [Client] Epoch [3/5] LR=0.005000 | Loss=0.3565 Acc=0.8817 | 1.14s
-  [Client] Epoch [4/5] LR=0.005000 | Loss=0.3726 Acc=0.8683 | 1.37s
-  [Client] Epoch [5/5] LR=0.005000 | Loss=0.3209 Acc=0.8917 | 1.35s
-[Client 5] fit done | Round 18 | IPv4: 10.20.103.160 | loss=0.3209 acc=0.8917 | round_time=5.44s | avg_epoch=1.09s | weights=2230.8KB
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: evaluate message a75839c9-2c1e-40e4-a62f-f0347f8db4ec
-[Client 5] evaluate | loss=0.7650 acc=0.7647
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: train message 28fb0efe-11d0-4097-97a2-c8489c8e7ee5
-[Client 5] Round 19: Server decayed LR = 0.005000
-[Client 5] [Ping] Round 19 (fit) -> 127.0.0.1:44119 | Latency: 0.02 ms | Status: SUCCESS
-/home/ezycloudx-admin/FedMed_20K/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:759: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-  super().__init__(loader)
-  [Client] Epoch [1/5] LR=0.005000 | Loss=0.4092 Acc=0.8549 | 1.40s
-  [Client] Epoch [2/5] LR=0.005000 | Loss=0.3891 Acc=0.8594 | 1.28s
-  [Client] Epoch [3/5] LR=0.005000 | Loss=0.3647 Acc=0.8783 | 0.93s
-  [Client] Epoch [4/5] LR=0.005000 | Loss=0.3404 Acc=0.8839 | 0.61s
-  [Client] Epoch [5/5] LR=0.005000 | Loss=0.3216 Acc=0.8862 | 0.61s
-[Client 5] fit done | Round 19 | IPv4: 10.20.103.160 | loss=0.3216 acc=0.8862 | round_time=4.84s | avg_epoch=0.97s | weights=2230.8KB
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: evaluate message f9c8e585-ae78-4777-a52f-cb16404288b6
-[Client 5] evaluate | loss=1.0020 acc=0.6765
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: train message c3ea4591-7397-47e6-aa29-37a749ffd96b
-[Client 5] Round 20: Server decayed LR = 0.005000
-[Client 5] [Ping] Round 20 (fit) -> 127.0.0.1:44119 | Latency: 0.02 ms | Status: SUCCESS
-/home/ezycloudx-admin/FedMed_20K/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:759: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-  super().__init__(loader)
-  [Client] Epoch [1/5] LR=0.005000 | Loss=0.4439 Acc=0.8326 | 0.86s
-  [Client] Epoch [2/5] LR=0.005000 | Loss=0.3794 Acc=0.8672 | 0.98s
-  [Client] Epoch [3/5] LR=0.005000 | Loss=0.3582 Acc=0.8850 | 0.63s
-  [Client] Epoch [4/5] LR=0.005000 | Loss=0.3629 Acc=0.8817 | 0.62s
-  [Client] Epoch [5/5] LR=0.005000 | Loss=0.3306 Acc=0.8895 | 0.67s
-[Client 5] fit done | Round 20 | IPv4: 10.20.103.160 | loss=0.3306 acc=0.8895 | round_time=3.76s | avg_epoch=0.75s | weights=2230.8KB
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: evaluate message bd2012e6-93ce-4ec2-a8bd-908a845afcb8
-[Client 5] evaluate | loss=0.7452 acc=0.7794
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: train message d5717900-ff49-4c3b-a175-e624d54cd4d8
-[Client 5] Round 21: Server decayed LR = 0.005000
-[Client 5] [Ping] Round 21 (fit) -> 127.0.0.1:44119 | Latency: 0.03 ms | Status: SUCCESS
-/home/ezycloudx-admin/FedMed_20K/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:759: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-  super().__init__(loader)
-  [Client] Epoch [1/5] LR=0.005000 | Loss=0.4099 Acc=0.8694 | 1.39s
-  [Client] Epoch [2/5] LR=0.005000 | Loss=0.3834 Acc=0.8661 | 1.39s
-  [Client] Epoch [3/5] LR=0.005000 | Loss=0.3573 Acc=0.8750 | 1.31s
-  [Client] Epoch [4/5] LR=0.005000 | Loss=0.3169 Acc=0.8962 | 1.30s
-  [Client] Epoch [5/5] LR=0.005000 | Loss=0.3050 Acc=0.8962 | 1.33s
-[Client 5] fit done | Round 21 | IPv4: 10.20.103.160 | loss=0.3050 acc=0.8962 | round_time=6.73s | avg_epoch=1.35s | weights=2230.8KB
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: evaluate message 9171d904-ccf5-48ff-872a-2a83143b59e3
-[Client 5] evaluate | loss=0.8991 acc=0.7353
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: train message d8274c15-a4c8-431c-b70a-482412dfde29
-[Client 5] Round 22: Server decayed LR = 0.005000
-[Client 5] [Ping] Round 22 (fit) -> 127.0.0.1:44119 | Latency: 0.03 ms | Status: SUCCESS
-/home/ezycloudx-admin/FedMed_20K/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:759: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-  super().__init__(loader)
-  [Client] Epoch [1/5] LR=0.005000 | Loss=0.4171 Acc=0.8538 | 1.41s
-  [Client] Epoch [2/5] LR=0.005000 | Loss=0.3705 Acc=0.8616 | 1.39s
-  [Client] Epoch [3/5] LR=0.005000 | Loss=0.3439 Acc=0.8917 | 1.07s
-  [Client] Epoch [4/5] LR=0.005000 | Loss=0.3383 Acc=0.8906 | 0.60s
-  [Client] Epoch [5/5] LR=0.005000 | Loss=0.3179 Acc=0.8906 | 0.88s
-[Client 5] fit done | Round 22 | IPv4: 10.20.103.160 | loss=0.3179 acc=0.8906 | round_time=5.35s | avg_epoch=1.07s | weights=2230.8KB
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: evaluate message 54007e7e-6fe1-4d4a-b15c-c366606d1132
-[Client 5] evaluate | loss=0.7753 acc=0.7500
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: train message 3525cc0e-2953-41ed-b46d-2d3ab976b62f
-[Client 5] Round 23: Server decayed LR = 0.005000
-[Client 5] [Ping] Round 23 (fit) -> 127.0.0.1:44119 | Latency: 0.02 ms | Status: SUCCESS
-/home/ezycloudx-admin/FedMed_20K/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:759: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-  super().__init__(loader)
-  [Client] Epoch [1/5] LR=0.005000 | Loss=0.3946 Acc=0.8560 | 1.35s
-  [Client] Epoch [2/5] LR=0.005000 | Loss=0.3623 Acc=0.8806 | 1.38s
-  [Client] Epoch [3/5] LR=0.005000 | Loss=0.3280 Acc=0.8850 | 1.34s
-  [Client] Epoch [4/5] LR=0.005000 | Loss=0.3231 Acc=0.8962 | 1.30s
-  [Client] Epoch [5/5] LR=0.005000 | Loss=0.3221 Acc=0.8839 | 1.30s
-[Client 5] fit done | Round 23 | IPv4: 10.20.103.160 | loss=0.3221 acc=0.8839 | round_time=6.66s | avg_epoch=1.33s | weights=2230.8KB
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: evaluate message 71ae5f54-d8b7-4409-9cfe-acb3a6db92eb
-[Client 5] evaluate | loss=0.9172 acc=0.7353
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: train message 6f454763-d5d3-4fcf-895f-4312de56a20c
-[Client 5] Round 24: Server decayed LR = 0.005000
-[Client 5] [Ping] Round 24 (fit) -> 127.0.0.1:44119 | Latency: 0.04 ms | Status: SUCCESS
-/home/ezycloudx-admin/FedMed_20K/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:759: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-  super().__init__(loader)
-  [Client] Epoch [1/5] LR=0.005000 | Loss=0.3968 Acc=0.8616 | 0.85s
-  [Client] Epoch [2/5] LR=0.005000 | Loss=0.3753 Acc=0.8638 | 0.75s
-  [Client] Epoch [3/5] LR=0.005000 | Loss=0.3309 Acc=0.8906 | 1.24s
-  [Client] Epoch [4/5] LR=0.005000 | Loss=0.3300 Acc=0.8761 | 0.85s
-  [Client] Epoch [5/5] LR=0.005000 | Loss=0.3037 Acc=0.8962 | 0.73s
-[Client 5] fit done | Round 24 | IPv4: 10.20.103.160 | loss=0.3037 acc=0.8962 | round_time=4.42s | avg_epoch=0.88s | weights=2230.8KB
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: evaluate message 7e13a290-4abd-4302-a3a3-1e556c6f5380
-[Client 5] evaluate | loss=0.7755 acc=0.7647
-[92mINFO [0m:      Sent reply
-[92mINFO [0m:      
-[92mINFO [0m:      Received: train message 8367773f-d49f-4e8c-8753-e92075b9a8bd
-[Client 5] Round 25: Server decayed LR = 0.005000
-[Client 5] [Ping] Round 25 (fit) -> 127.0.0.1:44119 | Latency: 0.04 ms | Status: SUCCESS
-/home/ezycloudx-admin/FedMed_20K/.venv/lib/python3.10/site-packages/torch/utils/data/dataloader.py:759: UserWarning: 'pin_memory' argument is set as true but no accelerator is found, then device pinned memory won't be used.
-  super().__init__(loader)
-  [Client] Epoch [1/5] LR=0.005000 | Loss=0.3730 Acc=0.8694 | 1.39s
-  [Client] Epoch [2/5] LR=0.005000 | Loss=0.3429 Acc=0.8850 | 1.39s
-  [Client] Epoch [3/5] LR=0.005000 | Loss=0.3301 Acc=0.8728 | 1.34s
-  [Client] Epoch [4/5] LR=0.005000 | Loss=0.3143 Acc=0.8929 | 1.08s
-  [Client] Epoch [5/5] LR=0.005000 | Loss=0.2967 Acc=0.9040 | 0.91s
-[Client 5] fit done | Round 25 | IPv4: 10.20.103.160 | loss=0.2967 acc=0.9040 | round_time=6.10s | avg_epoch=1.22s | weights=2230.8KB
+[Client 5] [Ping] Round 6 (fit) -> 127.0.0.1:44727 | Latency: 0.03 ms | Status: SUCCESS
+  [Client] Epoch [1/5] LR=0.010000 | Loss=0.7337 Acc=0.7288 | 0.22s
+  [Client] Epoch [2/5] LR=0.010000 | Loss=0.6441 Acc=0.7768 | 0.19s
+  [Client] Epoch [3/5] LR=0.010000 | Loss=0.6006 Acc=0.7891 | 0.15s
+  [Client] Epoch [4/5] LR=0.010000 | Loss=0.5849 Acc=0.7824 | 0.16s
+  [Client] Epoch [5/5] LR=0.010000 | Loss=0.5385 Acc=0.8025 | 0.17s
+[Client 5] fit done | Round 6 | IPv4: 10.20.103.160 | loss=0.5385 acc=0.8025 | round_time=0.89s | avg_epoch=0.18s | weights=2230.8KB
 [92mINFO [0m:      Sent reply
