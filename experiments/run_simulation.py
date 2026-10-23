@@ -421,7 +421,7 @@ def run_single_experiment(
 
     env = os.environ.copy()
     env["PYTHONUNBUFFERED"] = "1"
-    env["PYTORCH_CUDA_ALLOC_CONF"] = "expandable_segments:True"
+    env.pop("PYTORCH_CUDA_ALLOC_CONF", None)
     env["FEDMEDAI_SIMULATION_LOCK_PATH"] = str(lock_path.resolve())
     if client_cpu_threads > 0:
         env["OMP_NUM_THREADS"] = str(client_cpu_threads)
