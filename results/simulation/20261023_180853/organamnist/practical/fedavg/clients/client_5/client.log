@@ -1,0 +1,73 @@
+[Client 5] Loading partition from data/partitions/partition_organamnist_practical_localtest_seed42_clients12.json
+[Client 5] Augmentation: augment=True, crop=True, flip=True
+[Client 5] Assigned 340 training samples
+[Client 5] Using local test partition: 171 samples
+[Client 5] [Ping] Init (init) -> 127.0.0.1:33339 | Latency: 0.04 ms | Status: SUCCESS
+[Client 5] Initialized on cuda (pc) | IPv4: 10.20.103.160 | train_samples=340 | Optimizer: SGD | LR Mode: server_decay (Initial LR: 0.01)
+[Client 5] Connecting to 127.0.0.1:33339...
+[93mWARNING [0m:   DEPRECATED FEATURE: flwr.client.start_numpy_client() is deprecated. 
+	Instead, use `flwr.client.start_client()` by ensuring you first call the `.to_client()` method as shown below: 
+	flwr.client.start_client(
+		server_address='<IP>:<PORT>',
+		client=FlowerClient().to_client(), # <-- where FlowerClient is of type flwr.client.NumPyClient object
+	)
+	Using `start_numpy_client()` is deprecated.
+
+            This is a deprecated feature. It will be removed
+            entirely in future versions of Flower.
+        
+[93mWARNING [0m:   DEPRECATED FEATURE: flwr.client.start_client() is deprecated.
+	Instead, use the `flower-supernode` CLI command to start a SuperNode as shown below:
+
+		$ flower-supernode --insecure --superlink='<IP>:<PORT>'
+
+	To view all available options, run:
+
+		$ flower-supernode --help
+
+	Using `start_client()` is deprecated.
+
+            This is a deprecated feature. It will be removed
+            entirely in future versions of Flower.
+        
+[92mINFO [0m:      
+[92mINFO [0m:      Received: train message cd788c28-c530-4d0b-8802-8b1321ef33cc
+[Client 5] Round 1: Server decayed LR = 0.010000
+[Client 5] [Ping] Round 1 (fit) -> 127.0.0.1:33339 | Latency: 0.02 ms | Status: SUCCESS
+  [Client] Epoch [1/5] LR=0.010000 | Loss=2.4332 Acc=0.1029 | 0.36s
+  [Client] Epoch [2/5] LR=0.010000 | Loss=2.2183 Acc=0.2618 | 0.07s
+  [Client] Epoch [3/5] LR=0.010000 | Loss=1.9897 Acc=0.3471 | 0.06s
+  [Client] Epoch [4/5] LR=0.010000 | Loss=1.8667 Acc=0.3412 | 0.06s
+  [Client] Epoch [5/5] LR=0.010000 | Loss=1.7487 Acc=0.3647 | 0.06s
+[Client 5] fit done | Round 1 | IPv4: 10.20.103.160 | loss=1.7487 acc=0.3647 | round_time=0.61s | avg_epoch=0.12s | weights=2234.7KB
+[92mINFO [0m:      Sent reply
+[92mINFO [0m:      
+[92mINFO [0m:      Received: evaluate message 6c866529-c9f6-4940-a3b6-d95021df6a9c
+[Client 5] evaluate | loss=1.9494 acc=0.3743
+[92mINFO [0m:      Sent reply
+[92mINFO [0m:      
+[92mINFO [0m:      Received: train message 5ff3fbba-1dab-4f6a-a87a-3a9b0e08e3b5
+[Client 5] Round 2: Server decayed LR = 0.010000
+[Client 5] [Ping] Round 2 (fit) -> 127.0.0.1:33339 | Latency: 0.02 ms | Status: SUCCESS
+  [Client] Epoch [1/5] LR=0.010000 | Loss=1.6119 Acc=0.4235 | 0.13s
+  [Client] Epoch [2/5] LR=0.010000 | Loss=1.4665 Acc=0.5088 | 0.13s
+  [Client] Epoch [3/5] LR=0.010000 | Loss=1.3844 Acc=0.5059 | 0.12s
+  [Client] Epoch [4/5] LR=0.010000 | Loss=1.3135 Acc=0.5412 | 0.13s
+  [Client] Epoch [5/5] LR=0.010000 | Loss=1.2395 Acc=0.6000 | 0.14s
+[Client 5] fit done | Round 2 | IPv4: 10.20.103.160 | loss=1.2395 acc=0.6000 | round_time=0.65s | avg_epoch=0.13s | weights=2234.7KB
+[92mINFO [0m:      Sent reply
+[92mINFO [0m:      
+[92mINFO [0m:      Received: evaluate message aaa53648-9e95-4b66-9d54-91541e3012d8
+[Client 5] evaluate | loss=1.5798 acc=0.4912
+[92mINFO [0m:      Sent reply
+[92mINFO [0m:      
+[92mINFO [0m:      Received: train message c0dd5c7b-71ee-4969-bea5-5c6133188e9b
+[Client 5] Round 3: Server decayed LR = 0.010000
+[Client 5] [Ping] Round 3 (fit) -> 127.0.0.1:33339 | Latency: 0.02 ms | Status: SUCCESS
+  [Client] Epoch [1/5] LR=0.010000 | Loss=1.2509 Acc=0.5618 | 0.12s
+  [Client] Epoch [2/5] LR=0.010000 | Loss=1.1189 Acc=0.6059 | 0.06s
+  [Client] Epoch [3/5] LR=0.010000 | Loss=1.0384 Acc=0.6147 | 0.06s
+  [Client] Epoch [4/5] LR=0.010000 | Loss=0.9896 Acc=0.6353 | 0.07s
+  [Client] Epoch [5/5] LR=0.010000 | Loss=0.9354 Acc=0.6912 | 0.12s
+[Client 5] fit done | Round 3 | IPv4: 10.20.103.160 | loss=0.9354 acc=0.6912 | round_time=0.42s | avg_epoch=0.08s | weights=2234.7KB
+[92mINFO [0m:      Sent reply
