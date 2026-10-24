@@ -1,0 +1,52 @@
+
+============================================================
+  FedMedAI FL Server
+  Config Source: configs/simulation.yaml
+  Dataset      : organamnist (Classes: 11)
+  Model        : BASELINE_BN
+  Optimizer    : SGD (momentum=0.9)
+  Seed         : 42
+  Strategy     : FEDBN
+  Server IPv4  : 10.20.103.160
+  Client Target: 10.20.103.160:32803
+  Rounds       : 80
+  Min Clients  : 12
+  Local Epochs : 5
+  LR Mode      : SERVER_DECAY
+  Base LR      : 0.01
+  Server Decay : Step decay every 15 rounds (gamma=0.5)
+  Early Stop   : Patience=0 (metric: accuracy)
+  Server Eval  : True
+  Local Test   : True
+  Listen       : 127.0.0.1:32803
+============================================================
+
+  [Server] Centralized server evaluation is disabled.
+           Model performance is evaluated via distributed client evaluation.
+[Server] Strategy created: FedBNStrategy
+[Server] Waiting for 12 clients on 127.0.0.1:32803 (Connect target: 10.20.103.160:32803)...
+
+[93mWARNING [0m:   DEPRECATED FEATURE: flwr.server.start_server() is deprecated.
+	Instead, use the `flower-superlink` CLI command to start a SuperLink as shown below:
+
+		$ flower-superlink --insecure
+
+	To view usage and all available options, run:
+
+		$ flower-superlink --help
+
+	Using `start_server()` is deprecated.
+
+            This is a deprecated feature. It will be removed
+            entirely in future versions of Flower.
+        
+[92mINFO [0m:      Starting Flower server, config: num_rounds=80, no round_timeout
+[92mINFO [0m:      Flower ECE: gRPC server running (80 rounds), SSL is disabled
+[92mINFO [0m:      [INIT]
+[92mINFO [0m:      Using initial global parameters provided by strategy
+[92mINFO [0m:      Starting evaluation of initial global parameters
+[92mINFO [0m:      Evaluation returned no results (`None`)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 1]
+[92mINFO [0m:      [Server] Config for Round 1: strategy=FEDBN, local_epochs=5, LR=0.010000 (server_decay step=15, gamma=0.50, min=0.000010)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)

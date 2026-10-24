@@ -1,0 +1,44 @@
+
+======================================================================
+  FedMedAI Automated Simulation Benchmark
+======================================================================
+  Run Name         : 20261024_093350
+  Output Directory : results/simulation/20261024_093350
+  Terminal Log     : results/simulation/20261024_093350/terminal.log
+  Model            : BASELINE_BN
+  Optimizer        : SGD (momentum=0.9)
+  Augmentation     : Enabled (crop=True, flip=True)
+  Seed             : 42
+  Clients          : 12
+  Rounds per Run   : 80
+  Local Epochs     : 5
+  Local Test Eval  : Enabled (BMCTA/BTA tracking)
+  Client Module    : client.client (Parallel Execution)
+  Timeout per Run  : Disabled (Infinite)
+  Datasets         : ['organamnist']
+  Partitions       : ['practical']
+  Strategies       : ['fedbn', 'scaffold']
+  Total Runs Grid  : 2 combinations
+======================================================================
+
+Verifying data partition files for all dataset and partition combinations...
+
+>>> [Simulation Matrix 1/2] Starting: Dataset=organamnist | Partition=practical | Strategy=FEDBN
+
+-----------------------------------------------------------------
+  Launching FL Server: FEDBN | Model: BASELINE_BN | Optimizer: SGD | Dataset: organamnist | Partition: practical | Port: 32803 | LocalTest: True | Seed: 42
+  Artifact Directory : results/simulation/20261024_093350/organamnist/practical/fedbn
+-----------------------------------------------------------------
+  [Server] Listening. Launching 12 client workers (Module: client.client)...
+Traceback (most recent call last):
+  File "/home/ezycloudx-admin/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/home/ezycloudx-admin/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/home/ezycloudx-admin/FedMed_20K/experiments/run_simulation.py", line 1336, in <module>
+    main()
+  File "/home/ezycloudx-admin/FedMed_20K/experiments/run_simulation.py", line 1202, in main
+    metrics = run_single_experiment(
+  File "/home/ezycloudx-admin/FedMed_20K/experiments/run_simulation.py", line 567, in run_single_experiment
+    time.sleep(0.5)
+KeyboardInterrupt
