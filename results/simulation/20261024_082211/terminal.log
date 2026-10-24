@@ -1,0 +1,50 @@
+
+======================================================================
+  FedMedAI Automated Simulation Benchmark
+======================================================================
+  Run Name         : 20261024_082211
+  Output Directory : results/simulation/20261024_082211
+  Terminal Log     : results/simulation/20261024_082211/terminal.log
+  Model            : BASELINE_BN
+  Optimizer        : SGD (momentum=0.9)
+  Augmentation     : Enabled (crop=True, flip=True)
+  Seed             : 42
+  Clients          : 12
+  Rounds per Run   : 80
+  Local Epochs     : 5
+  Local Test Eval  : Enabled (BMCTA/BTA tracking)
+  Client Module    : client.client (Parallel Execution)
+  Timeout per Run  : Disabled (Infinite)
+  Datasets         : ['organamnist']
+  Partitions       : ['practical']
+  Strategies       : ['fedavg', 'fedprox', 'fedbn', 'scaffold', 'proposed']
+  Total Runs Grid  : 5 combinations
+======================================================================
+
+Verifying data partition files for all dataset and partition combinations...
+
+>>> [Simulation Matrix 1/5] Starting: Dataset=organamnist | Partition=practical | Strategy=FEDAVG
+
+-----------------------------------------------------------------
+  Launching FL Server: FEDAVG | Model: BASELINE_BN | Optimizer: SGD | Dataset: organamnist | Partition: practical | Port: 44077 | LocalTest: True | Seed: 42
+  Artifact Directory : results/simulation/20261024_082211/organamnist/practical/fedavg
+-----------------------------------------------------------------
+  [Server] Listening. Launching 12 client workers (Module: client.client)...
+  [Success] Finished FEDAVG (practical) [Local Test]: BMCTA: 86.64% (R74) | BTA: 87.79% (R74) | Time: 743.9s
+
+>>> [Simulation Matrix 2/5] Starting: Dataset=organamnist | Partition=practical | Strategy=FEDPROX
+
+-----------------------------------------------------------------
+  Launching FL Server: FEDPROX | Model: BASELINE_BN | Optimizer: SGD | Dataset: organamnist | Partition: practical | Port: 39529 | LocalTest: True | Seed: 42
+  Artifact Directory : results/simulation/20261024_082211/organamnist/practical/fedprox
+-----------------------------------------------------------------
+  [Server] Listening. Launching 12 client workers (Module: client.client)...
+  [Success] Finished FEDPROX (practical) [Local Test]: BMCTA: 86.78% (R55) | BTA: 87.92% (R55) | Time: 753.6s
+
+>>> [Simulation Matrix 3/5] Starting: Dataset=organamnist | Partition=practical | Strategy=FEDBN
+
+-----------------------------------------------------------------
+  Launching FL Server: FEDBN | Model: BASELINE_BN | Optimizer: SGD | Dataset: organamnist | Partition: practical | Port: 38325 | LocalTest: True | Seed: 42
+  Artifact Directory : results/simulation/20261024_082211/organamnist/practical/fedbn
+-----------------------------------------------------------------
+  [Server] Listening. Launching 12 client workers (Module: client.client)...

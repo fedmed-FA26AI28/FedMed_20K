@@ -1,0 +1,53 @@
+
+======================================================================
+  FedMedAI Automated Simulation Benchmark
+======================================================================
+  Run Name         : organa_avg_prox
+  Output Directory : results/simulation/organa_avg_prox
+  Terminal Log     : results/simulation/organa_avg_prox/terminal.log
+  Model            : BASELINE_BN
+  Optimizer        : SGD (momentum=0.9)
+  Augmentation     : Enabled (crop=True, flip=True)
+  Seed             : 42
+  Clients          : 12
+  Rounds per Run   : 80
+  Local Epochs     : 5
+  Local Test Eval  : Enabled (BMCTA/BTA tracking)
+  Client Module    : client.client (Parallel Execution)
+  Timeout per Run  : Disabled (Infinite)
+  Datasets         : ['organamnist']
+  Partitions       : ['practical']
+  Strategies       : ['fedavg', 'fedprox']
+  Total Runs Grid  : 2 combinations
+======================================================================
+
+Verifying data partition files for all dataset and partition combinations...
+
+>>> [Simulation Matrix 1/2] Starting: Dataset=organamnist | Partition=practical | Strategy=FEDAVG
+
+-----------------------------------------------------------------
+  Launching FL Server: FEDAVG | Model: BASELINE_BN | Optimizer: SGD | Dataset: organamnist | Partition: practical | Port: 43611 | LocalTest: True | Seed: 42
+  Artifact Directory : results/simulation/organa_avg_prox/organamnist/practical/fedavg
+-----------------------------------------------------------------
+  [Server] Listening. Launching 12 client workers (Module: client.client)...
+  [Success] Finished FEDAVG (practical) [Local Test]: BMCTA: 86.66% (R77) | BTA: 87.91% (R59) | Time: 739.1s
+
+>>> [Simulation Matrix 2/2] Starting: Dataset=organamnist | Partition=practical | Strategy=FEDPROX
+
+-----------------------------------------------------------------
+  Launching FL Server: FEDPROX | Model: BASELINE_BN | Optimizer: SGD | Dataset: organamnist | Partition: practical | Port: 41449 | LocalTest: True | Seed: 42
+  Artifact Directory : results/simulation/organa_avg_prox/organamnist/practical/fedprox
+-----------------------------------------------------------------
+  [Server] Listening. Launching 12 client workers (Module: client.client)...
+  [Success] Finished FEDPROX (practical) [Local Test]: BMCTA: 86.67% (R72) | BTA: 88.00% (R59) | Time: 757.8s
+
+Generating multi-strategy comparison plots grouped by dataset...
+
+===========================================================================
+  FedMedAI Simulation Complete! Total Wall-Clock Time: 25.2 minutes
+===========================================================================
+  Artifacts Saved in Directory: results/simulation/organa_avg_prox
+  - Executive Report     : simulation_report.md
+  - Terminal Log         : terminal.log
+===========================================================================
+
