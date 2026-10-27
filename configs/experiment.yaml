@@ -14,17 +14,17 @@
 # Supported datasets: 'bloodmnist', 'pathmnist', 'organamnist', 'dermamnist'
 dataset: pathmnist
 # Supported models: 'cnn' (Modern ~20K params with BatchNorm) or 'baseline' (FedSLD ~570K params)
-model: cnn
-optimizer: adam                   # Client optimizer: 'adam' or 'sgd'
-momentum: 0.0                     # SGD momentum (0.0 for pure SGD)
+model: baseline
+optimizer: sgd                   # Client optimizer: 'adam' or 'sgd'
+momentum: 0.9                     # SGD momentum (0.0 for pure SGD)
 weight_decay: 1e-4                # L2 regularization penalty (0.0 to disable)
 seed: 42                          # Global random seed for reproducibility
 name: null                        # Optional designated run folder name (defaults to timestamp)
 
 # --- Data Augmentation (Training split only) ---
-augment: true                     # Toggle training data augmentation
-random_crop: true                 # Random crop with reflection padding
-random_flip: true                 # Random horizontal flip
+augment: false                     # Toggle training data augmentation
+random_crop: false                 # Random crop with reflection padding
+random_flip: false                 # Random horizontal flip
 
 # --- Partitioning Configuration ---
 # Partition mode: 'practical', 'pathological', 'dirichlet_0.3', 'dirichlet_0.1', 'dirichlet_1.0'
@@ -97,7 +97,7 @@ centralized:
   dataset: pathmnist              # Options: 'bloodmnist', 'pathmnist', 'organamnist', 'dermamnist'
   model: baseline                 # Options: 'baseline' (FedSLD classic CNN), 'baseline_bn' (Baseline with BN), or 'cnn' (Modern)
   optimizer: sgd                  # Options: 'sgd' or 'adam'
-  momentum: 0.0
+  momentum: 0.9
   epochs: 100
   batch_size: 256
   learning_rate: 0.01
