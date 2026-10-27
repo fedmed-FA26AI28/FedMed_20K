@@ -38,20 +38,20 @@ strategies:
   - proposed
 
 # --- Training Hyperparameters ---
-rounds: 40                        # Total federated communication rounds
+rounds: 80                        # Total federated communication rounds
 local_epochs: 5                   # Local training epochs on each client per round
 batch_size: 256                   # Client training mini-batch size
 learning_rate: 0.01               # Base initial learning rate
-model: cnn                        # Architecture: 'cnn' (Modern ~20K params with BatchNorm), 'baseline' (~570K params without BN), or 'baseline_bn' (~571K params with BN)
-optimizer: adam                   # Optimizer: 'adam' or 'sgd'
-momentum: 0.0                     # SGD momentum (0.0 for pure SGD)
+model: baseline                        # Architecture: 'cnn' (Modern ~20K params with BatchNorm), 'baseline' (~570K params without BN), or 'baseline_bn' (~571K params with BN)
+optimizer: sgd                   # Optimizer: 'adam' or 'sgd'
+momentum: 0.9                     # SGD momentum (0.0 for pure SGD)
 weight_decay: 1e-4                # L2 regularization penalty (0.0 = none)
 seed: 42                          # Random seed for partition and initialization reproducibility
 
 # --- Data Augmentation (Training split only) ---
-augment: true                     # Toggle training data augmentation
-random_crop: true                 # Random crop with reflection padding
-random_flip: true                 # Random horizontal flip
+augment: false                     # Toggle training data augmentation
+random_crop: false                 # Random crop with reflection padding
+random_flip: false                 # Random horizontal flip
 
 # --- Learning Rate (LR) Scheduling Mode ---
 # Options:

@@ -1,0 +1,31 @@
+
+Tải driver nvidia:
+sudo apt clean
+sudo apt update
+sudo apt install -y nvidia-driver-595-open
+sudo reboot
+
+=> Kết nối lại
+
+curl -LsSf https://astral.sh/uv/install.sh | sh
+sudo apt install gh
+sudo reboot => Kết nối lại
+
+gh auth login => Https => Tokens => Nhập token (tạo classic token với quyền repo, write)
+
+git config --global user.email "....@gmail.com"
+
+git clone https://github.com/fedmed-FA26AI28/FedMed_20K.git
+cd FedMed_20K
+
+
+uv venv --python 3.10
+source .venv/bin/activate
+python pip install -r requirements.txt
+
+Theo dõi train: -> Mở tab terminal/powershell mới rồi kết nối lại VM
+
+Ví dụ:
+tail -f results/simulation/20261024_082211/organamnist/practical/fedavg/server.log
+
+tail -f results/simulation/20261024_082211/terminal.log
