@@ -133,7 +133,7 @@ def train(
                 best_val_acc = val_epoch_accuracy
             else:
                 patience_counter += 1
-                if patience_counter >= patience:
+                if patience is not None and patience > 0 and patience_counter >= patience:
                     print(f"--- Early stopping triggered at Epoch {epoch + 1}! Val Loss did not decrease for {patience} consecutive epochs. ---")
                     break
         else:
