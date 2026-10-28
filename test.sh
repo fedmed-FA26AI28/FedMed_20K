@@ -31,7 +31,7 @@ LR="${LR:-0.01}"
 MOMENTUM="${MOMENTUM:-0.9}"
 OPTIMIZER="${OPTIMIZER:-sgd}"
 LR_MODE="${LR_MODE:-fixed}"
-TIMEOUT="${TIMEOUT:-3600}"
+TIMEOUT="${TIMEOUT:-0}"
 
 # List of distinct random seeds for the sequential runs (default: 5 runs)
 SEEDS=(42 43 44 45 46)
