@@ -600,8 +600,11 @@ def main():
 
     server_ipv4 = get_device_ipv4()
 
-    from datasets.medmnist_code import get_medmnist_datasets
-    _, _, _, num_classes = get_medmnist_datasets(args.dataset, download=True)
+    from medmnist import INFO
+    data_flag = args.dataset.lower()
+    if data_flag not in INFO:
+        raise ValueError(f"Dataset '{args.dataset}' not found in MedMNIST INFO. Available datasets: {list(INFO.keys())}")
+    num_classes = len(INFO[data_flag]['label'])
 
     print(f"\n{'='*60}")
     print(f"  FedMedAI FL Server")

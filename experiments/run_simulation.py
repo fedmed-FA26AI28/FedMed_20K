@@ -440,23 +440,25 @@ def run_single_experiment(
 
     client_procs = []
     client_log_files = []
+    server_log_reader = None
     run_start_time = time.time()
     status = "failed"
     run_metrics: Dict[str, Any] = {}
 
     try:
         if not wait_for_server(host, port, server_proc=server_proc, timeout=180.0):
+            server_log_file.flush()
+            err_snippet = ""
+            if server_log_path.exists():
+                try:
+                    with open(server_log_path, "r", encoding="utf-8", errors="ignore") as f:
+                        lines = f.readlines()
+                        err_snippet = "".join(lines[-35:]).strip()
+                except Exception:
+                    pass
+
             server_exit = server_proc.poll()
             if server_exit is not None:
-                server_log_file.flush()
-                err_snippet = ""
-                if server_log_path.exists():
-                    try:
-                        with open(server_log_path, "r", encoding="utf-8", errors="ignore") as f:
-                            lines = f.readlines()
-                            err_snippet = "".join(lines[-25:]).strip()
-                    except Exception:
-                        pass
                 raise RuntimeError(
                     f"Server process terminated unexpectedly on startup (exit code {server_exit}).\n"
                     f"  {'='*55}\n"
@@ -465,7 +467,14 @@ def run_single_experiment(
                     f"{err_snippet or '  (no output recorded in server.log)'}\n"
                     f"  {'='*55}"
                 )
-            raise TimeoutError(f"Server on {host}:{port} did not start listening within timeout.")
+            raise TimeoutError(
+                f"Server on {host}:{port} did not start listening within timeout (PID {server_proc.pid} still running).\n"
+                f"  {'='*55}\n"
+                f"  Tail of {server_log_path}:\n"
+                f"  {'='*55}\n"
+                f"{err_snippet or '  (no output recorded in server.log)'}\n"
+                f"  {'='*55}"
+            )
 
         print(f"  [Server] Listening. Launching {num_clients} client workers (Module: {client_module})...")
 
@@ -661,9 +670,15 @@ def run_single_experiment(
                 server_log_reader.close()
             except Exception:
                 pass
-        server_log_file.close()
+        try:
+            server_log_file.close()
+        except Exception:
+            pass
         for f in client_log_files:
-            f.close()
+            try:
+                f.close()
+            except Exception:
+                pass
         if lock_path.exists():
             try:
                 lock_path.unlink()
