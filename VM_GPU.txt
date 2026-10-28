@@ -1,31 +1,115 @@
-
-Tải driver nvidia:
+# ==========================================
+# 1. CÀI ĐẶT DRIVER NVIDIA (EZYCLOUDX.COM)
+# ==========================================
 sudo apt clean
 sudo apt update
 sudo apt install -y nvidia-driver-595-open
 sudo reboot
 
-=> Kết nối lại
+# => Sau khi reboot, kết nối SSH lại vào VM
 
+# ==========================================
+# 2. CÀI ĐẶT CÔNG CỤ NỀN TẢNG (UV, GH, TMUX)
+# ==========================================
+# Cài đặt GitHub CLI và tmux (giúp giữ phiên train chống rớt mạng)
+sudo apt update
+sudo apt install -y gh tmux
+
+# Cài đặt uv
 curl -LsSf https://astral.sh/uv/install.sh | sh
-sudo apt install gh
-sudo reboot => Kết nối lại
+source ~/.bashrc
 
-gh auth login => Https => Tokens => Nhập token (tạo classic token với quyền repo, write)
+# Đăng nhập GitHub
+gh auth login
+# -> Chọn: HTTPS -> Tokens -> Nhập token (tạo classic token với quyền repo, write)
 
 git config --global user.email "....@gmail.com"
 
+# ==========================================
+# 3. CLONE CODE & TẠO MÔI TRƯỜNG ẢO
+# ==========================================
 git clone https://github.com/fedmed-FA26AI28/FedMed_20K.git
 cd FedMed_20K
 
-
 uv venv --python 3.10
 source .venv/bin/activate
-python pip install -r requirements.txt
+uv pip install -r requirements.txt
+# (hoặc: pip install -r requirements.txt)
 
-Theo dõi train: -> Mở tab terminal/powershell mới rồi kết nối lại VM
+# Kiểm tra nhận diện GPU:
+python -c "import torch; print('CUDA Available:', torch.cuda.is_available(), '| GPU:', torch.cuda.get_device_name(0) if torch.cuda.is_available() else 'None')"
 
-Ví dụ:
-tail -f results/simulation/20261024_082211/organamnist/practical/fedavg/server.log
+# ==========================================
+# 4. CHẠY TRAIN VỚI TMUX (GIỮ PHIÊN CHỐNG RỚT MẠNG)
+# ==========================================
+# 1. Tạo một session tmux có tên là 'train':
+tmux new -s train
 
-tail -f results/simulation/20261024_082211/terminal.log
+# 2. Kích hoạt môi trường:
+source .venv/bin/activate
+
+# 3. Khởi chạy huấn luyện:
+
+# --- TUỲ CHỌN 1: MÔ PHỎNG FEDERATED LEARNING (SIMULATION) ---
+# Chạy 1 lần:
+python -m experiments.run_simulation --config configs/simulation.yaml --run run_1
+
+# Tự động chạy liên tiếp 5 lần (run_1 -> run_5):
+for r in run_1 run_2 run_3 run_4 run_5; do
+    echo "==================== BAT DAU FL $r ===================="
+    python -m experiments.run_simulation --config configs/simulation.yaml --run $r
+done
+
+# --- TUỲ CHỌN 2: HUẤN LUYỆN TẬP TRUNG (CENTRALIZED UPPER-BOUND) ---
+# Chạy 1 lần:
+python -m experiments.train_centralized --dataset pathmnist --model baseline --optimizer sgd --epochs 80 --batch_size 256 --lr 0.01 --run run_1
+
+# Tự động chạy liên tiếp 5 lần Centralized (run_1 -> run_5):
+for r in run_1 run_2 run_3 run_4 run_5; do
+    echo "==================== BAT DAU CENTRALIZED $r ===================="
+    python -m experiments.train_centralized --dataset pathmnist --model baseline --optimizer sgd --epochs 80 --batch_size 256 --lr 0.01 --run $r
+done
+
+# 4. Cách thoát ra ngoài mà train vẫn tiếp tục chạy ngầm (Detach):
+#    -> Nhấn tổ hợp phím: Ctrl + B
+#    -> Sau đó thả tay ra và nhấn phím: D
+#    (Lúc này tiến trình train vẫn chạy ngầm trên VM, bạn có thể ngắt SSH hoặc tắt laptop đi ngủ)
+
+# 5. Khi kết nối SSH lại, muốn vào lại xem trực tiếp tiến trình:
+tmux attach -t train
+
+# ==========================================
+# 5. THEO DÕI LOG, GPU & FILE CSV TỔNG HỢP
+# ==========================================
+# Mở tab terminal/powershell mới kết nối vào VM để theo dõi song song:
+
+# Theo dõi tải GPU:
+watch -n 1 nvidia-smi
+
+# Theo dõi file log thực tế:
+tail -f results/simulation/*_run_1/terminal.log
+
+# Xem kết quả file CSV tổng hợp (đã tự động tính BTA, BMCTA, Loss trung bình 5 lần chạy):
+head -n 30 "CSV file/master_runs.csv"
+
+# ==========================================
+# 6. KIỂM TRA KẾT QUẢ ĐÃ LÊN GITHUB CHƯA (TRƯỚC KHI TẮT VM)
+# ==========================================
+# Bước 1: Commit & Đẩy kết quả lên nhánh của bạn:
+git add "CSV file/master_runs.csv"
+git commit -m "results: hoan thanh benchmark tren cloud gpu"
+git push origin <ten-nhanh-cua-ban>
+
+# Bước 2: Kiểm tra xác nhận kết quả đã nằm trên GitHub:
+# -> Cách 1 (Nhanh nhất): Xem trạng thái Git
+# Nếu hiện: "Your branch is up to date with 'origin/<ten-nhanh>'" và "nothing to commit" -> ĐÃ LÊN XONG 100%!
+git status
+
+# -> Cách 2: Xem commit mới nhất trên GitHub Remote:
+git log -1 --stat origin/<ten-nhanh-cua-ban>
+
+# -> Cách 3: Dùng GitHub CLI kiểm tra commit vừa push lên repo:
+gh browse "CSV file/master_runs.csv"
+# (Lệnh này sẽ mở link trực tiếp file trên GitHub qua trình duyệt nếu có UI, hoặc in link ra terminal)
+
+

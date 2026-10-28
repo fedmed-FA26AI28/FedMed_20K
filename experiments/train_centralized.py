@@ -25,6 +25,7 @@ from datasets.medmnist_code import get_medmnist_datasets, get_medmnist_dataloade
 from client.train import train
 from client.evaluate import evaluate 
 from utils.path_utils import sanitize_run_name 
+from utils.master_csv_manager import update_master_csv, normalize_run_id 
 
 
 def get_resource_usage():
@@ -252,25 +253,32 @@ def run_centralized(
     random_flip: bool = True,
     name: str = None,
     save_dir: str = None,
+    run_id: str = "run_1",
+    master_csv: str = None,
 ):
+    run_id = normalize_run_id(run_id)
     set_seed(seed)
     opt_name = str(optimizer_name).lower().strip()
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
-    run_name = sanitize_run_name(name) if name else None
+    sanitized_name = sanitize_run_name(name) if name else None
+    if sanitized_name:
+        run_name = f"{sanitized_name}_{run_id}" if run_id not in sanitized_name else sanitized_name
+    else:
+        run_name = None
 
     if save_dir:
         final_save_dir = str(save_dir)
     elif run_name:
         final_save_dir = f"results/centralized/{run_name}"
     else:
-        final_save_dir = f"results/centralized/{timestamp}"
+        final_save_dir = f"results/centralized/{timestamp}_{run_id}"
     os.makedirs(final_save_dir, exist_ok=True)
     save_dir = final_save_dir
 
     print("Starting centralized training...")
     print(
         f"Config ({config_source}): dataset={dataset_name}, model={model_name}, optimizer={opt_name.upper()}" + (f"(momentum={momentum})" if opt_name == "sgd" else "") +
-        f", run_name={run_name or timestamp}, seed={seed}, epochs={epochs}, batch_size={batch_size}, learning_rate={learning_rate}, "
+        f", run={run_id.upper()}, run_name={run_name or f'{timestamp}_{run_id}'}, seed={seed}, epochs={epochs}, batch_size={batch_size}, learning_rate={learning_rate}, "
         f"lr_patience={lr_patience}, lr_factor={lr_factor}, early_stop_patience={early_stop_patience}, "
         f"augment={augment}, random_crop={random_crop}, random_flip={random_flip}"
     )
@@ -395,6 +403,31 @@ def run_centralized(
 
     print(f"Results saved to: {save_dir}")
 
+    target_csv = master_csv or "CSV file/master_runs.csv"
+    try:
+        train_loss_hist = training_metrics.get("history", {}).get("loss", [0.0])
+        final_train_loss = train_loss_hist[-1] if train_loss_hist else 0.0
+        cen_metrics = {
+            "bta": eval_metrics.get("accuracy", 0.0),
+            "bmcta": eval_metrics.get("accuracy", 0.0),
+            "loss": loss,
+            "total_time_seconds": training_metrics.get("training_time", 0.0),
+            "total_communication_mb": 0.0,
+        }
+        update_master_csv(
+            csv_path=target_csv,
+            dataset=dataset_name,
+            partition_method="centralized",
+            strategy="centralized",
+            model=model_name,
+            run_id=run_id,
+            metrics=cen_metrics,
+            optimizer=opt_name,
+            learning_rate=learning_rate,
+        )
+    except Exception as e:
+        print(f"  [Warning] Failed to update master CSV: {e}")
+
 
 def parse_args():
     pre_parser = argparse.ArgumentParser(add_help=False)
@@ -467,11 +500,24 @@ def parse_args():
                         help=f"Minimum learning rate lower bound (default: {default_min_lr}).")
     parser.add_argument("--early_stop_patience", type=int, default=default_early_stop,
                         help=f"Early stopping patience in epochs (default: {default_early_stop}).")
+    parser.add_argument("--run", "--run_id", dest="run", type=str, default=cen_cfg.get("run", "run_1"),
+                        help="Run identifier (e.g. 'run_1', 'run_2', ..., 'run_5') (default: 'run_1').")
+    parser.add_argument("--master_csv", type=str, default=cen_cfg.get("master_csv", "CSV file/master_runs.csv"),
+                        help="Path to master runs CSV file (default: 'CSV file/master_runs.csv').")
     return parser.parse_args()
 
 
 if __name__ == "__main__":
+    import re
     args = parse_args()
+    raw_run = args.run or "run_1"
+    run_id = normalize_run_id(raw_run)
+
+    # Automatically offset seed for run_1..run_5 if seed not explicitly overridden
+    run_match = re.search(r"\d+", run_id)
+    run_num = int(run_match.group()) if run_match else 1
+    seed = args.seed if args.seed != 42 else (args.seed + (run_num - 1))
+
     run_centralized(
         dataset_name=args.dataset,
         epochs=args.epochs,
@@ -485,10 +531,12 @@ if __name__ == "__main__":
         model_name=args.model,
         optimizer_name=args.optimizer,
         momentum=args.momentum,
-        seed=args.seed,
+        seed=seed,
         augment=args.augment,
         random_crop=args.random_crop,
         random_flip=args.random_flip,
         name=args.name,
         save_dir=args.save_dir,
+        run_id=run_id,
+        master_csv=args.master_csv,
     )

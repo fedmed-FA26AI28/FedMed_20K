@@ -51,6 +51,7 @@ from datasets.partition import (
     get_partition_plot_path,
 )
 from utils.path_utils import sanitize_run_name
+from utils.master_csv_manager import init_master_csv, update_master_csv, normalize_run_id
 
 
 # ──────────────────────────────────────────────────────────────────────────────
@@ -635,6 +636,8 @@ def run_single_experiment(
                 "bmcta_round": int(summary["bmcta_round"]) if summary.get("bmcta_round") is not None else None,
                 "bta": float(summary["bta"]) if summary.get("bta") is not None else None,
                 "bta_round": int(summary["bta_round"]) if summary.get("bta_round") is not None else None,
+                "total_communication_mb": float(summary.get("total_communication_mb", 0.0)),
+                "loss": float(summary.get("best_global_loss") if summary.get("best_global_loss") is not None else summary.get("final_global_loss", 0.0)),
                 "local_test": local_test,
                 "augment": augment,
                 "random_crop": random_crop,
@@ -710,6 +713,10 @@ def run_single_experiment(
         "best_round": best_r,
         "final_test_loss": final_loss,
         "best_test_loss": min((h["eval_loss"] for h in fallback_history), default=0.0),
+        "bmcta": max((h.get("bmcta") for h in fallback_history if h.get("bmcta") is not None), default=None),
+        "bta": max((h.get("bta") for h in fallback_history if h.get("bta") is not None), default=best_acc),
+        "total_communication_mb": 0.0,
+        "loss": min((h.get("eval_loss", float("inf")) for h in fallback_history), default=final_loss),
         "total_time_seconds": total_wall_time,
         "avg_round_time_seconds": (total_wall_time / max(len(fallback_history), 1)) if fallback_history else 0.0,
         "early_stopped": False,
@@ -1058,6 +1065,8 @@ def main():
     parser.add_argument("--client_lr_factor", type=float, default=None, help="Factor for reducing client LR on plateau")
     parser.add_argument("--client_lr_min", type=float, default=None, help="Minimum client learning rate bound")
     parser.add_argument("--proximal_mu", type=float, default=None, help="Proximal coefficient for FedProx")
+    parser.add_argument("--run", "--run_id", dest="run", type=str, default=None, help="Run identifier for master benchmark tracking (e.g. 'run_1', 'run_2', 'run_3', 'run_4', 'run_5'). Default from config or 'run_1'")
+    parser.add_argument("--master_csv", type=str, default=None, help="Path to master benchmark CSV file (default: 'CSV file/master_runs.csv')")
 
     args = parser.parse_args()
     cfg = load_yaml_config(args.config)
@@ -1107,7 +1116,22 @@ def main():
     optimizer = args.optimizer if args.optimizer is not None else cfg.get("optimizer", "sgd")
     momentum = args.momentum if args.momentum is not None else cfg.get("momentum", 0.0)
     weight_decay = args.weight_decay if args.weight_decay is not None else cfg.get("weight_decay", 0.0)
-    seed = args.seed if args.seed is not None else cfg.get("seed", 42)
+    raw_run = args.run if args.run is not None else cfg.get("run", "run_1")
+    run_id = normalize_run_id(raw_run)
+
+    raw_master_csv = args.master_csv or cfg.get("master_csv", "CSV file/master_runs.csv")
+    master_csv_path = Path(raw_master_csv)
+    if not master_csv_path.is_absolute():
+        master_csv_path = PROJECT_ROOT / master_csv_path
+
+    # Adjust seed based on run_id if seed was not explicitly set on CLI:
+    if args.seed is None:
+        base_seed = cfg.get("seed", 42)
+        run_match = re.search(r"\d+", run_id)
+        run_idx = int(run_match.group()) if run_match else 1
+        seed = base_seed + (run_idx - 1)
+    else:
+        seed = args.seed
     augment = args.augment if args.augment is not None else cfg.get("augment", True)
     random_crop = args.random_crop if args.random_crop is not None else cfg.get("random_crop", True)
     random_flip = args.random_flip if args.random_flip is not None else cfg.get("random_flip", True)
@@ -1125,16 +1149,20 @@ def main():
     strategies = [s.lower().strip() for s in strategies]
 
     raw_name = args.name or cfg.get("name")
-    run_name = sanitize_run_name(raw_name) if raw_name else None
+    if raw_name:
+        sanitized = sanitize_run_name(raw_name)
+        run_name = f"{sanitized}_{run_id}" if run_id not in sanitized else sanitized
+    else:
+        run_name = None
     timestamp_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
     if args.output_dir:
         base_parent = Path(args.output_dir)
-        base_output_dir = base_parent / run_name if run_name else base_parent
+        base_output_dir = base_parent / (run_name or f"{timestamp_str}_{run_id}")
     elif run_name:
         base_output_dir = Path(cfg.get("output_dir", "results/simulation")) / run_name
     else:
-        base_output_dir = Path(cfg.get("output_dir", "results/simulation")) / timestamp_str
+        base_output_dir = Path(cfg.get("output_dir", "results/simulation")) / f"{timestamp_str}_{run_id}"
     base_output_dir.mkdir(parents=True, exist_ok=True)
 
     # Initialize live terminal.log mirroring so SSH/headless progress is always preserved
@@ -1158,7 +1186,9 @@ def main():
     print(f"\n{'='*70}")
     print(f"  FedMedAI Automated Simulation Benchmark")
     print(f"{'='*70}")
-    print(f"  Run Name         : {run_name or timestamp_str}")
+    print(f"  Run Identifier   : {run_id.upper()}")
+    print(f"  Master CSV File  : {master_csv_path}")
+    print(f"  Run Name         : {run_name or f'{timestamp_str}_{run_id}'}")
     print(f"  Output Directory : {base_output_dir}")
     print(f"  Terminal Log     : {terminal_log_path}")
     print(f"  Model            : {model.upper()}")
@@ -1261,6 +1291,23 @@ def main():
 
                 df_summary_temp = pd.DataFrame(results_list)
                 df_summary_temp.to_csv(base_output_dir / "simulation_summary.csv", index=False)
+
+                # Automatically update Master Tracking CSV across runs
+                if master_csv_path:
+                    try:
+                        update_master_csv(
+                            csv_path=master_csv_path,
+                            dataset=d,
+                            partition_method=p,
+                            strategy=s,
+                            model=model,
+                            run_id=run_id,
+                            metrics=metrics,
+                            optimizer=optimizer,
+                            learning_rate=learning_rate,
+                        )
+                    except Exception as e:
+                        print(f"  [Warning] Could not update master CSV ({master_csv_path}): {e}")
 
                 # Inter-run settle delay: allows TCP sockets in TIME_WAIT to clear and GPU memory to settle
                 time.sleep(1.0)
