@@ -65,7 +65,7 @@ LR_MODE="${LR_MODE:-fixed}"
 TIMEOUT="${TIMEOUT:-0}"
 
 # List of random seeds for the sequential runs (default: 5 runs per config)
-SEEDS=(42 42 42 42 42)
+SEEDS=(42 43 44 45 46)
 RUNS_PER_CONFIG=${#SEEDS[@]}
 TOTAL_ALL_RUNS=$((TOTAL_DATASETS * TOTAL_STRATEGIES * RUNS_PER_CONFIG))
 # ──────────────────────────────────────────────────────────────────────────────
