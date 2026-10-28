@@ -5,11 +5,11 @@
   Dataset      : organamnist (Classes: 11)
   Model        : BASELINE
   Optimizer    : SGD (momentum=0.9)
-  Seed         : 44
+  Seed         : 42
   Strategy     : FEDAVG
   Server IPv4  : 10.10.102.172
-  Client Target: 10.10.102.172:41767
-  Rounds       : 5
+  Client Target: 10.10.102.172:36329
+  Rounds       : 1
   Min Clients  : 12
   Local Epochs : 5
   LR Mode      : FIXED
@@ -18,11 +18,11 @@
   Early Stop   : Patience=0 (metric: accuracy)
   Server Eval  : False
   Local Test   : True
-  Listen       : 127.0.0.1:41767
+  Listen       : 127.0.0.1:36329
 ============================================================
 
 [Server] Strategy created: FedAvgStrategy
-[Server] Waiting for 12 clients on 127.0.0.1:41767 (Connect target: 10.10.102.172:41767)...
+[Server] Waiting for 12 clients on 127.0.0.1:36329 (Connect target: 10.10.102.172:36329)...
 
 [93mWARNING [0m:   DEPRECATED FEATURE: flwr.server.start_server() is deprecated.
 	Instead, use the `flower-superlink` CLI command to start a SuperLink as shown below:
@@ -38,8 +38,8 @@
             This is a deprecated feature. It will be removed
             entirely in future versions of Flower.
         
-[92mINFO [0m:      Starting Flower server, config: num_rounds=5, no round_timeout
-[92mINFO [0m:      Flower ECE: gRPC server running (5 rounds), SSL is disabled
+[92mINFO [0m:      Starting Flower server, config: num_rounds=1, no round_timeout
+[92mINFO [0m:      Flower ECE: gRPC server running (1 rounds), SSL is disabled
 [92mINFO [0m:      [INIT]
 [92mINFO [0m:      Using initial global parameters provided by strategy
 [92mINFO [0m:      Starting evaluation of initial global parameters
@@ -49,190 +49,58 @@
 [92mINFO [0m:      [Server] Config for Round 1: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
 [92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
 [92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
-[92mINFO [0m:      [Reporting Devices] Client 6 (IPv4: 10.10.102.172, pc) | Client 9 (IPv4: 10.10.102.172, pc) | Client 10 (IPv4: 10.10.102.172, pc) | Client 1 (IPv4: 10.10.102.172, pc) | Client 2 (IPv4: 10.10.102.172, pc) | Client 3 (IPv4: 10.10.102.172, pc) | Client 8 (IPv4: 10.10.102.172, pc) | Client 0 (IPv4: 10.10.102.172, pc) | Client 11 (IPv4: 10.10.102.172, pc) | Client 5 (IPv4: 10.10.102.172, pc) | Client 7 (IPv4: 10.10.102.172, pc) | Client 4 (IPv4: 10.10.102.172, pc)
-[92mINFO [0m:      [FedAvg] Round 1 | 7.6s | clients=12 | failures=0
+[92mINFO [0m:      [Reporting Devices] Client 1 (IPv4: 10.10.102.172, pc) | Client 10 (IPv4: 10.10.102.172, pc) | Client 4 (IPv4: 10.10.102.172, pc) | Client 8 (IPv4: 10.10.102.172, pc) | Client 3 (IPv4: 10.10.102.172, pc) | Client 2 (IPv4: 10.10.102.172, pc) | Client 6 (IPv4: 10.10.102.172, pc) | Client 7 (IPv4: 10.10.102.172, pc) | Client 9 (IPv4: 10.10.102.172, pc) | Client 5 (IPv4: 10.10.102.172, pc) | Client 11 (IPv4: 10.10.102.172, pc) | Client 0 (IPv4: 10.10.102.172, pc)
+[92mINFO [0m:      [FedAvg] Round 1 | 8.3s | clients=12 | failures=0
 [92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
 [92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
-[92mINFO [0m:      [FedAvg] Round 1 Eval | MCTA: 27.16% (BMCTA: 27.16% @ R1) | Combined: 29.91% (BTA: 29.91% @ R1)
-[92mINFO [0m:      [BestModel] Round 1: new best accuracy = 0.2991
+[92mINFO [0m:      [FedAvg] Round 1 Eval | MCTA: 28.95% (BMCTA: 28.95% @ R1) | Combined: 35.03% (BTA: 35.03% @ R1)
+[92mINFO [0m:      [BestModel] Round 1: new best accuracy = 0.3503
 
 ============================================================
   [Server] Round 1 Distributed Client Evaluation
-  Loss: 2.0283 | Accuracy: 0.2991 (29.91%)
-============================================================
-
-[92mINFO [0m:      
-[92mINFO [0m:      [ROUND 2]
-[92mINFO [0m:      [Server] Config for Round 2: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
-[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
-[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
-[92mINFO [0m:      [Reporting Devices] Client 10 (IPv4: 10.10.102.172, pc) | Client 6 (IPv4: 10.10.102.172, pc) | Client 1 (IPv4: 10.10.102.172, pc) | Client 3 (IPv4: 10.10.102.172, pc) | Client 2 (IPv4: 10.10.102.172, pc) | Client 5 (IPv4: 10.10.102.172, pc) | Client 7 (IPv4: 10.10.102.172, pc) | Client 8 (IPv4: 10.10.102.172, pc) | Client 11 (IPv4: 10.10.102.172, pc) | Client 9 (IPv4: 10.10.102.172, pc) | Client 0 (IPv4: 10.10.102.172, pc) | Client 4 (IPv4: 10.10.102.172, pc)
-[92mINFO [0m:      [FedAvg] Round 2 | 3.1s | clients=12 | failures=0
-[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
-[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
-[92mINFO [0m:      [FedAvg] Round 2 Eval | MCTA: 37.67% (BMCTA: 37.67% @ R2) | Combined: 39.50% (BTA: 39.50% @ R2)
-[92mINFO [0m:      [BestModel] Round 2: new best accuracy = 0.3950
-
-============================================================
-  [Server] Round 2 Distributed Client Evaluation
-  Loss: 1.7091 | Accuracy: 0.3950 (39.50%)
-============================================================
-
-[92mINFO [0m:      
-[92mINFO [0m:      [ROUND 3]
-[92mINFO [0m:      [Server] Config for Round 3: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
-[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
-[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
-[92mINFO [0m:      [Reporting Devices] Client 11 (IPv4: 10.10.102.172, pc) | Client 7 (IPv4: 10.10.102.172, pc) | Client 2 (IPv4: 10.10.102.172, pc) | Client 0 (IPv4: 10.10.102.172, pc) | Client 4 (IPv4: 10.10.102.172, pc) | Client 5 (IPv4: 10.10.102.172, pc) | Client 3 (IPv4: 10.10.102.172, pc) | Client 6 (IPv4: 10.10.102.172, pc) | Client 1 (IPv4: 10.10.102.172, pc) | Client 10 (IPv4: 10.10.102.172, pc) | Client 9 (IPv4: 10.10.102.172, pc) | Client 8 (IPv4: 10.10.102.172, pc)
-[92mINFO [0m:      [FedAvg] Round 3 | 2.9s | clients=12 | failures=0
-[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
-[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
-[92mINFO [0m:      [FedAvg] Round 3 Eval | MCTA: 50.16% (BMCTA: 50.16% @ R3) | Combined: 52.29% (BTA: 52.29% @ R3)
-[92mINFO [0m:      [BestModel] Round 3: new best accuracy = 0.5229
-
-============================================================
-  [Server] Round 3 Distributed Client Evaluation
-  Loss: 1.3888 | Accuracy: 0.5229 (52.29%)
-============================================================
-
-[92mINFO [0m:      
-[92mINFO [0m:      [ROUND 4]
-[92mINFO [0m:      [Server] Config for Round 4: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
-[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
-[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
-[92mINFO [0m:      [Reporting Devices] Client 0 (IPv4: 10.10.102.172, pc) | Client 5 (IPv4: 10.10.102.172, pc) | Client 4 (IPv4: 10.10.102.172, pc) | Client 3 (IPv4: 10.10.102.172, pc) | Client 2 (IPv4: 10.10.102.172, pc) | Client 9 (IPv4: 10.10.102.172, pc) | Client 6 (IPv4: 10.10.102.172, pc) | Client 1 (IPv4: 10.10.102.172, pc) | Client 10 (IPv4: 10.10.102.172, pc) | Client 8 (IPv4: 10.10.102.172, pc) | Client 11 (IPv4: 10.10.102.172, pc) | Client 7 (IPv4: 10.10.102.172, pc)
-[92mINFO [0m:      [FedAvg] Round 4 | 2.5s | clients=12 | failures=0
-[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
-[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
-[92mINFO [0m:      [FedAvg] Round 4 Eval | MCTA: 61.76% (BMCTA: 61.76% @ R4) | Combined: 62.10% (BTA: 62.10% @ R4)
-[92mINFO [0m:      [BestModel] Round 4: new best accuracy = 0.6210
-
-============================================================
-  [Server] Round 4 Distributed Client Evaluation
-  Loss: 1.0921 | Accuracy: 0.6210 (62.10%)
-============================================================
-
-[92mINFO [0m:      
-[92mINFO [0m:      [ROUND 5]
-[92mINFO [0m:      [Server] Config for Round 5: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
-[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
-[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
-[92mINFO [0m:      [Reporting Devices] Client 8 (IPv4: 10.10.102.172, pc) | Client 2 (IPv4: 10.10.102.172, pc) | Client 3 (IPv4: 10.10.102.172, pc) | Client 9 (IPv4: 10.10.102.172, pc) | Client 10 (IPv4: 10.10.102.172, pc) | Client 11 (IPv4: 10.10.102.172, pc) | Client 4 (IPv4: 10.10.102.172, pc) | Client 0 (IPv4: 10.10.102.172, pc) | Client 7 (IPv4: 10.10.102.172, pc) | Client 5 (IPv4: 10.10.102.172, pc) | Client 1 (IPv4: 10.10.102.172, pc) | Client 6 (IPv4: 10.10.102.172, pc)
-[92mINFO [0m:      [FedAvg] Round 5 | 2.8s | clients=12 | failures=0
-[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
-[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
-[92mINFO [0m:      [FedAvg] Round 5 Eval | MCTA: 67.86% (BMCTA: 67.86% @ R5) | Combined: 67.22% (BTA: 67.22% @ R5)
-[92mINFO [0m:      [BestModel] Round 5: new best accuracy = 0.6722
-
-============================================================
-  [Server] Round 5 Distributed Client Evaluation
-  Loss: 0.9409 | Accuracy: 0.6722 (67.22%)
+  Loss: 1.9935 | Accuracy: 0.3503 (35.03%)
 ============================================================
 
 [92mINFO [0m:      
 [92mINFO [0m:      [SUMMARY]
-[92mINFO [0m:      Run finished 5 round(s) in 20.33s
+[92mINFO [0m:      Run finished 1 round(s) in 8.64s
 [92mINFO [0m:      	History (loss, distributed):
-[92mINFO [0m:      		round 1: 2.028255585174966
-[92mINFO [0m:      		round 2: 1.7090800537383386
-[92mINFO [0m:      		round 3: 1.3888462455820643
-[92mINFO [0m:      		round 4: 1.0921245058387643
-[92mINFO [0m:      		round 5: 0.9409101567009944
+[92mINFO [0m:      		round 1: 1.9935020190455244
 [92mINFO [0m:      	History (metrics, distributed, fit):
-[92mINFO [0m:      	{'client_train_time_avg': [(1, 1.66417262951533),
-[92mINFO [0m:      	                           (2, 1.2726014653841655),
-[92mINFO [0m:      	                           (3, 1.234564483165741),
-[92mINFO [0m:      	                           (4, 1.2244924902915955),
-[92mINFO [0m:      	                           (5, 1.2695191105206807)],
-[92mINFO [0m:      	 'client_train_time_max': [(1, 3.283327579498291),
-[92mINFO [0m:      	                           (2, 2.9765992164611816),
-[92mINFO [0m:      	                           (3, 2.7789547443389893),
-[92mINFO [0m:      	                           (4, 2.478558301925659),
-[92mINFO [0m:      	                           (5, 2.695535898208618)],
-[92mINFO [0m:      	 'client_train_time_min': [(1, 0.5460205078125),
-[92mINFO [0m:      	                           (2, 0.24835658073425293),
-[92mINFO [0m:      	                           (3, 0.146470308303833),
-[92mINFO [0m:      	                           (4, 0.14652371406555176),
-[92mINFO [0m:      	                           (5, 0.2112598419189453)],
-[92mINFO [0m:      	 'epoch_time_avg': [(1, 0.33271820545196534),
-[92mINFO [0m:      	                    (2, 0.25441631873448683),
-[92mINFO [0m:      	                    (3, 0.24680143197377521),
-[92mINFO [0m:      	                    (4, 0.24479599396387738),
-[92mINFO [0m:      	                    (5, 0.253800356388092)],
-[92mINFO [0m:      	 'epoch_time_max': [(1, 0.6565805435180664),
-[92mINFO [0m:      	                    (2, 0.5952392101287842),
-[92mINFO [0m:      	                    (3, 0.5556777954101563),
-[92mINFO [0m:      	                    (4, 0.49561448097229005),
-[92mINFO [0m:      	                    (5, 0.5390235424041748)],
-[92mINFO [0m:      	 'epoch_time_min': [(1, 0.10906987190246582),
-[92mINFO [0m:      	                    (2, 0.04954676628112793),
-[92mINFO [0m:      	                    (3, 0.0291750431060791),
-[92mINFO [0m:      	                    (4, 0.029217100143432616),
-[92mINFO [0m:      	                    (5, 0.0421478271484375)],
-[92mINFO [0m:      	 'num_clients_reporting': [(1, 12), (2, 12), (3, 12), (4, 12), (5, 12)],
-[92mINFO [0m:      	 'num_failures': [(1, 0), (2, 0), (3, 0), (4, 0), (5, 0)],
-[92mINFO [0m:      	 'ping_ms_avg': [(1, 0.0375),
-[92mINFO [0m:      	                 (2, 0.02916666666666667),
-[92mINFO [0m:      	                 (3, 0.041666666666666664),
-[92mINFO [0m:      	                 (4, 0.03916666666666666),
-[92mINFO [0m:      	                 (5, 0.03666666666666666)],
-[92mINFO [0m:      	 'ping_ms_max': [(1, 0.07), (2, 0.07), (3, 0.15), (4, 0.17), (5, 0.11)],
-[92mINFO [0m:      	 'ping_ms_min': [(1, 0.02), (2, 0.01), (3, 0.01), (4, 0.01), (5, 0.01)],
-[92mINFO [0m:      	 'round_time_seconds': [(1, 7.57306694984436),
-[92mINFO [0m:      	                        (2, 3.122373580932617),
-[92mINFO [0m:      	                        (3, 2.8558902740478516),
-[92mINFO [0m:      	                        (4, 2.531815767288208),
-[92mINFO [0m:      	                        (5, 2.752671957015991)],
-[92mINFO [0m:      	 'straggler_time': [(1, 3.283327579498291),
-[92mINFO [0m:      	                    (2, 2.9765992164611816),
-[92mINFO [0m:      	                    (3, 2.7789547443389893),
-[92mINFO [0m:      	                    (4, 2.478558301925659),
-[92mINFO [0m:      	                    (5, 2.695535898208618)],
-[92mINFO [0m:      	 'total_elapsed_seconds': [(1, 7.577759027481079),
-[92mINFO [0m:      	                           (2, 10.966586351394653),
-[92mINFO [0m:      	                           (3, 14.129678964614868),
-[92mINFO [0m:      	                           (4, 16.985299110412598),
-[92mINFO [0m:      	                           (5, 20.015620470046997)],
-[92mINFO [0m:      	 'train_accuracy': [(1, 0.8324990596336912),
-[92mINFO [0m:      	                    (2, 0.8791412285524146),
-[92mINFO [0m:      	                    (3, 0.9015942825728422),
-[92mINFO [0m:      	                    (4, 0.9230925031104424),
-[92mINFO [0m:      	                    (5, 0.9421313040710627)],
-[92mINFO [0m:      	 'train_loss': [(1, 0.5632224780090539),
-[92mINFO [0m:      	                (2, 0.42427572776446487),
-[92mINFO [0m:      	                (3, 0.3290334248581762),
-[92mINFO [0m:      	                (4, 0.25359903497774533),
-[92mINFO [0m:      	                (5, 0.1928241436108949)],
-[92mINFO [0m:      	 'weight_size_kb_avg': [(1, 2233.23046875),
-[92mINFO [0m:      	                        (2, 2233.23046875),
-[92mINFO [0m:      	                        (3, 2233.23046875),
-[92mINFO [0m:      	                        (4, 2233.23046875),
-[92mINFO [0m:      	                        (5, 2233.23046875)],
-[92mINFO [0m:      	 'weight_size_kb_total': [(1, 26798.765625),
-[92mINFO [0m:      	                          (2, 26798.765625),
-[92mINFO [0m:      	                          (3, 26798.765625),
-[92mINFO [0m:      	                          (4, 26798.765625),
-[92mINFO [0m:      	                          (5, 26798.765625)]}
+[92mINFO [0m:      	{'client_train_time_avg': [(1, 1.6592660347620647)],
+[92mINFO [0m:      	 'client_train_time_max': [(1, 3.920606851577759)],
+[92mINFO [0m:      	 'client_train_time_min': [(1, 0.506598949432373)],
+[92mINFO [0m:      	 'epoch_time_avg': [(1, 0.3317387183507284)],
+[92mINFO [0m:      	 'epoch_time_max': [(1, 0.7840380191802978)],
+[92mINFO [0m:      	 'epoch_time_min': [(1, 0.1011624813079834)],
+[92mINFO [0m:      	 'num_clients_reporting': [(1, 12)],
+[92mINFO [0m:      	 'num_failures': [(1, 0)],
+[92mINFO [0m:      	 'ping_ms_avg': [(1, 0.050833333333333335)],
+[92mINFO [0m:      	 'ping_ms_max': [(1, 0.15)],
+[92mINFO [0m:      	 'ping_ms_min': [(1, 0.02)],
+[92mINFO [0m:      	 'round_time_seconds': [(1, 8.275972366333008)],
+[92mINFO [0m:      	 'straggler_time': [(1, 3.920606851577759)],
+[92mINFO [0m:      	 'total_elapsed_seconds': [(1, 8.280766248703003)],
+[92mINFO [0m:      	 'train_accuracy': [(1, 0.8389803535777322)],
+[92mINFO [0m:      	 'train_loss': [(1, 0.5571826872755672)],
+[92mINFO [0m:      	 'weight_size_kb_avg': [(1, 2233.23046875)],
+[92mINFO [0m:      	 'weight_size_kb_total': [(1, 26798.765625)]}
 [92mINFO [0m:      	History (metrics, distributed, evaluate):
-[92mINFO [0m:      	{'accuracy': [(1, 0.29913376082798965),
-[92mINFO [0m:      	              (2, 0.394982562717966),
-[92mINFO [0m:      	              (3, 0.5228934638317021),
-[92mINFO [0m:      	              (4, 0.62099223759703),
-[92mINFO [0m:      	              (5, 0.6722353470581618)]}
+[92mINFO [0m:      	{'accuracy': [(1, 0.3502643716953538)]}
 [92mINFO [0m:      
 
 ============================================================
   FL Training Complete!
 ============================================================
   Strategy       : FEDAVG
-  Total Rounds   : 5
-  Total Time     : 20.3s (0.3min)
-  Avg Round Time : 3.8s
-  Best Metric    : 0.6722353470581618 (Round 5)
-  BMCTA          : 67.86% (Round 5)
-  BMCTA Loss     : 0.9357
-  Best Eval Loss : 0.9409
-  Final Eval Loss: 0.9409
+  Total Rounds   : 1
+  Total Time     : 8.7s (0.1min)
+  Avg Round Time : 8.3s
+  Best Metric    : 0.3502643716953538 (Round 1)
+  BMCTA          : 28.95% (Round 1)
+  BMCTA Loss     : 2.0891
+  Best Eval Loss : 1.9935
+  Final Eval Loss: 1.9935
   Early Stopped  : False
 ============================================================
 
