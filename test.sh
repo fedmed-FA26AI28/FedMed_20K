@@ -24,7 +24,7 @@ DATASET="${3:-${DATASET:-organamnist}}"      # organamnist | pathmnist | bloodmn
 BASE_NAME="${4:-${BASE_NAME:-${DATASET}_${STRATEGY}_${MODEL}}}" # Output folder prefix (e.g. organamnist_fedavg_baseline)
 
 # Training Hyperparameters (can also be overridden via environment variables):
-ROUNDS="${ROUNDS:-80}"
+ROUNDS="${ROUNDS:-5}"
 PARTITION="${PARTITION:-practical}"
 BATCH_SIZE="${BATCH_SIZE:-256}"
 LR="${LR:-0.01}"
