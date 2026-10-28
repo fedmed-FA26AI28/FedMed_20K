@@ -12,6 +12,7 @@ sudo reboot
 # 2. CÀI ĐẶT CÔNG CỤ NỀN TẢNG (UV, GH, TMUX)
 # ==========================================
 # Cài đặt GitHub CLI và tmux (giúp giữ phiên train chống rớt mạng)
+nvidia-smi
 sudo apt update
 sudo apt install -y gh tmux
 
@@ -22,8 +23,8 @@ source ~/.bashrc
 # Đăng nhập GitHub
 gh auth login
 # -> Chọn: HTTPS -> Tokens -> Nhập token (tạo classic token với quyền repo, write)
-
-git config --global user.email "....@gmail.com"
+# Dán token của bạn vào khi được hỏi (không lưu token trực tiếp trong code/file git)
+git config --global user.email "nguyenhoangduykhang05@gmail.com"
 
 # ==========================================
 # 3. CLONE CODE & TẠO MÔI TRƯỜNG ẢO
@@ -35,8 +36,9 @@ cd FedMed_20K
 uv venv --python 3.10
 source .venv/bin/activate
 
-# Cài đặt PyTorch với CUDA 12.1 (đảm bảo nhận GPU):
-uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+# Cài đặt PyTorch với CUDA 13.2 (dành riêng cho dòng RTX 50-series: RTX 5060 Ti / 5070 / 5080 / 5090):
+uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu132
+# (Nếu thuê máy dùng GPU đời cũ hơn như RTX 3090 / 4090 thì dùng: cu121 hoặc cu124)
 
 # Cài đặt các thư viện dự án:
 uv pip install -r requirements.txt
@@ -58,7 +60,7 @@ source .venv/bin/activate
 
 # --- TUỲ CHỌN 1: MÔ PHỎNG FEDERATED LEARNING (SIMULATION) ---
 # Chạy 1 lần:
-python -m experiments.run_simulation --config configs/simulation.yaml --run run_1
+python -m experiments.run_simulation --config configs/simulation.yaml --run run_1       
 
 # Tự động chạy liên tiếp 5 lần (run_1 -> run_5):
 for r in run_1 run_2 run_3 run_4 run_5; do
@@ -99,14 +101,18 @@ tail -f results/simulation/*_run_1/terminal.log
 head -n 30 "CSV file/master_runs.csv"
 
 # ==========================================
-# 6. KIỂM TRA KẾT QUẢ ĐÃ LÊN GITHUB CHƯA (TRƯỚC KHI TẮT VM)
+# 6. CẬP NHẬT FILE CSV & ĐẨY LÊN GITHUB (TRƯỚC KHI TẮT VM)
 # ==========================================
-# Bước 1: Commit & Đẩy kết quả lên nhánh của bạn:
+# Bước 1: Kiểm tra xem file CSV đã tự động lưu kết quả train chưa:
+head -n 30 "CSV file/master_runs.csv"
+git status
+
+# Bước 2: Commit & Đẩy cập nhật file CSV lên nhánh DuyKhang:
 git add "CSV file/master_runs.csv"
-git commit -m "results: hoan thanh benchmark tren cloud gpu"
+git commit -m "update: ket qua benchmark tren cloud gpu vao file csv tong"
 git push origin DuyKhang
 
-# Bước 2: Kiểm tra xác nhận kết quả đã nằm trên GitHub:
+# Bước 3: Kiểm tra xác nhận kết quả đã nằm trên GitHub an toàn 100%:
 # -> Cách 1 (Nhanh nhất): Xem trạng thái Git
 # Nếu hiện: "Your branch is up to date with 'origin/DuyKhang'" và "nothing to commit" -> ĐÃ LÊN XONG 100%!
 git status
@@ -114,8 +120,8 @@ git status
 # -> Cách 2: Xem commit mới nhất trên GitHub Remote:
 git log -1 --stat origin/DuyKhang
 
-# -> Cách 3: Dùng GitHub CLI kiểm tra commit vừa push lên repo:
+# -> Cách 3: Dùng GitHub CLI kiểm tra trực tiếp file CSV trên repo:
 gh browse "CSV file/master_runs.csv"
-# (Lệnh này sẽ mở link trực tiếp file trên GitHub qua trình duyệt nếu có UI, hoặc in link ra terminal)
+# (Lệnh này sẽ mở link trực tiếp file trên GitHub qua trình duyệt hoặc in link ra terminal)
 
 
