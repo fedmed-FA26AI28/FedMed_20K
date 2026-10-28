@@ -531,8 +531,66 @@ def run_single_experiment(
             client_procs.append(c_proc)
 
         loop_start = time.time()
+        last_heartbeat = loop_start
+        current_active_round = 0
+        server_log_reader = None
 
         while True:
+            # Dynamically attach reader to server.log to stream live round progress to console
+            if server_log_reader is None and server_log_path.exists():
+                try:
+                    server_log_reader = open(server_log_path, "r", encoding="utf-8", errors="ignore")
+                except Exception:
+                    server_log_reader = None
+
+            if server_log_reader is not None:
+                try:
+                    while True:
+                        line = server_log_reader.readline()
+                        if not line:
+                            break
+                        clean_line = re.sub(r'\x1b\[[0-9;]*m', '', line).strip()
+                        clean_line = re.sub(r'^(INFO|WARNING|ERROR)\s*:\s*', '', clean_line).strip()
+                        if not clean_line:
+                            continue
+
+                        # Round header: [ROUND X]
+                        m_rd = re.search(r'\[ROUND\s+(\d+)\]', clean_line, re.IGNORECASE)
+                        if m_rd:
+                            current_active_round = int(m_rd.group(1))
+                            last_heartbeat = time.time()
+                            continue
+
+                        # Distributed Evaluation progress (BMCTA / BTA)
+                        if " Eval | MCTA:" in clean_line or " Eval |" in clean_line:
+                            print(f"  [Progress] {clean_line}")
+                            sys.stdout.flush()
+                            last_heartbeat = time.time()
+                            continue
+
+                        # Centralized server evaluation progress
+                        if "Global Evaluation" in clean_line or ("Loss:" in clean_line and "Accuracy:" in clean_line and "Round" in clean_line):
+                            print(f"  [Progress] {clean_line}")
+                            sys.stdout.flush()
+                            last_heartbeat = time.time()
+                            continue
+
+                        # Fit round timing / reporting
+                        if " | clients=" in clean_line and " failures=" in clean_line:
+                            print(f"  [Fit] {clean_line}")
+                            sys.stdout.flush()
+                            last_heartbeat = time.time()
+                            continue
+
+                        # Early stopping or model checkpoint notices
+                        if "[EarlyStop]" in clean_line or "[BestModel]" in clean_line:
+                            print(f"  {clean_line}")
+                            sys.stdout.flush()
+                            last_heartbeat = time.time()
+                            continue
+                except Exception:
+                    pass
+
             server_exit = server_proc.poll()
             if server_exit is not None:
                 if server_exit == 0:
@@ -564,6 +622,15 @@ def run_single_experiment(
                 status = "timeout"
                 break
 
+            # Heartbeat every 25 seconds if no log output occurred
+            now = time.time()
+            if now - last_heartbeat >= 25.0:
+                elapsed_min = (now - loop_start) / 60.0
+                rd_str = f"Round {current_active_round}/{rounds}" if current_active_round > 0 else "Initializing"
+                print(f"  [Active] {rd_str} | Running on GPU ({num_clients} clients active) | Elapsed: {elapsed_min:.1f}m")
+                sys.stdout.flush()
+                last_heartbeat = now
+
             time.sleep(0.5)
 
         for c_proc in client_procs:
@@ -589,6 +656,11 @@ def run_single_experiment(
         for c_proc in client_procs:
             c_proc.kill()
     finally:
+        if server_log_reader is not None:
+            try:
+                server_log_reader.close()
+            except Exception:
+                pass
         server_log_file.close()
         for f in client_log_files:
             f.close()
@@ -626,15 +698,19 @@ def run_single_experiment(
                 "batch_size": batch_size,
                 "lr_mode": lr_mode,
                 "learning_rate": learning_rate,
-                "final_test_accuracy": float(summary.get("final_global_accuracy", 0.0)),
-                "best_test_accuracy": float(summary.get("best_global_accuracy", 0.0)),
-                "best_round": int(summary.get("best_global_accuracy_round", 0)),
-                "final_test_loss": float(summary.get("final_global_loss", 0.0)),
-                "best_test_loss": float(summary.get("best_global_loss", 0.0)),
+                "final_test_accuracy": float(summary.get("final_global_accuracy") or summary.get("final_eval_accuracy") or summary.get("final_client_test_accuracy") or summary.get("bmcta") or 0.0),
+                "best_test_accuracy": float(summary.get("best_global_accuracy") or summary.get("best_eval_accuracy") or summary.get("bmcta") or 0.0),
+                "best_round": int(summary.get("best_global_accuracy_round") or summary.get("bmcta_round") or 0),
+                "final_test_loss": float(summary.get("final_global_loss") or summary.get("final_eval_loss") or summary.get("final_client_test_loss") or summary.get("bmcta_loss") or 0.0),
+                "best_test_loss": float(summary.get("best_global_loss") or summary.get("best_eval_loss") or summary.get("bmcta_loss") or 0.0),
                 "bmcta": float(summary["bmcta"]) if summary.get("bmcta") is not None else None,
                 "bmcta_round": int(summary["bmcta_round"]) if summary.get("bmcta_round") is not None else None,
+                "bmcta_loss": float(summary["bmcta_loss"]) if summary.get("bmcta_loss") is not None else None,
                 "bta": float(summary["bta"]) if summary.get("bta") is not None else None,
                 "bta_round": int(summary["bta_round"]) if summary.get("bta_round") is not None else None,
+                "total_parameters": int(summary["total_parameters"]) if summary.get("total_parameters") is not None else None,
+                "weight_size_kb": float(summary["weight_payload_size_kb"]) if summary.get("weight_payload_size_kb") is not None else None,
+                "checkpoint_file_size_kb": float(summary["checkpoint_file_size_kb"]) if summary.get("checkpoint_file_size_kb") is not None else None,
                 "local_test": local_test,
                 "augment": augment,
                 "random_crop": random_crop,
@@ -647,7 +723,8 @@ def run_single_experiment(
                 "rounds_history": rounds_history,
             }
             if local_test and run_metrics.get("bmcta") is not None:
-                bmcta_str = f"BMCTA: {run_metrics['bmcta']*100:.2f}% (R{run_metrics.get('bmcta_round', 0)}) | "
+                bmcta_loss_str = f"BMCTA Loss: {run_metrics['bmcta_loss']:.4f} | " if run_metrics.get("bmcta_loss") is not None else ""
+                bmcta_str = f"BMCTA: {run_metrics['bmcta']*100:.2f}% (R{run_metrics.get('bmcta_round', 0)}) | {bmcta_loss_str}"
                 bta_str = f"BTA: {run_metrics['bta']*100:.2f}% (R{run_metrics.get('bta_round', 0)}) | " if run_metrics.get("bta") is not None else ""
                 print(f"  [Success] Finished {strategy.upper()} ({partition_mode}) [Local Test]: "
                       f"{bmcta_str}{bta_str}"
@@ -975,19 +1052,22 @@ def generate_markdown_report(
 
     has_bmcta = "bmcta" in df_summary.columns and df_summary["bmcta"].notna().any()
     has_model = "model" in df_summary.columns
+    has_params = "total_parameters" in df_summary.columns and df_summary["total_parameters"].notna().any()
     has_opt = "optimizer" in df_summary.columns
     has_aug = "augment" in df_summary.columns
 
     model_hdr = " Model |" if has_model else ""
     model_sep = " :---: |" if has_model else ""
+    param_hdr = " Params | Weight |" if has_params else ""
+    param_sep = " :---: | :---: |" if has_params else ""
     opt_hdr = " Opt |" if has_opt else ""
     opt_sep = " :---: |" if has_opt else ""
     aug_hdr = " Aug |" if has_aug else ""
     aug_sep = " :---: |" if has_aug else ""
 
     if has_bmcta:
-        header = f"| Dataset |{model_hdr}{opt_hdr}{aug_hdr} Strategy | Partition | Final Acc (%) | Best Acc (%) | BMCTA (%) | BTA (%) | Best Round | Final Loss | Total Time |"
-        sep = f"| :--- |{model_sep}{opt_sep}{aug_sep} :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |"
+        header = f"| Dataset |{model_hdr}{param_hdr}{opt_hdr}{aug_hdr} Strategy | Partition | Final Acc (%) | Best Acc (%) | BMCTA (%) | BMCTA Loss | BTA (%) | Best Round | Final Loss | Total Time |"
+        sep = f"| :--- |{model_sep}{param_sep}{opt_sep}{aug_sep} :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |"
         lines.extend([
             "---",
             "## 2. Full Simulation Results Matrix",
@@ -997,14 +1077,21 @@ def generate_markdown_report(
         ])
         for _, row in df_summary.iterrows():
             bmcta_val = f"**{row['bmcta']*100:.2f}%** (R{int(row.get('bmcta_round', 0))})" if pd.notna(row.get("bmcta")) else "N/A"
+            bmcta_loss_val = f"{row['bmcta_loss']:.4f}" if pd.notna(row.get("bmcta_loss")) else "N/A"
             bta_val = f"**{row['bta']*100:.2f}%** (R{int(row.get('bta_round', 0))})" if pd.notna(row.get("bta")) else "N/A"
             model_col = f"`{row['model']}` | " if has_model else ""
+            if has_params:
+                p_cnt = f"{int(row['total_parameters']):,}" if pd.notna(row.get("total_parameters")) else "N/A"
+                w_sz = f"{row['weight_size_kb']:.1f} KB" if pd.notna(row.get("weight_size_kb")) else "N/A"
+                param_col = f"{p_cnt} | {w_sz} | "
+            else:
+                param_col = ""
             opt_col = f"`{row['optimizer']}` | " if has_opt else ""
             aug_col = f"{'Yes' if row.get('augment', True) else 'No'} | " if has_aug else ""
-            lines.append(f"| **{row['dataset']}** | {model_col}{opt_col}{aug_col}**{row['strategy'].upper()}** | `{row['partition_mode']}` | {row['final_test_accuracy']*100:.2f}% | **{row['best_test_accuracy']*100:.2f}%** | {bmcta_val} | {bta_val} | R{int(row['best_round'])} | {row['final_test_loss']:.4f} | {row['total_time_seconds']:.1f}s |")
+            lines.append(f"| **{row['dataset']}** | {model_col}{param_col}{opt_col}{aug_col}**{row['strategy'].upper()}** | `{row['partition_mode']}` | {row['final_test_accuracy']*100:.2f}% | **{row['best_test_accuracy']*100:.2f}%** | {bmcta_val} | {bmcta_loss_val} | {bta_val} | R{int(row['best_round'])} | {row['final_test_loss']:.4f} | {row['total_time_seconds']:.1f}s |")
     else:
-        header = f"| Dataset |{model_hdr}{opt_hdr}{aug_hdr} Strategy | Partition | Final Acc (%) | Best Acc (%) | Best Round | Final Loss | Total Time |"
-        sep = f"| :--- |{model_sep}{opt_sep}{aug_sep} :--- | :--- | :---: | :---: | :---: | :---: | :---: |"
+        header = f"| Dataset |{model_hdr}{param_hdr}{opt_hdr}{aug_hdr} Strategy | Partition | Final Acc (%) | Best Acc (%) | Best Round | Final Loss | Total Time |"
+        sep = f"| :--- |{model_sep}{param_sep}{opt_sep}{aug_sep} :--- | :--- | :---: | :---: | :---: | :---: | :---: |"
         lines.extend([
             "---",
             "## 2. Full Simulation Results Matrix",
@@ -1014,9 +1101,15 @@ def generate_markdown_report(
         ])
         for _, row in df_summary.iterrows():
             model_col = f"`{row['model']}` | " if has_model else ""
+            if has_params:
+                p_cnt = f"{int(row['total_parameters']):,}" if pd.notna(row.get("total_parameters")) else "N/A"
+                w_sz = f"{row['weight_size_kb']:.1f} KB" if pd.notna(row.get("weight_size_kb")) else "N/A"
+                param_col = f"{p_cnt} | {w_sz} | "
+            else:
+                param_col = ""
             opt_col = f"`{row['optimizer']}` | " if has_opt else ""
             aug_col = f"{'Yes' if row.get('augment', True) else 'No'} | " if has_aug else ""
-            lines.append(f"| **{row['dataset']}** | {model_col}{opt_col}{aug_col}**{row['strategy'].upper()}** | `{row['partition_mode']}` | {row['final_test_accuracy']*100:.2f}% | **{row['best_test_accuracy']*100:.2f}%** | R{int(row['best_round'])} | {row['final_test_loss']:.4f} | {row['total_time_seconds']:.1f}s |")
+            lines.append(f"| **{row['dataset']}** | {model_col}{param_col}{opt_col}{aug_col}**{row['strategy'].upper()}** | `{row['partition_mode']}` | {row['final_test_accuracy']*100:.2f}% | **{row['best_test_accuracy']*100:.2f}%** | R{int(row['best_round'])} | {row['final_test_loss']:.4f} | {row['total_time_seconds']:.1f}s |")
 
     with open(output_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))

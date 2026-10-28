@@ -98,10 +98,33 @@ class FLMetricsRecorder:
         self,
         strategy_name: str = "FedAvg",
         proximal_mu: Optional[float] = None,
+        model_name: Optional[str] = None,
+        model: Optional[Any] = None,
+        total_parameters: Optional[int] = None,
+        trainable_parameters: Optional[int] = None,
+        model_weight_size_kb: Optional[float] = None,
+        model_file_size_kb: Optional[float] = None,
     ):
         self.strategy_name = strategy_name
         self.proximal_mu = proximal_mu
         self.fl_start_time = time.time()
+
+        # Model architecture & weight size metadata
+        self.model_name: Optional[str] = model_name
+        self.total_parameters: Optional[int] = total_parameters
+        self.trainable_parameters: Optional[int] = trainable_parameters
+        self.model_weight_size_kb: Optional[float] = model_weight_size_kb
+        self.model_file_size_kb: Optional[float] = model_file_size_kb
+
+        if model is not None or model_name is not None:
+            self.set_model_info(
+                model_name=model_name,
+                model=model,
+                total_parameters=total_parameters,
+                trainable_parameters=trainable_parameters,
+                model_weight_size_kb=model_weight_size_kb,
+                model_file_size_kb=model_file_size_kb,
+            )
 
         self.round_start_times: Dict[int, float] = {}
         self.round_records: List[Dict[str, Any]] = []
@@ -113,19 +136,76 @@ class FLMetricsRecorder:
         self.best_eval_round: int = 0
         self.best_eval_loss: float = float("inf")
 
-        # FedSLD Paper Metrics: BMCTA and BTA Tracking
+        # FedSLD Paper Metrics: BMCTA, BMCTA Loss, and BTA Tracking
         self.local_test_enabled: bool = False
         self.mcta_history: Dict[int, float] = {}
         self.wcta_history: Dict[int, float] = {}
+        self.mctl_history: Dict[int, float] = {}
         self.client_eval_records: List[Dict[str, Any]] = []
         self.bmcta: float = 0.0
         self.bmcta_round: int = 0
+        self.bmcta_loss: Optional[float] = None
         self.bta: float = 0.0
         self.bta_round: int = 0
 
         self.parameter_round_records: List[Dict[str, Any]] = []
         self.parameter_client_records: List[Dict[str, Any]] = []
         self.parameter_layer_records: List[Dict[str, Any]] = []
+
+    def set_model_info(
+        self,
+        model_name: Optional[str] = None,
+        model: Optional[Any] = None,
+        total_parameters: Optional[int] = None,
+        trainable_parameters: Optional[int] = None,
+        model_weight_size_kb: Optional[float] = None,
+        model_file_size_kb: Optional[float] = None,
+    ) -> None:
+        """Register or compute model architecture metadata, parameter count, and weight size footprint."""
+        if model_name is not None:
+            self.model_name = str(model_name)
+        if model is not None:
+            try:
+                self.total_parameters = sum(p.numel() for p in model.parameters())
+                self.trainable_parameters = sum(
+                    p.numel() for p in model.parameters() if p.requires_grad
+                )
+                param_bytes = sum(p.numel() * p.element_size() for p in model.parameters())
+                self.model_weight_size_kb = param_bytes / 1024.0
+
+                import io
+                import torch
+                buf = io.BytesIO()
+                torch.save(model.state_dict(), buf)
+                self.model_file_size_kb = len(buf.getvalue()) / 1024.0
+            except Exception as e:
+                print(f"[MetricsRecorder] Warning computing model info from model instance: {e}")
+        elif self.model_name is not None and self.total_parameters is None:
+            try:
+                from models.factory import get_model
+                temp_m = get_model(self.model_name)
+                self.total_parameters = sum(p.numel() for p in temp_m.parameters())
+                self.trainable_parameters = sum(
+                    p.numel() for p in temp_m.parameters() if p.requires_grad
+                )
+                param_bytes = sum(p.numel() * p.element_size() for p in temp_m.parameters())
+                self.model_weight_size_kb = param_bytes / 1024.0
+                import io
+                import torch
+                buf = io.BytesIO()
+                torch.save(temp_m.state_dict(), buf)
+                self.model_file_size_kb = len(buf.getvalue()) / 1024.0
+            except Exception:
+                pass
+
+        if total_parameters is not None:
+            self.total_parameters = int(total_parameters)
+        if trainable_parameters is not None:
+            self.trainable_parameters = int(trainable_parameters)
+        if model_weight_size_kb is not None:
+            self.model_weight_size_kb = float(model_weight_size_kb)
+        if model_file_size_kb is not None:
+            self.model_file_size_kb = float(model_file_size_kb)
 
     # ───────────────────────────────────────────────────────────
     # Recording Hooks
@@ -306,7 +386,10 @@ class FLMetricsRecorder:
             "eval_loss": round(eval_loss, 6) if eval_loss is not None else None,
             "eval_accuracy": round(eval_acc, 6) if eval_acc is not None else None,
             "mcta": round(self.mcta_history.get(server_round, 0.0), 6) if server_round in self.mcta_history else None,
+            "mctl": round(self.mctl_history.get(server_round, 0.0), 6) if server_round in self.mctl_history else None,
             "bmcta": round(self.bmcta, 6) if self.bmcta > 0 else None,
+            "bmcta_round": self.bmcta_round if self.bmcta > 0 else None,
+            "bmcta_loss": round(self.bmcta_loss, 6) if self.bmcta_loss is not None else None,
             "wcta": round(self.wcta_history.get(server_round, 0.0), 6) if server_round in self.wcta_history else None,
             "bta": round(self.bta, 6) if self.bta > 0 else None,
             "client_train_time_avg": round(c_avg, 4),
@@ -364,10 +447,11 @@ class FLMetricsRecorder:
         metrics_aggregated: Dict[str, Any],
         local_test: bool = False,
     ):
-        """Record federated client evaluation results, compute MCTA, WCTA, and track BMCTA/BTA."""
+        """Record federated client evaluation results, compute MCTA, WCTA, MCTL, and track BMCTA/BTA/BMCTA Loss."""
         self.local_test_enabled = bool(local_test)
         client_eval_entries = []
         client_accuracies = []
+        client_losses = []
 
         for client_proxy, eval_res in results:
             m = eval_res.metrics or {}
@@ -392,16 +476,20 @@ class FLMetricsRecorder:
             self.client_eval_records.append(entry)
             client_eval_entries.append(entry)
             client_accuracies.append(acc)
+            client_losses.append(loss)
 
         mcta = float(np.mean(client_accuracies)) if client_accuracies else 0.0
         wcta = float(metrics_aggregated.get("accuracy", 0.0))
+        mctl = float(np.mean(client_losses)) if client_losses else 0.0
 
         self.mcta_history[server_round] = mcta
         self.wcta_history[server_round] = wcta
+        self.mctl_history[server_round] = mctl
 
         if mcta > self.bmcta:
             self.bmcta = mcta
             self.bmcta_round = server_round
+            self.bmcta_loss = mctl
 
         if self.bta == 0.0 or wcta > self.bta:
             self.bta = wcta
@@ -410,7 +498,9 @@ class FLMetricsRecorder:
         for r in self.round_records:
             if r["round"] == server_round:
                 r["mcta"] = round(mcta, 6)
+                r["mctl"] = round(mctl, 6)
                 r["bmcta"] = round(self.bmcta, 6)
+                r["bmcta_loss"] = round(self.bmcta_loss, 6) if self.bmcta_loss is not None else None
                 r["wcta"] = round(wcta, 6)
                 r["bta"] = round(self.bta, 6)
                 break
@@ -537,15 +627,66 @@ class FLMetricsRecorder:
             )
         )
 
+        final_eval_loss = (
+            self.round_records[-1].get("eval_loss")
+            if self.round_records and self.round_records[-1].get("eval_loss") is not None
+            else (
+                self.round_records[-1].get("mctl")
+                if self.round_records and self.round_records[-1].get("mctl") is not None
+                else None
+            )
+        )
+        best_eval_loss = (
+            self.best_eval_loss
+            if self.best_eval_loss != float("inf")
+            else (
+                self.bmcta_loss
+                if self.bmcta_loss is not None
+                else None
+            )
+        )
+        final_eval_acc = (
+            self.round_records[-1].get("eval_accuracy")
+            if self.round_records and self.round_records[-1].get("eval_accuracy") is not None
+            else (
+                self.round_records[-1].get("mcta")
+                if self.round_records and self.round_records[-1].get("mcta") is not None
+                else None
+            )
+        )
+        best_eval_acc = (
+            self.best_eval_accuracy
+            if self.best_eval_accuracy > 0
+            else (
+                self.bmcta
+                if self.bmcta > 0
+                else None
+            )
+        )
+
         summary = {
             "strategy": self.strategy_name,
+            "model_name": self.model_name,
+            "total_parameters": self.total_parameters,
+            "trainable_parameters": self.trainable_parameters,
+            "weight_payload_size_kb": round(self.model_weight_size_kb, 2)
+            if self.model_weight_size_kb is not None
+            else None,
+            "checkpoint_file_size_kb": round(self.model_file_size_kb, 2)
+            if self.model_file_size_kb is not None
+            else None,
             "total_rounds": len(self.round_records),
             "total_time_seconds": round(total_time, 2),
             "avg_round_time_seconds": round(avg_round, 2),
             "best_metric": round(best_metric, 4),
             "best_round": self.best_eval_round,
+            "best_eval_accuracy": round(best_eval_acc, 4) if best_eval_acc is not None else None,
+            "final_eval_accuracy": round(final_eval_acc, 4) if final_eval_acc is not None else None,
+            "best_eval_loss": round(best_eval_loss, 4) if best_eval_loss is not None else None,
+            "final_eval_loss": round(final_eval_loss, 4) if final_eval_loss is not None else None,
             "bmcta": round(self.bmcta, 4) if self.bmcta > 0 else None,
             "bmcta_round": self.bmcta_round if self.bmcta > 0 else None,
+            "bmcta_loss": round(self.bmcta_loss, 4) if self.bmcta_loss is not None else None,
             "bta": round(self.bta, 4) if self.bta > 0 else None,
             "bta_round": self.bta_round if self.bta > 0 else None,
             "local_test_enabled": self.local_test_enabled,
@@ -646,7 +787,10 @@ class FLMetricsRecorder:
             "eval_loss",
             "eval_accuracy",
             "mcta",
+            "mctl",
             "bmcta",
+            "bmcta_round",
+            "bmcta_loss",
             "wcta",
             "bta",
             "client_train_time_avg",
@@ -900,6 +1044,30 @@ class FLMetricsRecorder:
             if self.round_records and self.round_records[-1]["eval_loss"] is not None
             else None
         )
+        final_client_test_acc = (
+            self.round_records[-1].get("mcta")
+            if self.round_records and self.round_records[-1].get("mcta") is not None
+            else None
+        )
+        final_client_test_loss = (
+            self.round_records[-1].get("mctl")
+            if self.round_records and self.round_records[-1].get("mctl") is not None
+            else None
+        )
+
+        best_eval_acc_val = (
+            round(self.best_eval_accuracy, 4)
+            if self.best_eval_accuracy > 0
+            else (round(self.bmcta, 4) if self.bmcta > 0 else None)
+        )
+        best_eval_loss_val = (
+            round(self.best_eval_loss, 4)
+            if self.best_eval_loss != float("inf")
+            else (round(self.bmcta_loss, 4) if self.bmcta_loss is not None else None)
+        )
+        final_eval_acc_resolved = final_eval_acc if final_eval_acc is not None else final_client_test_acc
+        final_eval_loss_resolved = final_eval_loss if final_eval_loss is not None else final_client_test_loss
+
         final_train_acc = (
             self.round_records[-1]["train_accuracy_avg"]
             if self.round_records
@@ -961,26 +1129,61 @@ class FLMetricsRecorder:
                 "best_global_loss": round(self.best_eval_loss, 4)
                 if self.best_eval_loss != float("inf")
                 else None,
+                "final_eval_accuracy": round(final_eval_acc_resolved, 4) if final_eval_acc_resolved is not None else None,
+                "best_eval_accuracy": best_eval_acc_val,
+                "final_eval_loss": round(final_eval_loss_resolved, 4) if final_eval_loss_resolved is not None else None,
+                "best_eval_loss": best_eval_loss_val,
+                "final_client_test_accuracy": round(final_client_test_acc, 4) if final_client_test_acc is not None else None,
+                "final_client_test_loss": round(final_client_test_loss, 4) if final_client_test_loss is not None else None,
                 "final_train_loss_avg": final_train_loss,
                 "final_train_accuracy_avg": final_train_acc,
                 "total_communication_kb": round(total_comm_kb, 2),
                 "total_communication_mb": round(total_comm_kb / 1024.0, 2),
+                "model_name": self.model_name,
+                "total_parameters": self.total_parameters,
+                "trainable_parameters": self.trainable_parameters,
+                "weight_payload_size_kb": round(self.model_weight_size_kb, 2)
+                if self.model_weight_size_kb is not None
+                else None,
+                "checkpoint_file_size_kb": round(self.model_file_size_kb, 2)
+                if self.model_file_size_kb is not None
+                else None,
                 "bmcta": round(self.bmcta, 4) if self.bmcta > 0 else None,
                 "bmcta_round": self.bmcta_round if self.bmcta > 0 else None,
+                "bmcta_loss": round(self.bmcta_loss, 4) if self.bmcta_loss is not None else None,
                 "bta": round(self.bta, 4) if self.bta > 0 else None,
                 "bta_round": self.bta_round if self.bta > 0 else None,
                 "local_test_enabled": self.local_test_enabled,
+            },
+            "model_info": {
+                "model_name": self.model_name,
+                "total_parameters": self.total_parameters,
+                "trainable_parameters": self.trainable_parameters,
+                "weight_payload_size_kb": round(self.model_weight_size_kb, 2)
+                if self.model_weight_size_kb is not None
+                else None,
+                "weight_payload_size_mb": round(self.model_weight_size_kb / 1024.0, 3)
+                if self.model_weight_size_kb is not None
+                else None,
+                "checkpoint_file_size_kb": round(self.model_file_size_kb, 2)
+                if self.model_file_size_kb is not None
+                else None,
+                "checkpoint_file_size_mb": round(self.model_file_size_kb / 1024.0, 3)
+                if self.model_file_size_kb is not None
+                else None,
             },
             "paper_benchmark_metrics": {
                 "local_test_enabled": self.local_test_enabled,
                 "bmcta": round(self.bmcta, 4) if self.bmcta > 0 else None,
                 "bmcta_round": self.bmcta_round if self.bmcta > 0 else None,
+                "bmcta_loss": round(self.bmcta_loss, 4) if self.bmcta_loss is not None else None,
                 "bta": round(self.bta, 4) if self.bta > 0 else None,
                 "bta_round": self.bta_round if self.bta > 0 else None,
                 "mcta_trajectory": [
                     {
                         "round": r,
                         "mcta": round(self.mcta_history[r], 4),
+                        "mctl": round(self.mctl_history[r], 4) if r in self.mctl_history else None,
                         "wcta": round(self.wcta_history[r], 4),
                     }
                     for r in sorted(self.mcta_history.keys())
@@ -1427,7 +1630,7 @@ class FLMetricsRecorder:
         # 5. fl_summary_card.png (Visual Dashboard Card)
         # -------------------------------------------------------------
         try:
-            fig, ax = plt.subplots(figsize=(10, 12))
+            fig, ax = plt.subplots(figsize=(10, 15.5))
             ax.axis("off")
 
             # Colors
@@ -1437,14 +1640,14 @@ class FLMetricsRecorder:
             c_row_light = "#f2f7fb"
             c_row_dark = "#ffffff"
 
-            y = 0.98
+            y = 0.985
 
             def draw_sec_header(ax, y_pos, title, col):
                 ax.add_patch(
                     patches.Rectangle(
-                        (0, y_pos - 0.03),
+                        (0, y_pos - 0.026),
                         1,
-                        0.035,
+                        0.030,
                         transform=ax.transAxes,
                         color=col,
                         zorder=2,
@@ -1452,97 +1655,200 @@ class FLMetricsRecorder:
                 )
                 ax.text(
                     0.5,
-                    y_pos - 0.012,
+                    y_pos - 0.010,
                     title,
                     transform=ax.transAxes,
                     ha="center",
                     va="center",
-                    fontsize=12,
+                    fontsize=11.5,
                     fontweight="bold",
                     color="white",
                     zorder=3,
                 )
-                return y_pos - 0.035
+                return y_pos - 0.030
 
             def draw_entry(ax, y_pos, label, value, bg_col):
                 ax.add_patch(
                     patches.Rectangle(
-                        (0, y_pos - 0.026),
+                        (0, y_pos - 0.022),
                         1,
-                        0.028,
+                        0.024,
                         transform=ax.transAxes,
                         color=bg_col,
                         zorder=2,
                     )
                 )
                 ax.text(
-                    0.05,
-                    y_pos - 0.013,
+                    0.04,
+                    y_pos - 0.011,
                     label,
                     transform=ax.transAxes,
                     ha="left",
                     va="center",
-                    fontsize=10.5,
+                    fontsize=10.0,
                     color="#2c3e50",
                     fontweight="bold",
                     zorder=3,
                 )
                 ax.text(
-                    0.95,
-                    y_pos - 0.013,
+                    0.96,
+                    y_pos - 0.011,
                     str(value),
                     transform=ax.transAxes,
                     ha="right",
                     va="center",
-                    fontsize=10.5,
+                    fontsize=10.0,
                     color="#1a252f",
                     zorder=3,
                 )
-                return y_pos - 0.028
+                return y_pos - 0.024
 
             # Main Card Header
             ax.add_patch(
                 patches.Rectangle(
-                    (0, y - 0.05), 1, 0.06, transform=ax.transAxes, color=c_header, zorder=2
+                    (0, y - 0.045), 1, 0.052, transform=ax.transAxes, color=c_header, zorder=2
                 )
             )
             ax.text(
                 0.5,
-                y - 0.025,
-                f"FedMedAI — Federated Training Summary Card",
+                y - 0.021,
+                "FedMedAI — Federated Training Summary Card",
                 transform=ax.transAxes,
                 ha="center",
                 va="center",
-                fontsize=14,
+                fontsize=13.5,
                 fontweight="bold",
                 color="white",
                 zorder=3,
             )
-            y -= 0.065
+            y -= 0.056
 
-            # Section 1: Experiment Setup
-            y = draw_sec_header(ax, y, "1. EXPERIMENT SETUP", c_sec_a)
-            y = draw_entry(ax, y, "Strategy Algorithm", self.strategy_name.upper(), c_row_light)
+            # Section 1: Experiment & Model Setup
+            y = draw_sec_header(ax, y, "1. EXPERIMENT & MODEL SETUP", c_sec_a)
+            r_idx = 0
+
+            def next_bg():
+                nonlocal r_idx
+                bg = c_row_light if r_idx % 2 == 0 else c_row_dark
+                r_idx += 1
+                return bg
+
+            y = draw_entry(ax, y, "Strategy Algorithm", self.strategy_name.upper(), next_bg())
             if self.proximal_mu is not None:
-                y = draw_entry(ax, y, "FedProx Proximal Mu (μ)", str(self.proximal_mu), c_row_dark)
-            y = draw_entry(ax, y, "Total Rounds Completed", str(len(self.round_records)), c_row_light)
-            y = draw_entry(ax, y, "Active Clients Reporting", str(len(client_ids)), c_row_dark)
-            device_types = sorted(list(set(c["device_type"] for c in self.client_records)))
-            y = draw_entry(ax, y, "Device Classes Present", ", ".join(device_types), c_row_light)
-            y -= 0.015
+                y = draw_entry(ax, y, "FedProx Proximal Mu (μ)", str(self.proximal_mu), next_bg())
 
-            # Section 2: Model Performance
-            y = draw_sec_header(ax, y, "2. MODEL PERFORMANCE", c_sec_b)
-            final_eval_acc = (
-                f"{self.round_records[-1]['eval_accuracy']*100:.2f}%"
-                if self.round_records and self.round_records[-1]["eval_accuracy"] is not None
-                else "N/A"
-            )
-            best_eval_acc = (
-                f"{self.best_eval_accuracy*100:.2f}% (Round {self.best_eval_round})"
-                if self.best_eval_accuracy > 0
-                else "N/A"
-            )
+            # Model Architecture info
+            m_name_disp = (self.model_name or "CNN").upper()
+            y = draw_entry(ax, y, "Model Architecture", m_name_disp, next_bg())
+
+            # Total Parameters
+            if self.total_parameters is not None:
+                tr_info = f" (Trainable: {self.trainable_parameters:,})" if self.trainable_parameters is not None else ""
+                if self.total_parameters >= 1_000_000:
+                    param_str = f"{self.total_parameters:,} (~{self.total_parameters/1e6:.2f}M){tr_info}"
+                elif self.total_parameters >= 1_000:
+                    param_str = f"{self.total_parameters:,} (~{self.total_parameters/1e3:.1f}K){tr_info}"
+                else:
+                    param_str = f"{self.total_parameters:,}{tr_info}"
+            else:
+                param_str = "N/A"
+            y = draw_entry(ax, y, "Total Model Parameters", param_str, next_bg())
+
+            # Model Weight Payload & Checkpoint File Size
+            if self.model_weight_size_kb is not None:
+                weight_str = f"{self.model_weight_size_kb:.2f} KB ({self.model_weight_size_kb/1024.0:.3f} MB)"
+            else:
+                weight_str = "N/A"
+            y = draw_entry(ax, y, "Model Weights (In-Memory Payload)", weight_str, next_bg())
+
+            if self.model_file_size_kb is not None:
+                file_str = f"{self.model_file_size_kb:.2f} KB ({self.model_file_size_kb/1024.0:.3f} MB)"
+            else:
+                file_str = weight_str
+            y = draw_entry(ax, y, "Model Checkpoint File (.pth)", file_str, next_bg())
+
+            y = draw_entry(ax, y, "Total Rounds Completed", str(len(self.round_records)), next_bg())
+            y = draw_entry(ax, y, "Active Clients Reporting", str(len(client_ids)), next_bg())
+            device_types = sorted(list(set(c["device_type"] for c in self.client_records)))
+            y = draw_entry(ax, y, "Device Classes Present", ", ".join(device_types) if device_types else "N/A", next_bg())
+            y -= 0.010
+
+            # Section 2: Model Performance & Benchmark Metrics
+            y = draw_sec_header(ax, y, "2. MODEL PERFORMANCE & ACCURACY", c_sec_b)
+            r_idx = 0
+
+            # BMCTA and BMCTA Loss (FedSLD Paper & Client Local Test Benchmark)
+            if self.local_test_enabled or self.bmcta > 0:
+                bmcta_disp = (
+                    f"{self.bmcta*100:.2f}% (Round {self.bmcta_round})"
+                    if self.bmcta > 0
+                    else "N/A"
+                )
+                y = draw_entry(ax, y, "BMCTA (Best Mean Client Test Acc)", bmcta_disp, next_bg())
+
+                bmcta_loss_disp = (
+                    f"{self.bmcta_loss:.4f} (Round {self.bmcta_round})"
+                    if self.bmcta_loss is not None
+                    else "N/A"
+                )
+                y = draw_entry(ax, y, "BMCTA Loss (Best Client Eval Loss)", bmcta_loss_disp, next_bg())
+
+                final_c_test_acc = (
+                    f"{self.round_records[-1]['mcta']*100:.2f}%"
+                    if self.round_records and self.round_records[-1].get("mcta") is not None
+                    else "N/A"
+                )
+                final_c_test_loss = (
+                    f"{self.round_records[-1]['mctl']:.4f}"
+                    if self.round_records and self.round_records[-1].get("mctl") is not None
+                    else "N/A"
+                )
+                y = draw_entry(ax, y, "Final Client Test Accuracy (Avg)", final_c_test_acc, next_bg())
+                y = draw_entry(ax, y, "Final Client Test Loss (Eval Loss Avg)", final_c_test_loss, next_bg())
+
+                bta_disp = (
+                    f"{self.bta*100:.2f}% (Round {self.bta_round})"
+                    if self.bta > 0
+                    else "N/A"
+                )
+                y = draw_entry(ax, y, "BTA (Best Test Accuracy - Peak Client)", bta_disp, next_bg())
+
+            # Global Server Evaluation
+            fedbn_strats = ("fedbn", "proposed", "fedbns", "fedbn_scaffold", "bn_scaffold", "scaffold_fedbn")
+            is_bn_strat = self.strategy_name.lower() in fedbn_strats
+
+            if is_bn_strat and self.best_eval_accuracy == 0:
+                best_eval_acc = "Bypassed (Local BN retained on clients)"
+                final_eval_acc = "Bypassed (Client local test evaluated)"
+                best_eval_loss = "Bypassed"
+                final_eval_loss = "Bypassed"
+            else:
+                best_eval_acc = (
+                    f"{self.best_eval_accuracy*100:.2f}% (Round {self.best_eval_round})"
+                    if self.best_eval_accuracy > 0
+                    else "N/A"
+                )
+                best_eval_loss = (
+                    f"{self.best_eval_loss:.4f} (Round {self.best_eval_round})"
+                    if self.best_eval_loss != float("inf")
+                    else "N/A"
+                )
+                final_eval_acc = (
+                    f"{self.round_records[-1]['eval_accuracy']*100:.2f}%"
+                    if self.round_records and self.round_records[-1].get("eval_accuracy") is not None
+                    else "N/A"
+                )
+                final_eval_loss = (
+                    f"{self.round_records[-1]['eval_loss']:.4f}"
+                    if self.round_records and self.round_records[-1].get("eval_loss") is not None
+                    else "N/A"
+                )
+
+            y = draw_entry(ax, y, "Best Global Test Accuracy", best_eval_acc, next_bg())
+            y = draw_entry(ax, y, "Best Global Test Loss (Eval Loss)", best_eval_loss, next_bg())
+            y = draw_entry(ax, y, "Final Global Test Accuracy", final_eval_acc, next_bg())
+            y = draw_entry(ax, y, "Final Global Test Loss (Eval Loss)", final_eval_loss, next_bg())
+
             final_train_acc = (
                 f"{self.round_records[-1]['train_accuracy_avg']*100:.2f}%"
                 if self.round_records
@@ -1553,15 +1859,13 @@ class FLMetricsRecorder:
                 if self.round_records
                 else "N/A"
             )
-
-            y = draw_entry(ax, y, "Best Global Test Accuracy", best_eval_acc, c_row_light)
-            y = draw_entry(ax, y, "Final Global Test Accuracy", final_eval_acc, c_row_dark)
-            y = draw_entry(ax, y, "Final Client Train Accuracy (Avg)", final_train_acc, c_row_light)
-            y = draw_entry(ax, y, "Final Client Train Loss (Avg)", final_train_loss, c_row_dark)
-            y -= 0.015
+            y = draw_entry(ax, y, "Final Client Train Accuracy (Avg)", final_train_acc, next_bg())
+            y = draw_entry(ax, y, "Final Client Train Loss (Avg)", final_train_loss, next_bg())
+            y -= 0.010
 
             # Section 3: Time & System Heterogeneity
             y = draw_sec_header(ax, y, "3. SYSTEM TIMING & HETEROGENEITY", "#2d7f5e")
+            r_idx = 0
             total_wall_time = (
                 self.round_records[-1]["total_elapsed_seconds"]
                 if self.round_records
@@ -1580,21 +1884,21 @@ class FLMetricsRecorder:
                 y,
                 "Total Wall-Clock Time",
                 f"{total_wall_time:.1f}s ({total_wall_time/60:.2f} min)",
-                c_row_light,
+                next_bg(),
             )
             y = draw_entry(
                 ax,
                 y,
                 "Average Round Duration",
-                f"{avg_r_time:.2f}s (Min: {min(round_times):.1f}s, Max: {max(round_times):.1f}s)",
-                c_row_dark,
+                f"{avg_r_time:.2f}s (Min: {min(round_times):.1f}s, Max: {max(round_times):.1f}s)" if round_times else "0.0s",
+                next_bg(),
             )
             y = draw_entry(
                 ax,
                 y,
                 "Total Straggler Latency Penalty",
                 f"{total_straggler:.1f}s ({straggler_pct:.1f}% of wall time)",
-                c_row_light,
+                next_bg(),
             )
 
             # Per client compute speeds
@@ -1619,30 +1923,37 @@ class FLMetricsRecorder:
                     y,
                     "Fastest Client Compute (Avg)",
                     f"Client {fastest_c[0]}: {fastest_c[1]:.2f}s / round",
-                    c_row_dark,
+                    next_bg(),
                 )
                 y = draw_entry(
                     ax,
                     y,
                     "Slowest Client Compute (Avg)",
                     f"Client {slowest_c[0]}: {slowest_c[1]:.2f}s / round",
-                    c_row_light,
+                    next_bg(),
                 )
                 speedup = slowest_c[1] / max(0.001, fastest_c[1])
                 y = draw_entry(
-                    ax, y, "Compute Disparity Ratio", f"{speedup:.2f}x speed gap", c_row_dark
+                    ax, y, "Compute Disparity Ratio", f"{speedup:.2f}x speed gap", next_bg()
                 )
-            y -= 0.015
+            y -= 0.010
 
             # Section 4: Communication & Artifacts
-            y = draw_sec_header(ax, y, "4. COMMUNICATION & OUTPUT ARTIFACTS", "#8e44ad")
+            y = draw_sec_header(ax, y, "4. COMMUNICATION & ARTIFACTS", "#8e44ad")
+            r_idx = 0
             total_comm_kb = sum(r["total_weight_size_kb"] for r in self.round_records)
+            per_client_up = (
+                f"{self.model_weight_size_kb:.2f} KB / round"
+                if self.model_weight_size_kb is not None
+                else "N/A"
+            )
+            y = draw_entry(ax, y, "Model Weight Upload per Client", per_client_up, next_bg())
             y = draw_entry(
                 ax,
                 y,
                 "Total Client Upload Data",
                 f"{total_comm_kb/1024:.2f} MB ({total_comm_kb:.0f} KB)",
-                c_row_light,
+                next_bg(),
             )
 
             all_pings = [c["ping_ms"] for c in self.client_records if c.get("ping_ms") is not None]
@@ -1655,7 +1966,7 @@ class FLMetricsRecorder:
                     y,
                     "Client-to-Server Ping (Avg)",
                     f"{avg_p:.2f} ms (Min: {min_p:.2f} ms, Max: {max_p:.2f} ms)",
-                    c_row_dark,
+                    next_bg(),
                 )
 
             y = draw_entry(
@@ -1663,25 +1974,25 @@ class FLMetricsRecorder:
                 y,
                 "Output Data Formats",
                 "3 CSV tables (Client, Epoch, Round) + fl_results.json",
-                c_row_light if all_pings else c_row_dark,
+                next_bg(),
             )
             y = draw_entry(
                 ax,
                 y,
                 "Comparison Visualizations",
-                "5 publication-quality PNG charts",
-                c_row_dark if all_pings else c_row_light,
+                "5 publication-quality PNG charts + Summary Card",
+                next_bg(),
             )
 
             # Footer
             ax.text(
                 0.5,
-                0.02,
+                0.015,
                 f"Generated by FedMedAI Monitoring • {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}",
                 transform=ax.transAxes,
                 ha="center",
                 va="center",
-                fontsize=9,
+                fontsize=8.5,
                 color="#7f8c8d",
                 fontstyle="italic",
             )
@@ -1775,6 +2086,35 @@ class FLMetricsRecorder:
     ) -> Dict[str, Any]:
         """Save all CSV files, comparison plots, and rich fl_results.json."""
         os.makedirs(save_dir, exist_ok=True)
+
+        # 1. Resolve model metadata if passed via extra_metadata or inferrable
+        if extra_metadata:
+            m_name = extra_metadata.get("model") or extra_metadata.get("model_name")
+            if m_name and not self.model_name:
+                self.set_model_info(model_name=m_name)
+
+        # 2. Check for checkpoint files (.pth) already saved on disk
+        best_pth = os.path.join(save_dir, "best_model.pth")
+        final_pth = os.path.join(save_dir, "final_model.pth")
+        if os.path.exists(best_pth):
+            self.model_file_size_kb = os.path.getsize(best_pth) / 1024.0
+        elif os.path.exists(final_pth):
+            self.model_file_size_kb = os.path.getsize(final_pth) / 1024.0
+
+        # 3. Infer weight size from client records if not already populated
+        if self.model_weight_size_kb is None and self.client_records:
+            c_weights = [
+                c["weight_size_kb"]
+                for c in self.client_records
+                if c.get("weight_size_kb") is not None and c["weight_size_kb"] > 0
+            ]
+            if c_weights:
+                self.model_weight_size_kb = float(np.median(c_weights))
+
+        # 4. Infer parameters from model name if not already computed
+        if self.total_parameters is None and self.model_name:
+            self.set_model_info(model_name=self.model_name)
+
         csv_paths = self.export_csvs(save_dir)
         plot_paths = self.generate_plots(save_dir)
         json_path = self.export_json(

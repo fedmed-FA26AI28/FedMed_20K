@@ -638,6 +638,8 @@ def main():
     recorder = FLMetricsRecorder(
         strategy_name=args.strategy,
         proximal_mu=args.proximal_mu if args.strategy == "fedprox" else None,
+        model_name=args.model,
+        model=initial_model,
     )
 
     strategy_kwargs = {
@@ -730,6 +732,14 @@ def main():
     print(f"  Total Time     : {total_time:.1f}s ({total_time/60:.1f}min)")
     print(f"  Avg Round Time : {summary.get('avg_round_time_seconds', 0):.1f}s")
     print(f"  Best Metric    : {summary.get('best_metric', 'N/A')} (Round {summary.get('best_round', 'N/A')})")
+    if summary.get("bmcta") is not None:
+        print(f"  BMCTA          : {summary['bmcta']*100:.2f}% (Round {summary.get('bmcta_round', 'N/A')})")
+    if summary.get("bmcta_loss") is not None:
+        print(f"  BMCTA Loss     : {summary['bmcta_loss']:.4f}")
+    if summary.get("best_eval_loss") is not None:
+        print(f"  Best Eval Loss : {summary['best_eval_loss']:.4f}")
+    if summary.get("final_eval_loss") is not None:
+        print(f"  Final Eval Loss: {summary['final_eval_loss']:.4f}")
     print(f"  Early Stopped  : {summary.get('early_stopped', False)}")
     if "proximal_mu" in summary or args.strategy == "fedprox":
         print(f"  Proximal mu    : {summary.get('proximal_mu', getattr(args, 'proximal_mu', 'N/A'))}")
@@ -785,24 +795,37 @@ def main():
     if "tau_eff" in summary:
         extra_metadata["tau_eff"] = summary.get("tau_eff")
 
-    print("[Server] Generating and saving CSV metrics, comparison plots, and rich fl_results.json...")
-    saved_artifacts = strategy.save_artifacts(save_dir=save_dir, extra_metadata=extra_metadata)
-
-    # Save model weights checkpoints (best weights and final round weights)
+    # Save model weights checkpoints (best weights and final round weights) before saving artifacts
+    best_pth_size = None
     best_params = strategy.get_best_parameters()
     if best_params is not None:
         best_model = get_model(args.model, num_classes=num_classes)
         set_parameters(best_model, parameters_to_ndarrays(best_params))
         best_model_path = os.path.join(save_dir, "best_model.pth")
         torch.save(best_model.state_dict(), best_model_path)
-        print(f"  Saved Best Model Checkpoint: {os.path.basename(best_model_path)}")
+        best_pth_size = os.path.getsize(best_model_path) / 1024.0
+        print(f"  Saved Best Model Checkpoint: {os.path.basename(best_model_path)} ({best_pth_size:.2f} KB)")
 
     if server.parameters is not None:
         final_model = get_model(args.model, num_classes=num_classes)
         set_parameters(final_model, parameters_to_ndarrays(server.parameters))
         final_model_path = os.path.join(save_dir, "final_model.pth")
         torch.save(final_model.state_dict(), final_model_path)
-        print(f"  Saved Final Model Checkpoint: {os.path.basename(final_model_path)}")
+        final_pth_size = os.path.getsize(final_model_path) / 1024.0
+        print(f"  Saved Final Model Checkpoint: {os.path.basename(final_model_path)} ({final_pth_size:.2f} KB)")
+        if best_pth_size is None:
+            best_pth_size = final_pth_size
+
+    if recorder is not None:
+        recorder.set_model_info(
+            model_name=args.model,
+            model=initial_model,
+            model_file_size_kb=best_pth_size,
+        )
+
+    extra_metadata["model"] = args.model
+    print("[Server] Generating and saving CSV metrics, comparison plots, and rich fl_results.json...")
+    saved_artifacts = strategy.save_artifacts(save_dir=save_dir, extra_metadata=extra_metadata)
 
     print(f"\n{'='*60}")
     print(f"  FedMedAI FL Artifacts Saved Successfully!")

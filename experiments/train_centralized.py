@@ -20,7 +20,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import numpy as np
 
-from models import get_model, set_seed
+from models import get_model, set_seed, count_parameters
 from datasets.medmnist_code import get_medmnist_datasets, get_medmnist_dataloaders
 from client.train import train
 from client.evaluate import evaluate 
@@ -114,9 +114,9 @@ def plot_and_save_result(train_metrics, eval_metrics, save_dir):
     plt.close()
 
 
-def plot_summary_card(train_metrics, eval_metrics, resource_before, resource_after, dataset_info, save_dir):
+def plot_summary_card(train_metrics, eval_metrics, resource_before, resource_after, dataset_info, save_dir, model_info=None):
     """Generate and save an executive summary card of the centralized run."""
-    fig, ax = plt.subplots(figsize=(10, 12))
+    fig, ax = plt.subplots(figsize=(10, 13))
     ax.axis('off')
 
     # Color scheme
@@ -169,14 +169,26 @@ def plot_summary_card(train_metrics, eval_metrics, resource_before, resource_aft
     y -= 0.01
 
     # Section 2: Model Performance Metrics
-    y = draw_section_header(ax, y, 'MODEL METRICS (Test Set)', color_model)
-    rows = [
+    y = draw_section_header(ax, y, 'MODEL METRICS & SPECS (Test Set)', color_model)
+    rows = []
+    if model_info:
+        m_name = str(model_info.get("model_name", "CNN")).upper()
+        t_params = model_info.get("total_parameters")
+        p_str = f"{t_params:,} params" if t_params is not None else "N/A"
+        w_kb = model_info.get("weight_size_kb")
+        w_str = f"{w_kb:.2f} KB ({w_kb/1024.0:.3f} MB)" if w_kb is not None else "N/A"
+        rows.extend([
+            ('Model Architecture', m_name),
+            ('Total Parameters', p_str),
+            ('Model Weight Size', w_str),
+        ])
+    rows.extend([
         ('Loss', f"{eval_metrics['loss']:.4f}"),
         ('Accuracy', f"{eval_metrics['accuracy']:.4f}  ({eval_metrics['accuracy']*100:.2f}%)"),
         ('Precision (macro)', f"{eval_metrics['precision']:.4f}"),
         ('Recall    (macro)', f"{eval_metrics['recall']:.4f}"),
         ('F1-Score  (macro)', f"{eval_metrics['f1_score']:.4f}"),
-    ]
+    ])
     for i, (lbl, val) in enumerate(rows):
         y = draw_row(ax, y, lbl, val, color_row_a if i % 2 == 0 else color_row_b)
 
@@ -339,6 +351,14 @@ def run_centralized(
 
     plot_and_save_result(training_metrics, eval_metrics, save_dir)
 
+    tot_params, _ = count_parameters(model)
+    param_bytes = sum(p.numel() * p.element_size() for p in model.parameters())
+    model_info_card = {
+        "model_name": model_name,
+        "total_parameters": tot_params,
+        "weight_size_kb": param_bytes / 1024.0,
+    }
+
     plot_summary_card(
         train_metrics=training_metrics,
         eval_metrics=eval_metrics,
@@ -350,7 +370,8 @@ def run_centralized(
             "test_samples": len(test_data),
             "num_classes": num_classes
         },
-        save_dir=save_dir
+        save_dir=save_dir,
+        model_info=model_info_card,
     )
 
     results = {
