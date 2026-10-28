@@ -28,11 +28,17 @@ git config --global user.email "....@gmail.com"
 # ==========================================
 # 3. CLONE CODE & TẠO MÔI TRƯỜNG ẢO
 # ==========================================
-git clone https://github.com/fedmed-FA26AI28/FedMed_20K.git
+# Clone trực tiếp nhánh DuyKhang:
+git clone -b DuyKhang https://github.com/fedmed-FA26AI28/FedMed_20K.git
 cd FedMed_20K
 
 uv venv --python 3.10
 source .venv/bin/activate
+
+# Cài đặt PyTorch với CUDA 12.1 (đảm bảo nhận GPU):
+uv pip install torch torchvision --index-url https://download.pytorch.org/whl/cu121
+
+# Cài đặt các thư viện dự án:
 uv pip install -r requirements.txt
 # (hoặc: pip install -r requirements.txt)
 
@@ -98,15 +104,15 @@ head -n 30 "CSV file/master_runs.csv"
 # Bước 1: Commit & Đẩy kết quả lên nhánh của bạn:
 git add "CSV file/master_runs.csv"
 git commit -m "results: hoan thanh benchmark tren cloud gpu"
-git push origin <ten-nhanh-cua-ban>
+git push origin DuyKhang
 
 # Bước 2: Kiểm tra xác nhận kết quả đã nằm trên GitHub:
 # -> Cách 1 (Nhanh nhất): Xem trạng thái Git
-# Nếu hiện: "Your branch is up to date with 'origin/<ten-nhanh>'" và "nothing to commit" -> ĐÃ LÊN XONG 100%!
+# Nếu hiện: "Your branch is up to date with 'origin/DuyKhang'" và "nothing to commit" -> ĐÃ LÊN XONG 100%!
 git status
 
 # -> Cách 2: Xem commit mới nhất trên GitHub Remote:
-git log -1 --stat origin/<ten-nhanh-cua-ban>
+git log -1 --stat origin/DuyKhang
 
 # -> Cách 3: Dùng GitHub CLI kiểm tra commit vừa push lên repo:
 gh browse "CSV file/master_runs.csv"
