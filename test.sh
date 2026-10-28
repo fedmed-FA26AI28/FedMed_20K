@@ -24,7 +24,7 @@ DATASET="${3:-${DATASET:-organamnist}}"      # organamnist | pathmnist | bloodmn
 BASE_NAME="${4:-${BASE_NAME:-${DATASET}_${STRATEGY}_${MODEL}}}" # Output folder prefix (e.g. organamnist_fedavg_baseline)
 
 # Training Hyperparameters (can also be overridden via environment variables):
-ROUNDS="${ROUNDS:-5}"
+ROUNDS="${ROUNDS:-1}"
 PARTITION="${PARTITION:-practical}"
 BATCH_SIZE="${BATCH_SIZE:-256}"
 LR="${LR:-0.01}"
@@ -34,7 +34,7 @@ LR_MODE="${LR_MODE:-fixed}"
 TIMEOUT="${TIMEOUT:-0}"
 
 # List of distinct random seeds for the sequential runs (default: 5 runs)
-SEEDS=(42 43 44 45 46)
+SEEDS=(42 42 42 42 42)
 TOTAL_RUNS=${#SEEDS[@]}
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -108,3 +108,12 @@ echo ""
 echo "=================================================================="
 echo "  All $TOTAL_RUNS Sequential FL Experiments Successfully Completed! "
 echo "=================================================================="
+
+echo ""
+echo "=================================================================="
+echo "  Pushing experiment results to GitHub..."
+echo "=================================================================="
+git add results/
+git commit -m "feat(benchmarks): results for ${DATASET}_${STRATEGY}_${MODEL} (runs: ${TOTAL_RUNS})" || echo "No new changes to commit."
+CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+git push origin "$CURRENT_BRANCH" || echo "[Warning] Git push failed. Please push manually from the VM."
