@@ -310,10 +310,10 @@ class FedMedAIClient(fl.client.NumPyClient):
         strategy = str(config.get("strategy", self.strategy or "fedavg")).lower()
         num_model_layers = len(get_parameters(self.model))
         fedbn_strategies = (
-            "fedbn", "proposed", "fedbn_scaffold", "bn_scaffold", "scaffold_fedbn",
+            "fedbn", "proposed", "fedbns", "fedbn_scaffold", "bn_scaffold", "scaffold_fedbn",
         )
         scaffold_strategies = (
-            "scaffold", "proposed", "fedbn_scaffold", "bn_scaffold", "scaffold_fedbn",
+            "scaffold", "proposed", "fedbns", "fedbn_scaffold", "bn_scaffold", "scaffold_fedbn",
         )
         is_scaffold = (strategy in scaffold_strategies) or (len(parameters) == 2 * num_model_layers)
         is_fedbn = strategy in fedbn_strategies
@@ -616,7 +616,7 @@ class FedMedAIClient(fl.client.NumPyClient):
 
         strategy = str(config.get("strategy", self.strategy or "fedavg")).lower()
         fedbn_eval_strats = (
-            "fedbn", "proposed", "fedbn_scaffold", "bn_scaffold", "scaffold_fedbn",
+            "fedbn", "proposed", "fedbns", "fedbn_scaffold", "bn_scaffold", "scaffold_fedbn",
         )
         if strategy in fedbn_eval_strats:
             # Retain local BN statistics and evaluate non-BN global layers
@@ -786,8 +786,11 @@ def main():
             "fednova",
             "fedbn",
             "scaffold",
-            "fedbn_scaffold",
+            "fedbns",
             "proposed",
+            "fedbn_scaffold",
+            "cla",
+            "scr",
         ],
         help=f"FL strategy (default: {yaml_cfg.get('strategy', 'fedavg')})",
     )

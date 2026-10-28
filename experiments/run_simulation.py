@@ -733,10 +733,13 @@ STRATEGY_COLORS = {
     "fednova": "#ea580c",
     "fedbn": "#9333ea",
     "scaffold": "#dc2626",
+    "fedbns": "#0891b2",
     "fedbn_scaffold": "#0891b2",
     "bn_scaffold": "#0891b2",
     "scaffold_fedbn": "#0891b2",
     "proposed": "#0891b2",
+    "cla": "#ec4899",
+    "scr": "#eab308",
 }
 
 STRATEGY_MARKERS = {
@@ -745,10 +748,13 @@ STRATEGY_MARKERS = {
     "fednova": "^",
     "fedbn": "D",
     "scaffold": "v",
+    "fedbns": "P",
     "fedbn_scaffold": "P",
     "bn_scaffold": "P",
     "scaffold_fedbn": "P",
     "proposed": "P",
+    "cla": "p",
+    "scr": "*",
 }
 
 

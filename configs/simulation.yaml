@@ -33,9 +33,11 @@ partitions:
 #   - 'fednova'  : Normalized averaging for step heterogeneity (Wang et al., 2020)
 #   - 'fedbn'    : Local Batch Normalization for domain/feature shift (Li et al., 2021)
 #   - 'scaffold' : Control variates for client drift (Karimireddy et al., 2020)
-#   - 'proposed' : Proposed Strategy: FedBN + SCAFFOLD (alias: 'fedbn_scaffold')
+#   - 'fedbns'   : FedBN + SCAFFOLD (Dual-Heterogeneity, alias: 'proposed')
+#   - 'cla'      : Contrastive / Clustered Learning Aggregation (Skeleton)
+#   - 'scr'      : Selective Client Regularization / Representation (Skeleton)
 strategies:
-  - proposed
+  - fedbns
 
 # --- Training Hyperparameters ---
 rounds: 80                        # Total federated communication rounds
@@ -74,7 +76,7 @@ server_lr_min: 0.00001            # Minimum learning rate lower bound for server
 proximal_mu: 0.01                 # FedProx proximal coefficient (0.0 = FedAvg)
 
 # --- Server Evaluation & Metrics Tracking ---
-server_eval: true                 # Centralized evaluation on global test set
+server_eval: false                 # Centralized evaluation on global test set
 local_test: true                  # Partition test set across clients and track BMCTA/BTA (FedSLD metric)
 early_stop_patience: 0            # Rounds without improvement before stopping (0 = disabled)
 early_stop_metric: accuracy       # Target metric to monitor: 'accuracy' or 'loss'

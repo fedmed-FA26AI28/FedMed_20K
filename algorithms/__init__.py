@@ -8,7 +8,9 @@ Usage:
     strategy = get_strategy("fednova")
     strategy = get_strategy("fedbn")
     strategy = get_strategy("scaffold")
-    strategy = get_strategy("proposed")     # FedBN + SCAFFOLD
+    strategy = get_strategy("fedbns")       # FedBN + SCAFFOLD (alias: "proposed")
+    strategy = get_strategy("cla")          # CLA strategy skeleton
+    strategy = get_strategy("scr")          # SCR strategy skeleton
 """
 
 from algorithms.base import FedStrategyBase
@@ -17,12 +19,15 @@ from algorithms.fedprox import FedProxStrategy
 from algorithms.fednova import FedNovaStrategy
 from algorithms.fedbn import FedBNStrategy
 from algorithms.scaffold import SCAFFOLDStrategy
-from algorithms.proposed import (
+from algorithms.fedbns import (
+    FedBNSStrategy,
     FedProposedStrategy,
     ProposedStrategy,
     FedBNScaffoldStrategy,
     ScaffoldFedBNStrategy,
 )
+from algorithms.cla import CLAStrategy
+from algorithms.scr import SCRStrategy
 
 
 STRATEGY_REGISTRY = {
@@ -32,11 +37,15 @@ STRATEGY_REGISTRY = {
     "fednova": FedNovaStrategy,
     "fedbn": FedBNStrategy,
     "scaffold": SCAFFOLDStrategy,
-    # Proposed Strategy (FedBN + SCAFFOLD) & Aliases
+    # FedBNS (Proposed FedBN + SCAFFOLD) & Aliases
+    "fedbns": FedBNSStrategy,
     "proposed": ProposedStrategy,
     "fedbn_scaffold": FedBNScaffoldStrategy,
     "bn_scaffold": FedBNScaffoldStrategy,
     "scaffold_fedbn": ScaffoldFedBNStrategy,
+    # New Strategies (Skeletons)
+    "cla": CLAStrategy,
+    "scr": SCRStrategy,
 }
 
 
@@ -44,7 +53,7 @@ def get_strategy(name: str = "fedavg", **kwargs):
     """Factory function to create a strategy by name.
 
     Args:
-        name: One of 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold', 'proposed'.
+        name: One of 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold', 'fedbns', 'proposed', 'cla', 'scr'.
         **kwargs: Forwarded to the strategy constructor.
 
     Returns:
@@ -60,3 +69,22 @@ def get_strategy(name: str = "fedavg", **kwargs):
             f"Unknown strategy '{name}'. Available: {available}"
         )
     return STRATEGY_REGISTRY[key](**kwargs)
+
+
+__all__ = [
+    "FedStrategyBase",
+    "FedAvgStrategy",
+    "FedProxStrategy",
+    "FedNovaStrategy",
+    "FedBNStrategy",
+    "SCAFFOLDStrategy",
+    "FedBNSStrategy",
+    "FedProposedStrategy",
+    "ProposedStrategy",
+    "FedBNScaffoldStrategy",
+    "ScaffoldFedBNStrategy",
+    "CLAStrategy",
+    "SCRStrategy",
+    "STRATEGY_REGISTRY",
+    "get_strategy",
+]
