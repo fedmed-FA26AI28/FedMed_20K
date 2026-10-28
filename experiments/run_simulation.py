@@ -357,6 +357,10 @@ def run_single_experiment(
     random_crop: bool = True,
     random_flip: bool = True,
     client_module: str = "experiments.simulation_client",
+    coverage_kappa: float = 512.0,
+    coverage_mu_head: float = 0.1,
+    la_tau: float = 1.0,
+    la_epsilon: float = 1.0,
 ) -> Dict[str, Any]:
     """Execute a single FL training run (1 Server + N Clients) as isolated subprocesses."""
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -395,6 +399,10 @@ def run_single_experiment(
         "--lr_decay_gamma", str(lr_decay_gamma),
         "--server_lr_min", str(server_lr_min),
         "--proximal_mu", str(proximal_mu),
+        "--coverage_kappa", str(coverage_kappa),
+        "--coverage_mu_head", str(coverage_mu_head),
+        "--la_tau", str(la_tau),
+        "--la_epsilon", str(la_epsilon),
         "--early_stop_patience", str(early_stop_patience),
         "--early_stop_metric", early_stop_metric,
         "--host", host,
@@ -510,6 +518,10 @@ def run_single_experiment(
                 "--momentum", str(momentum),
                 "--weight_decay", str(weight_decay),
                 "--seed", str(seed),
+                "--coverage_kappa", str(coverage_kappa),
+                "--coverage_mu_head", str(coverage_mu_head),
+                "--la_tau", str(la_tau),
+                "--la_epsilon", str(la_epsilon),
             ]
             if local_test:
                 client_cmd.append("--local_test")
@@ -832,6 +844,7 @@ STRATEGY_COLORS = {
     "proposed": "#0891b2",
     "cla": "#ec4899",
     "scr": "#eab308",
+    "coverage_la": "#059669",
 }
 
 STRATEGY_MARKERS = {
@@ -847,6 +860,7 @@ STRATEGY_MARKERS = {
     "proposed": "P",
     "cla": "p",
     "scr": "*",
+    "coverage_la": "X",
 }
 
 
@@ -1155,7 +1169,7 @@ def main():
     parser.add_argument("--server_eval", dest="server_eval", action=argparse.BooleanOptionalAction, default=None)
     parser.add_argument("--local_test", dest="local_test", action=argparse.BooleanOptionalAction, default=None, help="Partition test set across clients and track BMCTA/BTA")
     parser.add_argument("--model", type=str, default=None, choices=["cnn", "baseline", "paper", "classic_cnn", "baseline_bn", "baselinecnn_bn", "classic_bn"], help="Model architecture ('cnn', 'baseline', or 'baseline_bn')")
-    parser.add_argument("--optimizer", type=str, default=None, choices=["adam", "sgd"], help="Optimizer type ('adam' or 'sgd')")
+    parser.add_argument("--optimizer", type=str, default=None, choices=["adam", "sgd", "adamw"], help="Optimizer type ('adam', 'sgd', or 'adamw')")
     parser.add_argument("--momentum", type=float, default=None, help="Momentum for SGD optimizer")
     parser.add_argument("--weight_decay", type=float, default=None, help="Weight decay penalty")
     parser.add_argument("--seed", type=int, default=None, help="Global random seed")
@@ -1172,6 +1186,10 @@ def main():
     parser.add_argument("--client_lr_factor", type=float, default=None, help="Factor for reducing client LR on plateau")
     parser.add_argument("--client_lr_min", type=float, default=None, help="Minimum client learning rate bound")
     parser.add_argument("--proximal_mu", type=float, default=None, help="Proximal coefficient for FedProx")
+    parser.add_argument("--coverage_kappa", type=float, default=None, help="Coverage anchoring parameter kappa")
+    parser.add_argument("--coverage_mu_head", type=float, default=None, help="Coverage head penalty intensity mu_head")
+    parser.add_argument("--la_tau", type=float, default=None, help="Logit adjustment intensity tau")
+    parser.add_argument("--la_epsilon", type=float, default=None, help="Logit adjustment label count smoothing epsilon")
 
     args = parser.parse_args()
     cfg = load_yaml_config(args.config)
@@ -1211,6 +1229,10 @@ def main():
     lr_decay_gamma = args.lr_decay_gamma if args.lr_decay_gamma is not None else cfg.get("lr_decay_gamma", 0.5)
     server_lr_min = args.server_lr_min if args.server_lr_min is not None else cfg.get("server_lr_min", cfg.get("lr_decay_min", 1e-5))
     proximal_mu = args.proximal_mu if args.proximal_mu is not None else cfg.get("proximal_mu", 0.01)
+    coverage_kappa = args.coverage_kappa if args.coverage_kappa is not None else cfg.get("coverage_kappa", 512.0)
+    coverage_mu_head = args.coverage_mu_head if args.coverage_mu_head is not None else cfg.get("coverage_mu_head", 0.1)
+    la_tau = args.la_tau if args.la_tau is not None else cfg.get("la_tau", 1.0)
+    la_epsilon = args.la_epsilon if args.la_epsilon is not None else cfg.get("la_epsilon", 1.0)
     early_stop_patience = args.early_stop_patience if args.early_stop_patience is not None else cfg.get("early_stop_patience", 0)
     early_stop_metric = args.early_stop_metric if args.early_stop_metric is not None else cfg.get("early_stop_metric", "accuracy")
     server_eval = args.server_eval if args.server_eval is not None else cfg.get("server_eval", True)
@@ -1331,6 +1353,10 @@ def main():
                     lr_decay_gamma=lr_decay_gamma,
                     server_lr_min=server_lr_min,
                     proximal_mu=proximal_mu,
+                    coverage_kappa=coverage_kappa,
+                    coverage_mu_head=coverage_mu_head,
+                    la_tau=la_tau,
+                    la_epsilon=la_epsilon,
                     early_stop_patience=early_stop_patience,
                     early_stop_metric=early_stop_metric,
                     server_eval=server_eval,

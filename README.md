@@ -51,7 +51,8 @@ FedMedAI_Study/
 │   ├── fednova.py              # FedNova strategy
 │   ├── fedbn.py                # FedBN strategy
 │   ├── scaffold.py             # SCAFFOLD strategy with control variates
-│   └── proposed.py             # Proposed Strategy (FedBN + SCAFFOLD)
+│   ├── proposed.py             # Proposed Strategy (FedBN + SCAFFOLD)
+│   └── coverage_la.py          # Coverage + Logit Adjustment (Coverage + LA)
 ├── client/                     # FL Client execution logic
 │   ├── client.py               # Main Flower client implementation and CLI
 │   ├── train.py                # Local training loop and optimizer handlers

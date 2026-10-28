@@ -11,6 +11,7 @@ Usage:
     strategy = get_strategy("fedbns")       # FedBN + SCAFFOLD (alias: "proposed")
     strategy = get_strategy("cla")          # CLA strategy skeleton
     strategy = get_strategy("scr")          # SCR strategy skeleton
+    strategy = get_strategy("coverage_la")  # Coverage + Logit Adjustment
 """
 
 from algorithms.base import FedStrategyBase
@@ -28,6 +29,7 @@ from algorithms.fedbns import (
 )
 from algorithms.cla import CLAStrategy
 from algorithms.scr import SCRStrategy
+from algorithms.coverage_la import CoverageLA_Strategy
 
 
 STRATEGY_REGISTRY = {
@@ -46,6 +48,8 @@ STRATEGY_REGISTRY = {
     # New Strategies (Skeletons)
     "cla": CLAStrategy,
     "scr": SCRStrategy,
+    # Coverage + Logit Adjustment
+    "coverage_la": CoverageLA_Strategy,
 }
 
 
@@ -53,7 +57,7 @@ def get_strategy(name: str = "fedavg", **kwargs):
     """Factory function to create a strategy by name.
 
     Args:
-        name: One of 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold', 'fedbns', 'proposed', 'cla', 'scr'.
+        name: One of 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold', 'fedbns', 'proposed', 'cla', 'scr', 'coverage_la'.
         **kwargs: Forwarded to the strategy constructor.
 
     Returns:
@@ -85,6 +89,7 @@ __all__ = [
     "ScaffoldFedBNStrategy",
     "CLAStrategy",
     "SCRStrategy",
+    "CoverageLA_Strategy",
     "STRATEGY_REGISTRY",
     "get_strategy",
 ]
