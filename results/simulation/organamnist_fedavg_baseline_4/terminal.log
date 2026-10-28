@@ -62,3 +62,50 @@ Generating multi-strategy comparison plots grouped by dataset...
   - Terminal Log         : terminal.log
 ===========================================================================
 
+
+======================================================================
+  FedMedAI Automated Simulation Benchmark
+======================================================================
+  Run Name         : organamnist_fedavg_baseline_4
+  Output Directory : results/simulation/organamnist_fedavg_baseline_4
+  Terminal Log     : results/simulation/organamnist_fedavg_baseline_4/terminal.log
+  Model            : BASELINE
+  Optimizer        : SGD (momentum=0.9)
+  Augmentation     : Disabled (crop=False, flip=False)
+  Seed             : 42
+  Clients          : 12
+  Rounds per Run   : 1
+  Local Epochs     : 5
+  Local Test Eval  : Enabled (BMCTA/BTA tracking)
+  Client Module    : client.client (Parallel Execution)
+  Timeout per Run  : Disabled (Infinite)
+  Datasets         : ['organamnist']
+  Partitions       : ['practical']
+  Strategies       : ['fedavg']
+  Total Runs Grid  : 1 combinations
+======================================================================
+
+Verifying data partition files for all dataset and partition combinations...
+
+>>> [Simulation Matrix 1/1] Starting: Dataset=organamnist | Partition=practical | Strategy=FEDAVG
+
+-----------------------------------------------------------------
+  Launching FL Server: FEDAVG | Model: BASELINE | Optimizer: SGD | Dataset: organamnist | Partition: practical | Port: 38845 | LocalTest: True | Seed: 42
+  Artifact Directory : results/simulation/organamnist_fedavg_baseline_4/organamnist/practical/fedavg
+-----------------------------------------------------------------
+  [Server] Listening. Launching 12 client workers (Module: client.client)...
+  [Fit] [FedAvg] Round 1 | 8.1s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 1 Eval | MCTA: 28.95% (BMCTA: 28.95% @ R1) | Combined: 35.03% (BTA: 35.03% @ R1)
+  [BestModel] Round 1: new best accuracy = 0.3503
+  [Success] Finished FEDAVG (practical) [Local Test]: BMCTA: 28.95% (R1) | BMCTA Loss: 2.0891 | BTA: 35.03% (R1) | Time: 8.1s
+
+Generating multi-strategy comparison plots grouped by dataset...
+
+===========================================================================
+  FedMedAI Simulation Complete! Total Wall-Clock Time: 0.3 minutes
+===========================================================================
+  Artifacts Saved in Directory: results/simulation/organamnist_fedavg_baseline_4
+  - Executive Report     : simulation_report.md
+  - Terminal Log         : terminal.log
+===========================================================================
+
