@@ -1,0 +1,47 @@
+
+======================================================================
+  FedMedAI Automated Simulation Benchmark
+======================================================================
+  Run Name         : pathmnist_fedbns_baseline_bn_1
+  Output Directory : results/simulation/pathmnist_fedbns_baseline_bn_1
+  Terminal Log     : results/simulation/pathmnist_fedbns_baseline_bn_1/terminal.log
+  Model            : BASELINE_BN
+  Optimizer        : SGD (momentum=0.9)
+  Augmentation     : Disabled (crop=False, flip=False)
+  Seed             : 42
+  Clients          : 12
+  Rounds per Run   : 80
+  Local Epochs     : 5
+  Local Test Eval  : Enabled (BMCTA/BTA tracking)
+  Client Module    : client.client (Parallel Execution)
+  Timeout per Run  : Disabled (Infinite)
+  Datasets         : ['pathmnist']
+  Partitions       : ['practical']
+  Strategies       : ['fedbns']
+  Total Runs Grid  : 1 combinations
+======================================================================
+
+Verifying data partition files for all dataset and partition combinations...
+
+>>> [Simulation Matrix 1/1] Starting: Dataset=pathmnist | Partition=practical | Strategy=FEDBNS
+
+-----------------------------------------------------------------
+  Launching FL Server: FEDBNS | Model: BASELINE_BN | Optimizer: SGD | Dataset: pathmnist | Partition: practical | Port: 38437 | LocalTest: True | Seed: 42
+  Artifact Directory : results/simulation/pathmnist_fedbns_baseline_bn_1/pathmnist/practical/fedbns
+-----------------------------------------------------------------
+
+  [Run Error] FEDBNS (practical) failed:
+Server on 127.0.0.1:38437 did not start listening within timeout.
+
+Traceback (most recent call last):
+  File "/home/ezycloudx-admin/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/home/ezycloudx-admin/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/home/ezycloudx-admin/FedMed_20K/experiments/run_simulation.py", line 1435, in <module>
+    main()
+  File "/home/ezycloudx-admin/FedMed_20K/experiments/run_simulation.py", line 1301, in main
+    metrics = run_single_experiment(
+  File "/home/ezycloudx-admin/FedMed_20K/experiments/run_simulation.py", line 659, in run_single_experiment
+    if server_log_reader is not None:
+UnboundLocalError: local variable 'server_log_reader' referenced before assignment
