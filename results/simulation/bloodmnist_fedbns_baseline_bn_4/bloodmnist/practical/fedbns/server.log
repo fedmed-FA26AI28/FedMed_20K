@@ -1,0 +1,86 @@
+
+============================================================
+  FedMedAI FL Server
+  Config Source: configs/simulation.yaml
+  Dataset      : bloodmnist (Classes: 8)
+  Model        : BASELINE_BN
+  Optimizer    : SGD (momentum=0.9)
+  Seed         : 42
+  Strategy     : FEDBNS
+  Server IPv4  : 10.10.102.172
+  Client Target: 10.10.102.172:42477
+  Rounds       : 80
+  Min Clients  : 12
+  Local Epochs : 5
+  LR Mode      : FIXED
+  Base LR      : 0.01
+  LR Policy    : Fixed constant learning rate across all rounds
+  Early Stop   : Patience=0 (metric: accuracy)
+  Server Eval  : False
+  Local Test   : True
+  Listen       : 127.0.0.1:42477
+============================================================
+
+  [Server] Centralized server evaluation is disabled.
+           Model performance is evaluated via distributed client evaluation.
+[Server] Strategy created: FedBNSStrategy
+[Server] Waiting for 12 clients on 127.0.0.1:42477 (Connect target: 10.10.102.172:42477)...
+
+[93mWARNING [0m:   DEPRECATED FEATURE: flwr.server.start_server() is deprecated.
+	Instead, use the `flower-superlink` CLI command to start a SuperLink as shown below:
+
+		$ flower-superlink --insecure
+
+	To view usage and all available options, run:
+
+		$ flower-superlink --help
+
+	Using `start_server()` is deprecated.
+
+            This is a deprecated feature. It will be removed
+            entirely in future versions of Flower.
+        
+[92mINFO [0m:      Starting Flower server, config: num_rounds=80, no round_timeout
+[92mINFO [0m:      Flower ECE: gRPC server running (80 rounds), SSL is disabled
+[92mINFO [0m:      [INIT]
+[92mINFO [0m:      Using initial global parameters provided by strategy
+[92mINFO [0m:      Starting evaluation of initial global parameters
+[92mINFO [0m:      Evaluation returned no results (`None`)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 1]
+[92mINFO [0m:      [Server] Config for Round 1: strategy=FEDBNS, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 5 (IPv4: 10.10.102.172, pc) | Client 3 (IPv4: 10.10.102.172, pc) | Client 11 (IPv4: 10.10.102.172, pc) | Client 4 (IPv4: 10.10.102.172, pc) | Client 7 (IPv4: 10.10.102.172, pc) | Client 9 (IPv4: 10.10.102.172, pc) | Client 1 (IPv4: 10.10.102.172, pc) | Client 8 (IPv4: 10.10.102.172, pc) | Client 10 (IPv4: 10.10.102.172, pc) | Client 0 (IPv4: 10.10.102.172, pc) | Client 6 (IPv4: 10.10.102.172, pc) | Client 2 (IPv4: 10.10.102.172, pc)
+[92mINFO [0m:      [FedBNS: FedBN+SCAFFOLD] Round 1 | 6.4s | clients=12 | c_norm=0.9139 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedBNS] Round 1 Eval | MCTA: 34.74% (BMCTA: 34.74% @ R1) | Combined: 29.70% (BTA: 29.70% @ R1)
+[92mINFO [0m:      [BestModel] Round 1: new best accuracy = 0.2970
+
+============================================================
+  [Server] Round 1 Distributed Client Evaluation
+  Loss: 1.8735 | Accuracy: 0.2970 (29.70%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 2]
+[92mINFO [0m:      [Server] Config for Round 2: strategy=FEDBNS, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 0 (IPv4: 10.10.102.172, pc) | Client 4 (IPv4: 10.10.102.172, pc) | Client 7 (IPv4: 10.10.102.172, pc) | Client 6 (IPv4: 10.10.102.172, pc) | Client 8 (IPv4: 10.10.102.172, pc) | Client 9 (IPv4: 10.10.102.172, pc) | Client 5 (IPv4: 10.10.102.172, pc) | Client 1 (IPv4: 10.10.102.172, pc) | Client 2 (IPv4: 10.10.102.172, pc) | Client 11 (IPv4: 10.10.102.172, pc) | Client 3 (IPv4: 10.10.102.172, pc) | Client 10 (IPv4: 10.10.102.172, pc)
+[92mINFO [0m:      [FedBNS: FedBN+SCAFFOLD] Round 2 | 1.4s | clients=12 | c_norm=0.8731 | local_bn=10
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedBNS] Round 2 Eval | MCTA: 34.48% (BMCTA: 34.74% @ R1) | Combined: 33.35% (BTA: 33.35% @ R2)
+[92mINFO [0m:      [BestModel] Round 2: new best accuracy = 0.3335
+
+============================================================
+  [Server] Round 2 Distributed Client Evaluation
+  Loss: 1.6956 | Accuracy: 0.3335 (33.35%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 3]
+[92mINFO [0m:      [Server] Config for Round 3: strategy=FEDBNS, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)

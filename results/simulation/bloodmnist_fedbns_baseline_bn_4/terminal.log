@@ -1,0 +1,48 @@
+
+======================================================================
+  FedMedAI Automated Simulation Benchmark
+======================================================================
+  Run Name         : bloodmnist_fedbns_baseline_bn_4
+  Output Directory : results/simulation/bloodmnist_fedbns_baseline_bn_4
+  Terminal Log     : results/simulation/bloodmnist_fedbns_baseline_bn_4/terminal.log
+  Model            : BASELINE_BN
+  Optimizer        : SGD (momentum=0.9)
+  Augmentation     : Disabled (crop=False, flip=False)
+  Seed             : 42
+  Clients          : 12
+  Rounds per Run   : 80
+  Local Epochs     : 5
+  Local Test Eval  : Enabled (BMCTA/BTA tracking)
+  Client Module    : client.client (Parallel Execution)
+  Timeout per Run  : Disabled (Infinite)
+  Datasets         : ['bloodmnist']
+  Partitions       : ['practical']
+  Strategies       : ['fedbns']
+  Total Runs Grid  : 1 combinations
+======================================================================
+
+Verifying data partition files for all dataset and partition combinations...
+
+>>> [Simulation Matrix 1/1] Starting: Dataset=bloodmnist | Partition=practical | Strategy=FEDBNS
+
+-----------------------------------------------------------------
+  Launching FL Server: FEDBNS | Model: BASELINE_BN | Optimizer: SGD | Dataset: bloodmnist | Partition: practical | Port: 42477 | LocalTest: True | Seed: 42
+  Artifact Directory : results/simulation/bloodmnist_fedbns_baseline_bn_4/bloodmnist/practical/fedbns
+-----------------------------------------------------------------
+  [Server] Listening. Launching 12 client workers (Module: client.client)...
+  [Progress] [FedBNS] Round 1 Eval | MCTA: 34.74% (BMCTA: 34.74% @ R1) | Combined: 29.70% (BTA: 29.70% @ R1)
+  [BestModel] Round 1: new best accuracy = 0.2970
+  [Progress] [FedBNS] Round 2 Eval | MCTA: 34.48% (BMCTA: 34.74% @ R1) | Combined: 33.35% (BTA: 33.35% @ R2)
+  [BestModel] Round 2: new best accuracy = 0.3335
+Traceback (most recent call last):
+  File "/home/ezycloudx-admin/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/home/ezycloudx-admin/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/home/ezycloudx-admin/FedMed_20K/experiments/run_simulation.py", line 1435, in <module>
+    main()
+  File "/home/ezycloudx-admin/FedMed_20K/experiments/run_simulation.py", line 1301, in main
+    metrics = run_single_experiment(
+  File "/home/ezycloudx-admin/FedMed_20K/experiments/run_simulation.py", line 634, in run_single_experiment
+    time.sleep(0.5)
+KeyboardInterrupt
