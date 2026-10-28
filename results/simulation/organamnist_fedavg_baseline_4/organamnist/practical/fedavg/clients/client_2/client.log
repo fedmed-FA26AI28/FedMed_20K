@@ -1,0 +1,110 @@
+[Client 2] Loading partition from data/partitions/partition_organamnist_practical_localtest_seed45_clients12.json
+[Client 2] Augmentation: augment=False, crop=False, flip=False
+[Client 2] Assigned 3796 training samples
+[Client 2] Using local test partition: 1743 samples
+[Client 2] [Ping] Init (init) -> 127.0.0.1:33849 | Latency: 0.04 ms | Status: SUCCESS
+[Client 2] Initialized on cuda (pc) | IPv4: 10.10.102.172 | train_samples=3796 | Optimizer: SGD | LR Mode: fixed (Initial LR: 0.01)
+[Client 2] Connecting to 127.0.0.1:33849...
+[93mWARNING [0m:   DEPRECATED FEATURE: flwr.client.start_numpy_client() is deprecated. 
+	Instead, use `flwr.client.start_client()` by ensuring you first call the `.to_client()` method as shown below: 
+	flwr.client.start_client(
+		server_address='<IP>:<PORT>',
+		client=FlowerClient().to_client(), # <-- where FlowerClient is of type flwr.client.NumPyClient object
+	)
+	Using `start_numpy_client()` is deprecated.
+
+            This is a deprecated feature. It will be removed
+            entirely in future versions of Flower.
+        
+[93mWARNING [0m:   DEPRECATED FEATURE: flwr.client.start_client() is deprecated.
+	Instead, use the `flower-supernode` CLI command to start a SuperNode as shown below:
+
+		$ flower-supernode --insecure --superlink='<IP>:<PORT>'
+
+	To view all available options, run:
+
+		$ flower-supernode --help
+
+	Using `start_client()` is deprecated.
+
+            This is a deprecated feature. It will be removed
+            entirely in future versions of Flower.
+        
+[92mINFO [0m:      
+[92mINFO [0m:      Received: train message d715169e-ea08-42d4-939b-79cd984d2597
+[Client 2] Round 1: Fixed LR = 0.010000
+[Client 2] [Ping] Round 1 (fit) -> 127.0.0.1:33849 | Latency: 0.04 ms | Status: SUCCESS
+  [Client] Epoch [1/5] LR=0.010000 | Loss=1.2645 Acc=0.7724 | 1.08s
+  [Client] Epoch [2/5] LR=0.010000 | Loss=0.5469 Acc=0.8267 | 0.28s
+  [Client] Epoch [3/5] LR=0.010000 | Loss=0.4693 Acc=0.8398 | 0.28s
+  [Client] Epoch [4/5] LR=0.010000 | Loss=0.3875 Acc=0.9031 | 0.26s
+  [Client] Epoch [5/5] LR=0.010000 | Loss=0.3520 Acc=0.9099 | 0.27s
+[Client 2] fit done | Round 1 | IPv4: 10.10.102.172 | loss=0.3520 acc=0.9099 | round_time=2.17s | avg_epoch=0.43s | weights=2233.2KB
+[92mINFO [0m:      Sent reply
+[92mINFO [0m:      
+[92mINFO [0m:      Received: evaluate message 54b84769-849d-461d-8361-9fd4b7d8ad83
+[Client 2] evaluate | loss=1.5160 acc=0.7395
+[92mINFO [0m:      Sent reply
+[92mINFO [0m:      
+[92mINFO [0m:      Received: train message 175589b9-d9c7-4a74-9611-530179b670b7
+[Client 2] Round 2: Fixed LR = 0.010000
+[Client 2] [Ping] Round 2 (fit) -> 127.0.0.1:33849 | Latency: 0.06 ms | Status: SUCCESS
+  [Client] Epoch [1/5] LR=0.010000 | Loss=0.6438 Acc=0.8477 | 0.50s
+  [Client] Epoch [2/5] LR=0.010000 | Loss=0.3741 Acc=0.9012 | 0.32s
+  [Client] Epoch [3/5] LR=0.010000 | Loss=0.3232 Acc=0.9078 | 0.29s
+  [Client] Epoch [4/5] LR=0.010000 | Loss=0.3083 Acc=0.9117 | 0.27s
+  [Client] Epoch [5/5] LR=0.010000 | Loss=0.2939 Acc=0.9128 | 0.26s
+[Client 2] fit done | Round 2 | IPv4: 10.10.102.172 | loss=0.2939 acc=0.9128 | round_time=1.63s | avg_epoch=0.33s | weights=2233.2KB
+[92mINFO [0m:      Sent reply
+[92mINFO [0m:      
+[92mINFO [0m:      Received: evaluate message 4626dda0-0386-4892-a042-06a29316340b
+[Client 2] evaluate | loss=0.7547 acc=0.8267
+[92mINFO [0m:      Sent reply
+[92mINFO [0m:      
+[92mINFO [0m:      Received: train message 12d6c972-fb5a-44b7-a835-af1437425dfc
+[Client 2] Round 3: Fixed LR = 0.010000
+[Client 2] [Ping] Round 3 (fit) -> 127.0.0.1:33849 | Latency: 0.02 ms | Status: SUCCESS
+  [Client] Epoch [1/5] LR=0.010000 | Loss=0.3728 Acc=0.9007 | 0.73s
+  [Client] Epoch [2/5] LR=0.010000 | Loss=0.2825 Acc=0.9260 | 0.36s
+  [Client] Epoch [3/5] LR=0.010000 | Loss=0.2557 Acc=0.9252 | 0.34s
+  [Client] Epoch [4/5] LR=0.010000 | Loss=0.2310 Acc=0.9349 | 0.26s
+  [Client] Epoch [5/5] LR=0.010000 | Loss=0.2113 Acc=0.9376 | 0.24s
+[Client 2] fit done | Round 3 | IPv4: 10.10.102.172 | loss=0.2113 acc=0.9376 | round_time=1.93s | avg_epoch=0.39s | weights=2233.2KB
+[92mINFO [0m:      Sent reply
+[92mINFO [0m:      
+[92mINFO [0m:      Received: evaluate message 1ec44bbf-5c0a-48dc-a7f0-52b8a6a0cb17
+[Client 2] evaluate | loss=0.5533 acc=0.8382
+[92mINFO [0m:      Sent reply
+[92mINFO [0m:      
+[92mINFO [0m:      Received: train message 50c00f63-9edf-4dd6-8942-2748cf79dfdb
+[Client 2] Round 4: Fixed LR = 0.010000
+[Client 2] [Ping] Round 4 (fit) -> 127.0.0.1:33849 | Latency: 0.06 ms | Status: SUCCESS
+  [Client] Epoch [1/5] LR=0.010000 | Loss=0.2981 Acc=0.9136 | 0.32s
+  [Client] Epoch [2/5] LR=0.010000 | Loss=0.2064 Acc=0.9402 | 0.29s
+  [Client] Epoch [3/5] LR=0.010000 | Loss=0.1827 Acc=0.9423 | 0.28s
+  [Client] Epoch [4/5] LR=0.010000 | Loss=0.1649 Acc=0.9494 | 0.28s
+  [Client] Epoch [5/5] LR=0.010000 | Loss=0.1566 Acc=0.9502 | 0.33s
+[Client 2] fit done | Round 4 | IPv4: 10.10.102.172 | loss=0.1566 acc=0.9502 | round_time=1.49s | avg_epoch=0.30s | weights=2233.2KB
+[92mINFO [0m:      Sent reply
+[92mINFO [0m:      
+[92mINFO [0m:      Received: evaluate message 68d9feac-899d-46fc-bad2-4ee79f524f14
+[Client 2] evaluate | loss=0.5283 acc=0.8216
+[92mINFO [0m:      Sent reply
+[92mINFO [0m:      
+[92mINFO [0m:      Received: train message aeec8ac2-06b0-4087-bf7a-33ef6f4ed9ba
+[Client 2] Round 5: Fixed LR = 0.010000
+[Client 2] [Ping] Round 5 (fit) -> 127.0.0.1:33849 | Latency: 0.02 ms | Status: SUCCESS
+  [Client] Epoch [1/5] LR=0.010000 | Loss=0.2464 Acc=0.9257 | 0.57s
+  [Client] Epoch [2/5] LR=0.010000 | Loss=0.1681 Acc=0.9470 | 0.36s
+  [Client] Epoch [3/5] LR=0.010000 | Loss=0.1468 Acc=0.9539 | 0.29s
+  [Client] Epoch [4/5] LR=0.010000 | Loss=0.1312 Acc=0.9560 | 0.26s
+  [Client] Epoch [5/5] LR=0.010000 | Loss=0.1199 Acc=0.9602 | 0.25s
+[Client 2] fit done | Round 5 | IPv4: 10.10.102.172 | loss=0.1199 acc=0.9602 | round_time=1.73s | avg_epoch=0.35s | weights=2233.2KB
+[92mINFO [0m:      Sent reply
+[92mINFO [0m:      
+[92mINFO [0m:      Received: evaluate message 80a06ade-a73a-4651-91d0-864e177b3bf9
+[Client 2] evaluate | loss=0.4598 acc=0.8319
+[92mINFO [0m:      Sent reply
+[92mINFO [0m:      
+[92mINFO [0m:      Received: reconnect message 37ea81a8-cab9-405e-b030-77beaa644057
+[92mINFO [0m:      Disconnect and shut down
