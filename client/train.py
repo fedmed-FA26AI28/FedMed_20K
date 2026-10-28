@@ -31,10 +31,14 @@ def train(
 
     # 1. Initialize Learning Rate Scheduler
     # - factor: reduce LR by multiplicative factor when validation loss plateaus
-    # - patience: epochs to wait before reducing LR
-    # - min_lr: lower bound for learning rate
-    scheduler = ReduceLROnPlateau(
-        optimizer, mode='min', factor=lr_factor, patience=lr_patience, min_lr=min_lr
+    # - patience: epochs to wait before reducing LR (set <= 0 or factor >= 1.0 to disable scheduler and fix LR)
+    use_scheduler = (lr_patience is not None and lr_patience > 0) and (lr_factor is not None and lr_factor < 1.0)
+    scheduler = (
+        ReduceLROnPlateau(
+            optimizer, mode='min', factor=lr_factor, patience=lr_patience, min_lr=min_lr
+        )
+        if use_scheduler
+        else None
     )
     
     # 2. Early stopping state
@@ -112,12 +116,12 @@ def train(
             print_str += f" | Val Loss: {val_epoch_loss:.4f}, Val Acc: {val_epoch_accuracy:.4f}"
             print(print_str)
             
-            old_lr = optimizer.param_groups[0]['lr']
-            scheduler.step(val_epoch_loss)
-            new_lr = optimizer.param_groups[0]['lr']
-            
-            if new_lr < old_lr:
-                print(f"   Val loss did not decrease, automatically reducing Learning Rate to {new_lr:.6f}")
+            if scheduler is not None:
+                old_lr = optimizer.param_groups[0]['lr']
+                scheduler.step(val_epoch_loss)
+                new_lr = optimizer.param_groups[0]['lr']
+                if new_lr < old_lr:
+                    print(f"   Val loss did not decrease, automatically reducing Learning Rate to {new_lr:.6f}")
                 
             # --- Early stopping on validation loss ---
             if val_epoch_loss < best_loss:
