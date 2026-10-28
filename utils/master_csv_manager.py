@@ -88,10 +88,19 @@ def normalize_run_id(run_id: str) -> str:
     r = str(run_id).strip().lower()
     if r in ("mean", "average", "avg"):
         return "average"
-    if re.match(r"^\d+$", r):
-        return f"run_{r}"
-    if re.match(r"^run\d+$", r):
-        return f"run_{r[3:]}"
+    
+    # Check if already in format run_X_seed_Y
+    m_full = re.match(r"^run_?(\d+)_seed_?(\d+)$", r)
+    if m_full:
+        return f"run_{m_full.group(1)}_seed_{m_full.group(2)}"
+
+    # Match simple number or run_X / runX
+    m_simple = re.match(r"^(?:run_?)?(\d+)$", r)
+    if m_simple:
+        num = int(m_simple.group(1))
+        seed = 42 + (num - 1)
+        return f"run_{num}_seed_{seed}"
+
     return r
 
 
@@ -116,7 +125,14 @@ def generate_initial_template_rows() -> List[Dict[str, Any]]:
     """Builds pre-populated benchmark template rows including Centralized and Federated strategies."""
     datasets = ["bloodmnist", "pathmnist", "organamnist"]
     models = ["baseline", "baseline_bn"]
-    runs = ["run_1", "run_2", "run_3", "run_4", "run_5", "average"]
+    runs = [
+        "run_1_seed_42",
+        "run_2_seed_43",
+        "run_3_seed_44",
+        "run_4_seed_45",
+        "run_5_seed_46",
+        "average",
+    ]
     rows = []
 
     for d in datasets:
@@ -197,7 +213,14 @@ def save_master_csv_with_spacing(df: pd.DataFrame, csv_path: Path):
             (df["model"].apply(normalize_model_name) == m)
         )
         group_df = df[mask]
-        run_order = ["run_1", "run_2", "run_3", "run_4", "run_5", "average"]
+        run_order = [
+            "run_1_seed_42",
+            "run_2_seed_43",
+            "run_3_seed_44",
+            "run_4_seed_45",
+            "run_5_seed_46",
+            "average",
+        ]
 
         ordered_rows = []
         for r in run_order:
@@ -353,7 +376,13 @@ def update_master_csv(
         (df["partition_method"].apply(normalize_partition_name) == p_norm) &
         (df["strategy"].apply(normalize_strategy_name) == s_norm) &
         (df["model"].apply(normalize_model_name) == m_norm) &
-        (df["run"].apply(normalize_run_id).isin(["run_1", "run_2", "run_3", "run_4", "run_5"]))
+        (df["run"].apply(normalize_run_id).isin([
+            "run_1_seed_42",
+            "run_2_seed_43",
+            "run_3_seed_44",
+            "run_4_seed_45",
+            "run_5_seed_46",
+        ]))
     )
 
     completed_runs = df[run_mask].copy()
