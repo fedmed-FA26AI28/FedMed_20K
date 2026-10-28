@@ -425,8 +425,11 @@ def main():
             "fednova",
             "fedbn",
             "scaffold",
-            "fedbn_scaffold",
+            "fedbns",
             "proposed",
+            "fedbn_scaffold",
+            "cla",
+            "scr",
         ],
         help=f"FL aggregation strategy (default: {yaml_cfg.get('strategy', 'fedavg')})",
     )
@@ -665,7 +668,7 @@ def main():
     }
 
     fedbn_strategies = (
-        "fedbn", "proposed",
+        "fedbn", "proposed", "fedbns",
         "fedbn_scaffold", "bn_scaffold", "scaffold_fedbn",
     )
 
@@ -683,12 +686,12 @@ def main():
     strat_key = args.strategy.lower()
     if strat_key == "fedprox":
         strategy_kwargs["proximal_mu"] = args.proximal_mu
-    elif strat_key in ("fedbn", "fednova"):
+    elif strat_key in ("fedbn", "fednova", "cla", "scr"):
         strategy_kwargs["model"] = initial_model
     elif strat_key in (
         "scaffold",
         "fedbn_scaffold", "bn_scaffold", "scaffold_fedbn",
-        "proposed",
+        "proposed", "fedbns",
     ):
         strategy_kwargs["num_total_clients"] = args.min_clients
         strategy_kwargs["model"] = initial_model
