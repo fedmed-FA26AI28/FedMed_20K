@@ -61,6 +61,7 @@ def get_device_ipv4() -> str:
     """
     try:
         s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.settimeout(1.0)
         s.connect(("8.8.8.8", 80))
         ip = s.getsockname()[0]
         s.close()
