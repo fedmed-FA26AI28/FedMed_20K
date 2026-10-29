@@ -245,6 +245,29 @@ def save_master_csv_with_spacing(df: pd.DataFrame, csv_path: Path):
         f.write(content)
     temp_csv.replace(csv_path)
 
+    # Automatically generate / update master_runs.xlsx with Sheet 1 ('All Runs') and Sheet 2 ('Average Only')
+    try:
+        export_master_excel(df, csv_path.parent / "master_runs.xlsx")
+    except Exception as e:
+        print(f"  [Notice] Could not update Excel workbook: {e}")
+
+
+def export_master_excel(df: pd.DataFrame, excel_path: Path):
+    """Exports both 'All Runs' and 'Averages' sheets into an Excel workbook."""
+    excel_path = Path(excel_path)
+    excel_path.parent.mkdir(parents=True, exist_ok=True)
+
+    # 1. Sheet 1: All Runs (ordered with proper columns)
+    all_runs_df = df[MASTER_COLUMNS].copy()
+
+    # 2. Sheet 2: Average Only
+    avg_mask = all_runs_df["run"].apply(normalize_run_id) == "average"
+    avg_df = all_runs_df[avg_mask].copy()
+
+    with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
+        all_runs_df.to_excel(writer, sheet_name="All Runs", index=False)
+        avg_df.to_excel(writer, sheet_name="Average Summary", index=False)
+
 
 def init_master_csv(file_path: Path) -> Path:
     """Ensures master_runs.csv exists. If not, creates it with full initial template and block spacing."""
