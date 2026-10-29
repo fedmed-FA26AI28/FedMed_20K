@@ -1,8 +1,8 @@
-
 Tải driver nvidia:
 sudo apt clean
 sudo apt update
 sudo apt install -y nvidia-driver-595-open
+sudo apt install tmux -y
 sudo reboot
 
 => Kết nối lại
@@ -29,3 +29,22 @@ Ví dụ:
 tail -f results/simulation/20261024_082211/organamnist/practical/fedavg/server.log
 
 tail -f results/simulation/20261024_082211/terminal.log
+
+Cách dùng TMUX
+  1. Connect via SSH to your VM and navigate to the project directory:
+    cd /path/to/FedMedAI_Study
+    chmod +x test.sh
+
+  2. Start a persistent session using tmux:
+    tmux new -s fed 
+    chạy test.sh ví dụ:
+    ./test.sh "fedprox" baseline_bn "bloodmnist organamnist pathmnist"
+    # Hoặc chạy chiến lược CLA (Coverage + Logit Adjustment):
+    ./test.sh "cla" baseline_bn "bloodmnist organamnist pathmnist"
+
+  3. Detach and disconnect safely:
+      • Press Ctrl + B, then release and press D.
+      • You can now safely close your SSH terminal or shut down your laptop; the experiments will keep running on the
+      VM GPU.
+  4. Reattach anytime to view live progress:
+    tmux attach -t fed

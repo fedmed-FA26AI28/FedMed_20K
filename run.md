@@ -170,7 +170,11 @@ Run client instances on each physical machine pointing to the server address:
 | Option | Type | Default | Description |
 | :--- | :---: | :---: | :--- |
 | `--config` | `str` | `configs/experiment.yaml` | Path to YAML experiment configuration file. |
-| `--strategy` | `str` | `proposed` | Aggregation strategy: `fedavg`, `fedprox`, `fednova`, `fedbn`, `scaffold`, `proposed`. |
+| `--strategy` | `str` | `proposed` | Aggregation strategy: `fedavg`, `fedprox`, `fednova`, `fedbn`, `scaffold`, `fedbns`, `proposed`, `cla`, `scr`. |
+| `--coverage_kappa` | `float` | `512.0` | CLA coverage anchoring parameter kappa (controls weight decay curve). |
+| `--coverage_mu_head` | `float` | `0.1` | CLA classifier head penalty intensity mu_head (anchors to global head). |
+| `--la_tau` | `float` | `1.0` | CLA Logit Adjustment intensity tau (shifts logits by class frequency). |
+| `--la_epsilon` | `float` | `1.0` | CLA Logit Adjustment smoothing epsilon for log counts. |
 | `--dataset` | `str` | `pathmnist` | Dataset name: `bloodmnist`, `pathmnist`, `organamnist`, `dermamnist`. |
 | `--model` | `str` | `cnn` | Model architecture: `cnn` or `baseline`. |
 | `--rounds` | `int` | `40` | Total communication rounds. |
@@ -194,6 +198,12 @@ Run client instances on each physical machine pointing to the server address:
 | `--dataset` | `str` | `pathmnist` | Dataset name: `bloodmnist`, `pathmnist`, `organamnist`, `dermamnist`. |
 | `--partition_mode` | `str` | `practical` | Partition mode (`practical`, `pathological`, `dirichlet_0.3`, etc.). |
 | `--num_clients` | `int` | `12` | Total number of clients in partition split. |
+| `--strategy` | `str` | `fedbns` | Client FL strategy (`fedavg`, `fedprox`, `fednova`, `fedbn`, `scaffold`, `fedbns`, `cla`, etc.). |
+| `--optimizer` | `str` | `sgd` | Client local optimizer: `adam`, `sgd`, or `adamw`. |
+| `--coverage_kappa` | `float` | `512.0` | CLA coverage anchoring parameter kappa. |
+| `--coverage_mu_head` | `float` | `0.1` | CLA classifier head penalty intensity mu_head. |
+| `--la_tau` | `float` | `1.0` | CLA Logit Adjustment intensity tau. |
+| `--la_epsilon` | `float` | `1.0` | CLA Logit Adjustment smoothing epsilon. |
 | `--device_type` | `str` | `pc` | Hardware profile identifier: `pc`, `jetson_orin`, `jetson_nano`. |
 | `--local_test` | `bool` | `True` | Load paired local test split for client evaluation. |
 | `--batch_size` | `int` | `256` | DataLoader mini-batch size. |
@@ -272,7 +282,8 @@ The simulation harness ([`experiments/run_simulation.py`](file:///D:/FPT/KLTN/FE
 | `fednova` | No | No | Normalized averaging resolves local step-count heterogeneity. |
 | `fedbn` | Yes | No | Local Batch Normalization mitigates feature/domain shift. |
 | `scaffold` | No | Yes | Control variates correct client drift from label non-IID. |
-| `proposed` | Yes | Yes | **Proposed Strategy**: Synergistic integration of FedBN and SCAFFOLD. |
+| `fedbns` (`proposed`) | Yes | Yes | **Proposed Strategy**: Synergistic integration of FedBN and SCAFFOLD. |
+| `cla` | No | No | **Coverage + Logit Adjustment (CoverageLA)**: Local classifier head anchoring penalty to global reference + class-frequency logit offset. |
 
 ### 4.2. Running Simulations
 
@@ -287,6 +298,10 @@ The simulation harness ([`experiments/run_simulation.py`](file:///D:/FPT/KLTN/FE
 - **Paper Baseline Replication** (FedSLD Table 2: 12 clients, Practical partition, SGD lr=0.01, batch 256, 80 rounds):
   ```bash
   python -m experiments.run_simulation --datasets pathmnist --partitions practical --strategies fedavg --model baseline --optimizer sgd --learning_rate 0.01 --lr_mode fixed --batch_size 256 --rounds 80 --local_test
+  ```
+- **CLA (Coverage + Logit Adjustment) Benchmark Run** (80 rounds, PathMNIST, baseline architecture):
+  ```bash
+  python -m experiments.run_simulation --datasets pathmnist --partitions practical --strategies cla --model baseline --optimizer sgd --rounds 80 --local_test
   ```
 - **Full Benchmark Suite on DermaMNIST**:
   ```bash
@@ -326,6 +341,10 @@ Simulation outputs are compiled in `results/simulation/<name_or_timestamp>/`:
 | `--local_test` | `local_test` | `True` | Partition test set across clients and record BMCTA / BTA. |
 | `--server_eval` | `server_eval` | `True` | Evaluate global test set at server. |
 | `--proximal_mu` | `proximal_mu` | `0.01` | Proximal penalty $\mu$ for FedProx. |
+| `--coverage_kappa` | `coverage_kappa` | `512.0` | CLA coverage anchoring parameter kappa ($\kappa > 0$). |
+| `--coverage_mu_head` | `coverage_mu_head` | `0.1` | CLA classifier head penalty intensity $\mu_{\text{head}} \ge 0$. |
+| `--la_tau` | `la_tau` | `1.0` | CLA Logit Adjustment intensity $\tau \ge 0$. |
+| `--la_epsilon` | `la_epsilon` | `1.0` | CLA Logit Adjustment smoothing $\epsilon > 0$. |
 | `--client_module` | `client_module` | `client.client` | Subprocess client engine (`client.client` for parallel; `experiments.simulation_client` for GPU lock). |
 | `--client_cpu_threads` | `client_cpu_threads` | `1` | PyTorch CPU threads per subprocess (prevents CPU thread thrashing). |
 | `--timeout_per_run` | `timeout_per_run` | `0` | Maximum timeout seconds per run (<=0 disables timeout). |

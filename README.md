@@ -17,7 +17,8 @@ FedMedAI is an enterprise-grade Federated Learning (FL) framework designed for m
   - `fednova`: Normalized averaging for step-count heterogeneity (Wang et al., 2020)
   - `fedbn`: Local Batch Normalization for feature/domain shift (Li et al., 2021)
   - `scaffold`: Control variates for client drift correction (Karimireddy et al., 2020)
-  - `proposed`: Synergistic integration of FedBN and SCAFFOLD (alias: `fedbn_scaffold`)
+  - `proposed`: Synergistic integration of FedBN and SCAFFOLD (alias: `fedbns`, `fedbn_scaffold`)
+  - `cla`: Coverage + Logit Adjustment (CoverageLA, local classifier anchoring & logit correction, alias: `coverage_la`)
 - **Non-IID Partition Schemes**:
   - `practical`: Shards per class modeling clinical institution size disparity (FedSLD benchmark). Fully generalized for arbitrary client counts $K \ge 1$ with exact 100% FedSLD reproduction when $K = 12$.
   - `pathological`: Subsets of classes assigned to clients, dynamically scaling to guarantee 100% class coverage across the federation without sample loss.
@@ -52,7 +53,7 @@ FedMedAI_Study/
 │   ├── fedbn.py                # FedBN strategy
 │   ├── scaffold.py             # SCAFFOLD strategy with control variates
 │   ├── proposed.py             # Proposed Strategy (FedBN + SCAFFOLD)
-│   └── coverage_la.py          # Coverage + Logit Adjustment (Coverage + LA)
+│   └── cla.py                  # CLA strategy (Coverage + Logit Adjustment)
 ├── client/                     # FL Client execution logic
 │   ├── client.py               # Main Flower client implementation and CLI
 │   ├── train.py                # Local training loop and optimizer handlers

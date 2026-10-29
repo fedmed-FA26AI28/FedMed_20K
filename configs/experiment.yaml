@@ -15,7 +15,7 @@
 dataset: pathmnist
 # Supported models: 'cnn' (Modern ~20K params with BatchNorm) or 'baseline' (FedSLD ~570K params)
 model: baseline
-optimizer: sgd                   # Client optimizer: 'adam' or 'sgd'
+optimizer: sgd                   # Client optimizer: 'adam', 'sgd', or 'adamw'
 momentum: 0.9                     # SGD momentum (0.0 for pure SGD)
 weight_decay: 1e-4                # L2 regularization penalty (0.0 to disable)
 seed: 42                          # Global random seed for reproducibility
@@ -34,7 +34,7 @@ num_clients: 12                   # Total number of physical clients participati
 min_clients: 12                   # Minimum connected clients before server starts the round
 
 # --- Server & FL Training Hyperparameters ---
-# Supported strategies: 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold', 'fedbns', 'proposed', 'cla', 'scr', 'coverage_la'
+# Supported strategies: 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold', 'fedbns', 'proposed', 'cla', 'coverage_la', 'scr'
 strategy: fedbns
 rounds: 40                        # Total federated communication rounds
 fl_rounds: 40                     # Alias for rounds
@@ -67,10 +67,10 @@ early_stop_metric: accuracy       # Target metric to monitor: 'accuracy' or 'los
 
 # --- Algorithm-Specific Hyperparameters ---
 proximal_mu: 0.01                 # FedProx proximal coefficient (0.0 = FedAvg)
-coverage_kappa: 512.0             # Coverage anchoring parameter kappa (Coverage + LA)
-coverage_mu_head: 0.1             # Head penalty intensity mu_head (Coverage + LA)
-la_tau: 1.0                       # Logit adjustment intensity tau (Coverage + LA)
-la_epsilon: 1.0                   # Logit adjustment label count smoothing epsilon (Coverage + LA)
+coverage_kappa: 512.0             # CLA coverage anchoring curve parameter kappa (kappa > 0)
+coverage_mu_head: 0.1             # CLA classifier head penalty intensity mu_head (mu_head >= 0)
+la_tau: 1.0                       # CLA logit adjustment intensity tau (tau >= 0)
+la_epsilon: 1.0                   # CLA logit adjustment label smoothing epsilon (epsilon > 0)
 
 # --- Hardware & Client Execution ---
 device_type: pc                   # Hardware profile: 'pc', 'jetson_orin', 'jetson_nano'

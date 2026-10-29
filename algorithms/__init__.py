@@ -9,9 +9,9 @@ Usage:
     strategy = get_strategy("fedbn")
     strategy = get_strategy("scaffold")
     strategy = get_strategy("fedbns")       # FedBN + SCAFFOLD (alias: "proposed")
-    strategy = get_strategy("cla")          # CLA strategy skeleton
+    strategy = get_strategy("cla")          # Coverage + Logit Adjustment (CoverageLA)
+    strategy = get_strategy("coverage_la")  # Coverage + Logit Adjustment (alias)
     strategy = get_strategy("scr")          # SCR strategy skeleton
-    strategy = get_strategy("coverage_la")  # Coverage + Logit Adjustment
 """
 
 from algorithms.base import FedStrategyBase
@@ -27,9 +27,8 @@ from algorithms.fedbns import (
     FedBNScaffoldStrategy,
     ScaffoldFedBNStrategy,
 )
-from algorithms.cla import CLAStrategy
+from algorithms.cla import CLAStrategy, CoverageLA_Strategy
 from algorithms.scr import SCRStrategy
-from algorithms.coverage_la import CoverageLA_Strategy
 
 
 STRATEGY_REGISTRY = {
@@ -45,11 +44,12 @@ STRATEGY_REGISTRY = {
     "fedbn_scaffold": FedBNScaffoldStrategy,
     "bn_scaffold": FedBNScaffoldStrategy,
     "scaffold_fedbn": ScaffoldFedBNStrategy,
-    # New Strategies (Skeletons)
+    # Coverage + Logit Adjustment (CLA / CoverageLA)
     "cla": CLAStrategy,
-    "scr": SCRStrategy,
-    # Coverage + Logit Adjustment
     "coverage_la": CoverageLA_Strategy,
+    "coveragela": CoverageLA_Strategy,
+    # New Strategies (Skeletons)
+    "scr": SCRStrategy,
 }
 
 
@@ -57,7 +57,7 @@ def get_strategy(name: str = "fedavg", **kwargs):
     """Factory function to create a strategy by name.
 
     Args:
-        name: One of 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold', 'fedbns', 'proposed', 'cla', 'scr', 'coverage_la'.
+        name: One of 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold', 'fedbns', 'proposed', 'cla', 'coverage_la', 'coveragela', 'scr'.
         **kwargs: Forwarded to the strategy constructor.
 
     Returns:
@@ -88,8 +88,8 @@ __all__ = [
     "FedBNScaffoldStrategy",
     "ScaffoldFedBNStrategy",
     "CLAStrategy",
-    "SCRStrategy",
     "CoverageLA_Strategy",
+    "SCRStrategy",
     "STRATEGY_REGISTRY",
     "get_strategy",
 ]
