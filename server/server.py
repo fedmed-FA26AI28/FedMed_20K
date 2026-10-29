@@ -318,7 +318,7 @@ def _make_on_fit_config_fn(
         if proximal_mu > 0.0:
             config["proximal_mu"] = proximal_mu
 
-        if strategy_name.lower() == "coverage_la":
+        if strategy_name.lower() in ("coverage_la", "cla", "coveragela"):
             config["coverage_kappa"] = float(coverage_kappa)
             config["coverage_mu_head"] = float(coverage_mu_head)
             config["la_tau"] = float(la_tau)
@@ -441,6 +441,7 @@ def main():
             "cla",
             "scr",
             "coverage_la",
+            "coveragela",
         ],
         help=f"FL aggregation strategy (default: {yaml_cfg.get('strategy', 'fedavg')})",
     )
@@ -664,7 +665,7 @@ def main():
         print(f"  LR Policy    : Fixed constant learning rate across all rounds")
     if args.strategy == "fedprox":
         print(f"  Proximal mu  : {args.proximal_mu}")
-    if args.strategy == "coverage_la":
+    if args.strategy.lower() in ("coverage_la", "cla", "coveragela"):
         print(f"  Coverage LA  : kappa={args.coverage_kappa}, mu_head={args.coverage_mu_head}, tau={args.la_tau}, eps={args.la_epsilon}")
     print(f"  Early Stop   : Patience={args.early_stop_patience} (metric: {args.early_stop_metric})")
     print(f"  Server Eval  : {args.server_eval}")
@@ -732,13 +733,14 @@ def main():
     strat_key = args.strategy.lower()
     if strat_key == "fedprox":
         strategy_kwargs["proximal_mu"] = args.proximal_mu
-    elif strat_key in ("fedbn", "fednova", "cla", "scr"):
+    elif strat_key in ("fedbn", "fednova", "scr"):
         strategy_kwargs["model"] = initial_model
-    elif strat_key == "coverage_la":
+    elif strat_key in ("coverage_la", "cla", "coveragela"):
         strategy_kwargs["coverage_kappa"] = args.coverage_kappa
         strategy_kwargs["coverage_mu_head"] = args.coverage_mu_head
         strategy_kwargs["la_tau"] = args.la_tau
         strategy_kwargs["la_epsilon"] = args.la_epsilon
+        strategy_kwargs["model"] = initial_model
     elif strat_key in (
         "scaffold",
         "fedbn_scaffold", "bn_scaffold", "scaffold_fedbn",
@@ -792,7 +794,7 @@ def main():
     print(f"  Early Stopped  : {summary.get('early_stopped', False)}")
     if "proximal_mu" in summary or args.strategy == "fedprox":
         print(f"  Proximal mu    : {summary.get('proximal_mu', getattr(args, 'proximal_mu', 'N/A'))}")
-    if "coverage_kappa" in summary or args.strategy == "coverage_la":
+    if "coverage_kappa" in summary or args.strategy.lower() in ("coverage_la", "cla", "coveragela"):
         print(f"  Coverage LA    : kappa={summary.get('coverage_kappa', getattr(args, 'coverage_kappa', 512.0))}, "
               f"mu_head={summary.get('coverage_mu_head', getattr(args, 'coverage_mu_head', 0.1))}, "
               f"tau={summary.get('la_tau', getattr(args, 'la_tau', 1.0))}, "

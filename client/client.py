@@ -432,6 +432,12 @@ class FedMedAIClient(fl.client.NumPyClient):
                         momentum=self.momentum,
                         weight_decay=self.weight_decay,
                     )
+                elif self.optimizer_name == "adamw":
+                    self.optimizer = optim.AdamW(
+                        self.model.parameters(),
+                        lr=self.learning_rate,
+                        weight_decay=self.weight_decay,
+                    )
                 else:
                     self.optimizer = optim.Adam(
                         self.model.parameters(),
@@ -516,7 +522,7 @@ class FedMedAIClient(fl.client.NumPyClient):
         la_offsets_tensor = None
         coverage_mu_head_val = 0.0
 
-        if strategy == "coverage_la":
+        if strategy in ("coverage_la", "cla", "coveragela"):
             cov_kappa = float(config.get("coverage_kappa", 512.0))
             cov_mu_head = float(config.get("coverage_mu_head", 0.1))
             la_tau = float(config.get("la_tau", 1.0))
@@ -912,6 +918,7 @@ def main():
             "cla",
             "scr",
             "coverage_la",
+            "coveragela",
         ],
         help=f"FL strategy (default: {yaml_cfg.get('strategy', 'fedavg')})",
     )

@@ -63,6 +63,10 @@ MOMENTUM="${MOMENTUM:-0.9}"
 OPTIMIZER="${OPTIMIZER:-sgd}"
 LR_MODE="${LR_MODE:-fixed}"
 TIMEOUT="${TIMEOUT:-0}"
+COVERAGE_KAPPA="${COVERAGE_KAPPA:-}"
+COVERAGE_MU_HEAD="${COVERAGE_MU_HEAD:-}"
+LA_TAU="${LA_TAU:-}"
+LA_EPSILON="${LA_EPSILON:-}"
 
 # List of random seeds for the sequential runs (default: 5 runs per config)
 SEEDS=(42 43 44 45 46)
@@ -152,6 +156,12 @@ for d_idx in "${!DATASETS[@]}"; do
             echo ""
             echo ">>> [Overall: $GLOBAL_RUN_COUNTER/$TOTAL_ALL_RUNS | $CURRENT_DATASET | $CURRENT_STRATEGY: Run $RUN_NUM/$RUNS_PER_CONFIG] (Seed: $SEED, Name: $RUN_NAME) <<<"
 
+            EXTRA_ARGS=()
+            [ -n "$COVERAGE_KAPPA" ] && EXTRA_ARGS+=(--coverage_kappa "$COVERAGE_KAPPA")
+            [ -n "$COVERAGE_MU_HEAD" ] && EXTRA_ARGS+=(--coverage_mu_head "$COVERAGE_MU_HEAD")
+            [ -n "$LA_TAU" ] && EXTRA_ARGS+=(--la_tau "$LA_TAU")
+            [ -n "$LA_EPSILON" ] && EXTRA_ARGS+=(--la_epsilon "$LA_EPSILON")
+
             python -u -m experiments.run_simulation \
                 --rounds "$ROUNDS" \
                 --lr_mode "$LR_MODE" \
@@ -166,7 +176,8 @@ for d_idx in "${!DATASETS[@]}"; do
                 --momentum "$MOMENTUM" \
                 --seed "$SEED" \
                 --timeout_per_run "$TIMEOUT" \
-                --name "$RUN_NAME"
+                --name "$RUN_NAME" \
+                "${EXTRA_ARGS[@]}"
 
             cleanup_between_runs
         done

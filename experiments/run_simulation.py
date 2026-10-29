@@ -842,9 +842,10 @@ STRATEGY_COLORS = {
     "bn_scaffold": "#0891b2",
     "scaffold_fedbn": "#0891b2",
     "proposed": "#0891b2",
-    "cla": "#ec4899",
+    "cla": "#059669",
     "scr": "#eab308",
     "coverage_la": "#059669",
+    "coveragela": "#059669",
 }
 
 STRATEGY_MARKERS = {
@@ -858,9 +859,10 @@ STRATEGY_MARKERS = {
     "bn_scaffold": "P",
     "scaffold_fedbn": "P",
     "proposed": "P",
-    "cla": "p",
+    "cla": "X",
     "scr": "*",
     "coverage_la": "X",
+    "coveragela": "X",
 }
 
 
