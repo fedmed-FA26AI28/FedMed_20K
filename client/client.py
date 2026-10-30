@@ -29,7 +29,7 @@ import flwr as fl
 from flwr.common import NDArrays, Scalar
 
 from models import get_model, set_seed, get_parameters, set_parameters, set_parameters_fedbn
-from datasets.medmnist_code import get_medmnist_datasets
+from datasets.medmnist_code import get_medmnist_client_datasets
 from datasets.partition import load_partition, get_client_dataloader, get_partition_path
 from utils.path_utils import sanitize_run_name
 
@@ -852,15 +852,7 @@ def main():
 
     print(f"[Client {args.client_id}] Loading partition from {partition_path}")
 
-    # Load dataset and partition
-    train_dataset, _, test_dataset, num_classes = get_medmnist_datasets(
-        args.dataset,
-        download=True,
-        augment=args.augment,
-        random_crop=args.random_crop,
-        random_flip=args.random_flip,
-    )
-    print(f"[Client {args.client_id}] Augmentation: augment={args.augment}, crop={args.random_crop}, flip={args.random_flip}")
+    # Resolve the assigned rows before opening the compressed image archive.
     client_indices = load_partition(partition_path, split="train")
 
     if args.client_id >= len(client_indices):
@@ -873,10 +865,29 @@ def main():
     my_indices = client_indices[args.client_id]
     print(f"[Client {args.client_id}] Assigned {len(my_indices)} training samples")
 
+    my_test_indices = None
+    if args.local_test:
+        client_test_indices = load_partition(partition_path, split="test")
+        if client_test_indices is not None and args.client_id < len(client_test_indices):
+            my_test_indices = client_test_indices[args.client_id]
+            print(f"[Client {args.client_id}] Using local test partition: {len(my_test_indices)} samples")
+        else:
+            print(f"[Client {args.client_id}] Warning: local_test requested but no test_indices found in partition. Falling back to global test set.")
+
+    train_dataset, test_dataset, num_classes = get_medmnist_client_datasets(
+        args.dataset,
+        my_indices,
+        test_indices=my_test_indices,
+        augment=args.augment,
+        random_crop=args.random_crop,
+        random_flip=args.random_flip,
+    )
+    print(f"[Client {args.client_id}] Augmentation: augment={args.augment}, crop={args.random_crop}, flip={args.random_flip}")
+
     # Create data loaders
     train_loader = get_client_dataloader(
         train_dataset,
-        my_indices,
+        range(len(my_indices)),
         client_id=args.client_id,
         device_type=args.device_type,
         batch_size=args.batch_size,
@@ -887,25 +898,16 @@ def main():
 
     from torch.utils.data import DataLoader
 
-    if args.local_test:
-        client_test_indices = load_partition(partition_path, split="test")
-        if client_test_indices is not None and args.client_id < len(client_test_indices):
-            my_test_indices = client_test_indices[args.client_id]
-            print(f"[Client {args.client_id}] Using local test partition: {len(my_test_indices)} samples")
-            test_loader = get_client_dataloader(
-                test_dataset,
-                my_test_indices,
-                client_id=args.client_id,
-                device_type=args.device_type,
-                batch_size=args.batch_size or 32,
-                shuffle=False,
-                num_workers=0,
-            )
-        else:
-            print(f"[Client {args.client_id}] Warning: local_test requested but no test_indices found in partition. Falling back to global test set.")
-            test_loader = DataLoader(
-                test_dataset, batch_size=32, shuffle=False, num_workers=0
-            )
+    if my_test_indices is not None:
+        test_loader = get_client_dataloader(
+            test_dataset,
+            range(len(my_test_indices)),
+            client_id=args.client_id,
+            device_type=args.device_type,
+            batch_size=args.batch_size or 32,
+            shuffle=False,
+            num_workers=0,
+        )
     else:
         test_loader = DataLoader(
             test_dataset, batch_size=32, shuffle=False, num_workers=0

@@ -14,6 +14,7 @@ import socket
 import subprocess
 import sys
 import time
+from collections import deque
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -111,7 +112,9 @@ def ensure_partition_exists(
     else:
         print(f"\n[Partition] Missing partition: {part_file.name}. Generating automatically (local_test={local_test})...")
 
-    train_dataset, _, test_dataset, _ = get_medmnist_datasets(dataset_name=dataset_name, download=True)
+    train_dataset, _, test_dataset, _ = get_medmnist_datasets(
+        dataset_name=dataset_name, download=True, load_val=False
+    )
     target_test_dataset = test_dataset if local_test else None
     
     if partition_mode == "pathological":
@@ -383,6 +386,15 @@ def run_single_experiment(
                 cid, err_code = failed_clients[0]
                 status = f"client_error({err_code})"
                 print(f"  [Error] Client {cid} exited with error code {err_code}!")
+                failed_log = clients_dir / f"client_{cid}" / "client.log"
+                print(f"  [Error] Client log: {failed_log}")
+                try:
+                    with open(failed_log, "r", encoding="utf-8", errors="replace") as log_file:
+                        recent_lines = deque(log_file, maxlen=60)
+                    if any("MemoryError" in line for line in recent_lines):
+                        print("  [Error] Client ran out of memory. Check available Windows commit/pagefile capacity.")
+                except OSError:
+                    pass
                 server_proc.kill()
                 for cp in client_procs:
                     cp.kill()
@@ -470,14 +482,15 @@ def run_single_experiment(
                 "run_dir": str(run_dir),
                 "rounds_history": rounds_history,
             }
+            outcome_label = "[Success] Finished" if status == "completed" else f"[Partial Recovery] {status}"
             if local_test and run_metrics.get("bmcta") is not None:
                 bmcta_str = f"BMCTA: {run_metrics['bmcta']*100:.2f}% (R{run_metrics.get('bmcta_round', 0)}) | "
                 bta_str = f"BTA: {run_metrics['bta']*100:.2f}% (R{run_metrics.get('bta_round', 0)}) | " if run_metrics.get("bta") is not None else ""
-                print(f"  [Success] Finished {strategy.upper()} ({partition_mode}) [Local Test]: "
+                print(f"  {outcome_label} {strategy.upper()} ({partition_mode}) [Local Test]: "
                       f"{bmcta_str}{bta_str}"
                       f"Time: {run_metrics['total_time_seconds']:.1f}s")
             else:
-                print(f"  [Success] Finished {strategy.upper()} ({partition_mode}): "
+                print(f"  {outcome_label} {strategy.upper()} ({partition_mode}): "
                       f"Best Acc: {run_metrics['best_test_accuracy']*100:.2f}% (R{run_metrics['best_round']}) | "
                       f"Time: {run_metrics['total_time_seconds']:.1f}s")
             return run_metrics
@@ -773,8 +786,13 @@ def generate_markdown_report(
             f.write("\n".join(lines))
         return
 
+    completed_df = df_summary[df_summary["status"] == "completed"] if "status" in df_summary.columns else df_summary
+    if completed_df.empty:
+        lines.append("No completed simulation runs; partial metrics below are diagnostic only.")
+        lines.append("")
+
     for d in datasets:
-        sub_d = df_summary[df_summary["dataset"] == d]
+        sub_d = completed_df[completed_df["dataset"] == d]
         if sub_d.empty:
             continue
         lines.append(f"### Dataset: **{d.upper()}**")
@@ -789,6 +807,7 @@ def generate_markdown_report(
     has_model = "model" in df_summary.columns
     has_opt = "optimizer" in df_summary.columns
     has_aug = "augment" in df_summary.columns
+    has_status = "status" in df_summary.columns
 
     model_hdr = " Model |" if has_model else ""
     model_sep = " :---: |" if has_model else ""
@@ -796,10 +815,12 @@ def generate_markdown_report(
     opt_sep = " :---: |" if has_opt else ""
     aug_hdr = " Aug |" if has_aug else ""
     aug_sep = " :---: |" if has_aug else ""
+    status_hdr = " Status |" if has_status else ""
+    status_sep = " :--- |" if has_status else ""
 
     if has_bmcta:
-        header = f"| Dataset |{model_hdr}{opt_hdr}{aug_hdr} Strategy | Partition | Final Acc (%) | Best Acc (%) | BMCTA (%) | BTA (%) | Best Round | Final Loss | Total Time |"
-        sep = f"| :--- |{model_sep}{opt_sep}{aug_sep} :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: |"
+        header = f"| Dataset |{model_hdr}{opt_hdr}{aug_hdr} Strategy | Partition |{status_hdr} Final Acc (%) | Best Acc (%) | BMCTA (%) | BTA (%) | Best Round | Final Loss | Total Time |"
+        sep = f"| :--- |{model_sep}{opt_sep}{aug_sep} :--- | :--- |{status_sep} :---: | :---: | :---: | :---: | :---: | :---: | :---: |"
         lines.extend([
             "---",
             "## 2. Full Simulation Results Matrix",
@@ -813,10 +834,11 @@ def generate_markdown_report(
             model_col = f"`{row['model']}` | " if has_model else ""
             opt_col = f"`{row['optimizer']}` | " if has_opt else ""
             aug_col = f"{'✅' if row.get('augment', True) else '❌'} | " if has_aug else ""
-            lines.append(f"| **{row['dataset']}** | {model_col}{opt_col}{aug_col}**{row['strategy'].upper()}** | `{row['partition_mode']}` | {row['final_test_accuracy']*100:.2f}% | **{row['best_test_accuracy']*100:.2f}%** | {bmcta_val} | {bta_val} | R{int(row['best_round'])} | {row['final_test_loss']:.4f} | {row['total_time_seconds']:.1f}s |")
+            status_col = f"`{row['status']}` | " if has_status else ""
+            lines.append(f"| **{row['dataset']}** | {model_col}{opt_col}{aug_col}**{row['strategy'].upper()}** | `{row['partition_mode']}` | {status_col}{row['final_test_accuracy']*100:.2f}% | **{row['best_test_accuracy']*100:.2f}%** | {bmcta_val} | {bta_val} | R{int(row['best_round'])} | {row['final_test_loss']:.4f} | {row['total_time_seconds']:.1f}s |")
     else:
-        header = f"| Dataset |{model_hdr}{opt_hdr}{aug_hdr} Strategy | Partition | Final Acc (%) | Best Acc (%) | Best Round | Final Loss | Total Time |"
-        sep = f"| :--- |{model_sep}{opt_sep}{aug_sep} :--- | :--- | :---: | :---: | :---: | :---: | :---: |"
+        header = f"| Dataset |{model_hdr}{opt_hdr}{aug_hdr} Strategy | Partition |{status_hdr} Final Acc (%) | Best Acc (%) | Best Round | Final Loss | Total Time |"
+        sep = f"| :--- |{model_sep}{opt_sep}{aug_sep} :--- | :--- |{status_sep} :---: | :---: | :---: | :---: | :---: |"
         lines.extend([
             "---",
             "## 2. Full Simulation Results Matrix",
@@ -828,7 +850,8 @@ def generate_markdown_report(
             model_col = f"`{row['model']}` | " if has_model else ""
             opt_col = f"`{row['optimizer']}` | " if has_opt else ""
             aug_col = f"{'✅' if row.get('augment', True) else '❌'} | " if has_aug else ""
-            lines.append(f"| **{row['dataset']}** | {model_col}{opt_col}{aug_col}**{row['strategy'].upper()}** | `{row['partition_mode']}` | {row['final_test_accuracy']*100:.2f}% | **{row['best_test_accuracy']*100:.2f}%** | R{int(row['best_round'])} | {row['final_test_loss']:.4f} | {row['total_time_seconds']:.1f}s |")
+            status_col = f"`{row['status']}` | " if has_status else ""
+            lines.append(f"| **{row['dataset']}** | {model_col}{opt_col}{aug_col}**{row['strategy'].upper()}** | `{row['partition_mode']}` | {status_col}{row['final_test_accuracy']*100:.2f}% | **{row['best_test_accuracy']*100:.2f}%** | R{int(row['best_round'])} | {row['final_test_loss']:.4f} | {row['total_time_seconds']:.1f}s |")
 
     with open(output_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))
@@ -966,6 +989,16 @@ def main():
     print(f"{'='*70}\n")
 
     print("Verifying data partition files for all dataset and partition combinations...")
+    # MedMNIST checks the full archive checksum when download=True. Do that once
+    # before starting 12 clients, then let workers read the verified cached file.
+    for d in dict.fromkeys(datasets):
+        print(f"  [Dataset] Verifying cached {d} archive...")
+        _, _, cached_test, _ = get_medmnist_datasets(
+            dataset_name=d, download=True,
+            load_train=False, load_val=False, load_test=True,
+        )
+        del cached_test
+
     partition_map: Dict[Tuple[str, str], Path] = {}
     for d in datasets:
         for p in partitions:
@@ -1057,11 +1090,18 @@ def main():
     df_summary.to_csv(summary_csv_path, index=False)
     df_history.to_csv(history_csv_path, index=False)
 
+    completed_runs = sum(row.get("status") == "completed" for row in results_list)
+    completed_df = df_summary[df_summary["status"] == "completed"] if "status" in df_summary.columns else df_summary
+
     print("\nGenerating multi-strategy comparison plots grouped by dataset...")
-    if not df_history.empty and "dataset" in df_history.columns:
+    if not completed_df.empty and not df_history.empty and "dataset" in df_history.columns:
+        completed_keys = completed_df[["dataset", "partition_mode", "strategy"]].drop_duplicates()
+        completed_history = df_history.merge(
+            completed_keys, on=["dataset", "partition_mode", "strategy"], how="inner"
+        )
         for d in datasets:
-            d_hist = df_history[df_history["dataset"] == d]
-            d_summ = df_summary[df_summary["dataset"] == d] if (not df_summary.empty and "dataset" in df_summary.columns) else pd.DataFrame()
+            d_hist = completed_history[completed_history["dataset"] == d]
+            d_summ = completed_df[completed_df["dataset"] == d]
             if not d_hist.empty:
                 plot_accuracy_curves(d_hist, d, partitions, base_output_dir / f"{d}_compare_accuracy_curves.png")
                 plot_loss_curves(d_hist, d, partitions, base_output_dir / f"{d}_compare_loss_curves.png")
@@ -1070,15 +1110,54 @@ def main():
                 plot_runtime_barchart(d_summ, d, strategies, partitions, base_output_dir / f"{d}_compare_runtime_barchart.png")
                 plot_accuracy_heatmap(d_summ, d, strategies, partitions, base_output_dir / f"{d}_compare_accuracy_heatmap.png")
     else:
-        print("  [Notice] No rounds history available to plot (runs may have timed out or failed before completing).")
+        print("  [Notice] No completed runs available for comparison plots.")
 
+    effective_config = dict(cfg)
+    effective_config.update({
+        "num_clients": num_clients,
+        "datasets": datasets,
+        "partitions": partitions,
+        "strategies": strategies,
+        "rounds": rounds,
+        "local_epochs": local_epochs,
+        "batch_size": batch_size,
+        "learning_rate": learning_rate,
+        "lr_mode": lr_mode,
+        "client_lr_patience": client_lr_patience,
+        "client_lr_factor": client_lr_factor,
+        "client_lr_min": client_lr_min,
+        "lr_decay_steps": lr_decay_steps,
+        "lr_decay_gamma": lr_decay_gamma,
+        "proximal_mu": proximal_mu,
+        "early_stop_patience": early_stop_patience,
+        "early_stop_metric": early_stop_metric,
+        "model": model,
+        "optimizer": optimizer,
+        "momentum": float(momentum),
+        "weight_decay": float(weight_decay),
+        "seed": seed,
+        "augment": augment,
+        "random_crop": random_crop,
+        "random_flip": random_flip,
+        "server_eval": server_eval,
+        "local_test": local_test,
+        "device_type": device_type,
+        "save_client_metrics": save_client_metrics,
+        "timeout_per_run": timeout_per_run,
+        "num_workers": num_workers,
+        "client_cpu_threads": client_cpu_threads,
+        "name": run_name,
+        "output_dir": str(base_output_dir),
+    })
     sim_meta = {
         "run_name": run_name or timestamp_str,
         "timestamp": timestamp_str,
-        "config": cfg,
+        "config": effective_config,
+        "source_yaml_config": cfg,
         "total_wall_clock_time_seconds": total_sim_time,
         "total_runs": total_runs,
-        "completed_runs": len(results_list),
+        "completed_runs": completed_runs,
+        "failed_runs": total_runs - completed_runs,
         "results": results_list,
     }
     with open(base_output_dir / "simulation_results.json", "w", encoding="utf-8") as f:
@@ -1104,11 +1183,15 @@ def main():
     )
 
     print(f"\n{'='*75}")
-    print(f"  FedMedAI Simulation Complete! Total Wall-Clock Time: {total_sim_time/60:.1f} minutes")
+    outcome = "Complete" if completed_runs == total_runs else f"Finished with {total_runs - completed_runs} failed run(s)"
+    print(f"  FedMedAI Simulation {outcome}! Total Wall-Clock Time: {total_sim_time/60:.1f} minutes")
     print(f"{'='*75}")
     print(f"  Artifacts Saved in Directory: {base_output_dir}")
     print(f"  - Executive Report     : {report_path.name}")
     print(f"{'='*75}\n")
+
+    if completed_runs != total_runs:
+        raise SystemExit(1)
 
 if __name__ == "__main__":
     main()

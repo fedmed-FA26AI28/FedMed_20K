@@ -219,7 +219,9 @@ def _get_evaluate_fn(
     from datasets.medmnist_code import get_medmnist_datasets
     from torch.utils.data import DataLoader
 
-    _, _, test_dataset, _ = get_medmnist_datasets(dataset_name, download=True)
+    _, _, test_dataset, _ = get_medmnist_datasets(
+        dataset_name, download=False, load_train=False, load_val=False
+    )
     test_loader = DataLoader(test_dataset, batch_size=64, shuffle=False, num_workers=0)
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
@@ -580,7 +582,10 @@ def main():
     server_ipv4 = get_device_ipv4()
 
     from datasets.medmnist_code import get_medmnist_datasets
-    _, _, _, num_classes = get_medmnist_datasets(args.dataset, download=False)
+    _, _, _, num_classes = get_medmnist_datasets(
+        args.dataset, download=False,
+        load_train=False, load_val=False, load_test=False,
+    )
 
     print(f"\n{'='*60}")
     print(f"  FedMedAI FL Server")
