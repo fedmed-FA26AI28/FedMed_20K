@@ -1,0 +1,44 @@
+
+======================================================================
+  FedMedAI Automated Simulation Benchmark
+======================================================================
+  Run Name         : organa_prp
+  Output Directory : results/simulation/organa_prp
+  Terminal Log     : results/simulation/organa_prp/terminal.log
+  Model            : BASELINE_BN
+  Optimizer        : SGD (momentum=0.9)
+  Augmentation     : Enabled (crop=True, flip=True)
+  Seed             : 42
+  Clients          : 12
+  Rounds per Run   : 80
+  Local Epochs     : 5
+  Local Test Eval  : Enabled (BMCTA/BTA tracking)
+  Client Module    : client.client (Parallel Execution)
+  Timeout per Run  : Disabled (Infinite)
+  Datasets         : ['organamnist']
+  Partitions       : ['practical']
+  Strategies       : ['proposed']
+  Total Runs Grid  : 1 combinations
+======================================================================
+
+Verifying data partition files for all dataset and partition combinations...
+
+>>> [Simulation Matrix 1/1] Starting: Dataset=organamnist | Partition=practical | Strategy=PROPOSED
+
+-----------------------------------------------------------------
+  Launching FL Server: PROPOSED | Model: BASELINE_BN | Optimizer: SGD | Dataset: organamnist | Partition: practical | Port: 33369 | LocalTest: True | Seed: 42
+  Artifact Directory : results/simulation/organa_prp/organamnist/practical/proposed
+-----------------------------------------------------------------
+  [Server] Listening. Launching 12 client workers (Module: client.client)...
+  [Success] Finished PROPOSED (practical) [Local Test]: BMCTA: 92.46% (R80) | BTA: 95.04% (R80) | Time: 661.0s
+
+Generating multi-strategy comparison plots grouped by dataset...
+
+===========================================================================
+  FedMedAI Simulation Complete! Total Wall-Clock Time: 11.1 minutes
+===========================================================================
+  Artifacts Saved in Directory: results/simulation/organa_prp
+  - Executive Report     : simulation_report.md
+  - Terminal Log         : terminal.log
+===========================================================================
+

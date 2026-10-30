@@ -1,0 +1,44 @@
+
+======================================================================
+  FedMedAI Automated Simulation Benchmark
+======================================================================
+  Run Name         : fixed_fedavg_noaug_organa
+  Output Directory : results\simulation\fixed_fedavg_noaug_organa
+  Terminal Log     : results\simulation\fixed_fedavg_noaug_organa\terminal.log
+  Model            : BASELINE_BN
+  Optimizer        : SGD (momentum=0.9)
+  Augmentation     : Disabled (crop=True, flip=True)
+  Seed             : 42
+  Clients          : 12
+  Rounds per Run   : 80
+  Local Epochs     : 5
+  Local Test Eval  : Enabled (BMCTA/BTA tracking)
+  Client Module    : client.client (Parallel Execution)
+  Timeout per Run  : Disabled (Infinite)
+  Datasets         : ['organamnist']
+  Partitions       : ['practical']
+  Strategies       : ['fedavg']
+  Total Runs Grid  : 1 combinations
+======================================================================
+
+Verifying data partition files for all dataset and partition combinations...
+
+>>> [Simulation Matrix 1/1] Starting: Dataset=organamnist | Partition=practical | Strategy=FEDAVG
+
+-----------------------------------------------------------------
+  Launching FL Server: FEDAVG | Model: BASELINE_BN | Optimizer: SGD | Dataset: organamnist | Partition: practical | Port: 59499 | LocalTest: True | Seed: 42
+  Artifact Directory : results\simulation\fixed_fedavg_noaug_organa\organamnist\practical\fedavg
+-----------------------------------------------------------------
+  [Server] Listening. Launching 12 client workers (Module: client.client)...
+Traceback (most recent call last):
+  File "C:\Users\huyho\AppData\Roaming\uv\python\cpython-3.10-windows-x86_64-none\lib\runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "C:\Users\huyho\AppData\Roaming\uv\python\cpython-3.10-windows-x86_64-none\lib\runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "D:\FPT\KLTN\FED\FedMedAI_Study\experiments\run_simulation.py", line 1336, in <module>
+    main()
+  File "D:\FPT\KLTN\FED\FedMedAI_Study\experiments\run_simulation.py", line 1202, in main
+    metrics = run_single_experiment(
+  File "D:\FPT\KLTN\FED\FedMedAI_Study\experiments\run_simulation.py", line 567, in run_single_experiment
+    time.sleep(0.5)
+KeyboardInterrupt

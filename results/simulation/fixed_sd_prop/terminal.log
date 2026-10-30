@@ -1,0 +1,44 @@
+
+======================================================================
+  FedMedAI Automated Simulation Benchmark
+======================================================================
+  Run Name         : fixed_sd_prop
+  Output Directory : results/simulation/fixed_sd_prop
+  Terminal Log     : results/simulation/fixed_sd_prop/terminal.log
+  Model            : BASELINE_BN
+  Optimizer        : SGD (momentum=0.9)
+  Augmentation     : Enabled (crop=True, flip=True)
+  Seed             : 42
+  Clients          : 12
+  Rounds per Run   : 80
+  Local Epochs     : 5
+  Local Test Eval  : Enabled (BMCTA/BTA tracking)
+  Client Module    : client.client (Parallel Execution)
+  Timeout per Run  : Disabled (Infinite)
+  Datasets         : ['pathmnist']
+  Partitions       : ['practical']
+  Strategies       : ['proposed']
+  Total Runs Grid  : 1 combinations
+======================================================================
+
+Verifying data partition files for all dataset and partition combinations...
+
+>>> [Simulation Matrix 1/1] Starting: Dataset=pathmnist | Partition=practical | Strategy=PROPOSED
+
+-----------------------------------------------------------------
+  Launching FL Server: PROPOSED | Model: BASELINE_BN | Optimizer: SGD | Dataset: pathmnist | Partition: practical | Port: 46563 | LocalTest: True | Seed: 42
+  Artifact Directory : results/simulation/fixed_sd_prop/pathmnist/practical/proposed
+-----------------------------------------------------------------
+  [Server] Listening. Launching 12 client workers (Module: client.client)...
+  [Success] Finished PROPOSED (practical) [Local Test]: BMCTA: 79.64% (R78) | BTA: 81.74% (R73) | Time: 1717.9s
+
+Generating multi-strategy comparison plots grouped by dataset...
+
+===========================================================================
+  FedMedAI Simulation Complete! Total Wall-Clock Time: 28.8 minutes
+===========================================================================
+  Artifacts Saved in Directory: results/simulation/fixed_sd_prop
+  - Executive Report     : simulation_report.md
+  - Terminal Log         : terminal.log
+===========================================================================
+

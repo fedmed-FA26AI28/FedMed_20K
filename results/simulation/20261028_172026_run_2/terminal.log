@@ -1,0 +1,54 @@
+
+======================================================================
+  FedMedAI Automated Simulation Benchmark
+======================================================================
+  Run Identifier   : RUN_2
+  Master CSV File  : /home/ezycloudx-admin/FedMed_20K/CSV file/master_runs.csv
+  Run Name         : 20261028_172026_run_2
+  Output Directory : results/simulation/20261028_172026_run_2
+  Terminal Log     : results/simulation/20261028_172026_run_2/terminal.log
+  Model            : BASELINE
+  Optimizer        : SGD (momentum=0.9)
+  Augmentation     : Disabled (crop=False, flip=False)
+  Seed             : 43
+  Clients          : 12
+  Rounds per Run   : 80
+  Local Epochs     : 5
+  Local Test Eval  : Enabled (BMCTA/BTA tracking)
+  Client Module    : client.client (Parallel Execution)
+  Timeout per Run  : Disabled (Infinite)
+  Datasets         : ['organamnist']
+  Partitions       : ['practical']
+  Strategies       : ['fedprox']
+  Total Runs Grid  : 1 combinations
+======================================================================
+
+Verifying data partition files for all dataset and partition combinations...
+
+>>> [Simulation Matrix 1/1] Starting: Dataset=organamnist | Partition=practical | Strategy=FEDPROX
+
+-----------------------------------------------------------------
+  Launching FL Server: FEDPROX | Model: BASELINE | Optimizer: SGD | Dataset: organamnist | Partition: practical | Port: 40077 | LocalTest: True | Seed: 43
+  Artifact Directory : results/simulation/20261028_172026_run_2/organamnist/practical/fedprox
+-----------------------------------------------------------------
+  [Server] Listening. Launching 12 client workers (Module: client.client)...
+  [Success] Finished FEDPROX (practical) [Local Test]: BMCTA: 82.26% (R80) | BTA: 83.34% (R79) | Time: 383.8s
+
+======================================================================
+  [Master CSV Updated] -> master_runs.csv
+  Configuration : ORGANAMNIST | FEDPROX | BASELINE | practical
+  Recorded Run  : run_2 -> BTA=83.34% | BMCTA=82.26% | Loss=0.7249
+  Current Mean  : average (2 runs) -> BTA=83.36% | BMCTA=82.02% | Loss=0.7093
+======================================================================
+
+
+Generating multi-strategy comparison plots grouped by dataset...
+
+===========================================================================
+  FedMedAI Simulation Complete! Total Wall-Clock Time: 6.5 minutes
+===========================================================================
+  Artifacts Saved in Directory: results/simulation/20261028_172026_run_2
+  - Executive Report     : simulation_report.md
+  - Terminal Log         : terminal.log
+===========================================================================
+

@@ -1,0 +1,59 @@
+
+======================================================================
+  FedMedAI Automated Simulation Benchmark
+======================================================================
+  Run Identifier   : RUN_4
+  Master CSV File  : /home/ezycloudx-admin/FedMed_20K/CSV file/master_runs.csv
+  Run Name         : 20261028_170135_run_4
+  Output Directory : results/simulation/20261028_170135_run_4
+  Terminal Log     : results/simulation/20261028_170135_run_4/terminal.log
+  Model            : BASELINE
+  Optimizer        : SGD (momentum=0.9)
+  Augmentation     : Disabled (crop=False, flip=False)
+  Seed             : 45
+  Clients          : 12
+  Rounds per Run   : 80
+  Local Epochs     : 5
+  Local Test Eval  : Enabled (BMCTA/BTA tracking)
+  Client Module    : client.client (Parallel Execution)
+  Timeout per Run  : Disabled (Infinite)
+  Datasets         : ['organamnist']
+  Partitions       : ['practical']
+  Strategies       : ['fedavg']
+  Total Runs Grid  : 1 combinations
+======================================================================
+
+Verifying data partition files for all dataset and partition combinations...
+
+[Partition] Missing partition: partition_organamnist_practical_localtest_seed45_clients12.json. Generating automatically (local_test=True)...
+Partition saved: data/partitions/partition_organamnist_practical_localtest_seed45_clients12.json (Local test included: True)
+Plot saved: /home/ezycloudx-admin/FedMed_20K/data/partitions/plots/dist_organamnist_practical_localtest_seed45_clients12.png
+[Partition] Generated and verified: data/partitions/partition_organamnist_practical_localtest_seed45_clients12.json (plot: data/partitions/plots/dist_organamnist_practical_localtest_seed45_clients12.png)
+
+>>> [Simulation Matrix 1/1] Starting: Dataset=organamnist | Partition=practical | Strategy=FEDAVG
+
+-----------------------------------------------------------------
+  Launching FL Server: FEDAVG | Model: BASELINE | Optimizer: SGD | Dataset: organamnist | Partition: practical | Port: 37989 | LocalTest: True | Seed: 45
+  Artifact Directory : results/simulation/20261028_170135_run_4/organamnist/practical/fedavg
+-----------------------------------------------------------------
+  [Server] Listening. Launching 12 client workers (Module: client.client)...
+  [Success] Finished FEDAVG (practical) [Local Test]: BMCTA: 82.73% (R80) | BTA: 83.38% (R60) | Time: 364.6s
+
+======================================================================
+  [Master CSV Updated] -> master_runs.csv
+  Configuration : ORGANAMNIST | FEDAVG | BASELINE | practical
+  Recorded Run  : run_4 -> BTA=83.38% | BMCTA=82.73% | Loss=0.7014
+  Current Mean  : average (4 runs) -> BTA=83.36% | BMCTA=82.62% | Loss=0.7112
+======================================================================
+
+
+Generating multi-strategy comparison plots grouped by dataset...
+
+===========================================================================
+  FedMedAI Simulation Complete! Total Wall-Clock Time: 6.2 minutes
+===========================================================================
+  Artifacts Saved in Directory: results/simulation/20261028_170135_run_4
+  - Executive Report     : simulation_report.md
+  - Terminal Log         : terminal.log
+===========================================================================
+
