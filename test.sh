@@ -199,4 +199,5 @@ echo "=================================================================="
 git add results/
 git commit -m "feat(benchmarks): results for ${DATASETS[*]} x ${STRATEGIES[*]} (${MODEL}, ${TOTAL_ALL_RUNS} runs)" || echo "No new changes to commit."
 CURRENT_BRANCH=$(git branch --show-current 2>/dev/null || git rev-parse --abbrev-ref HEAD 2>/dev/null || echo "main")
+git pull --rebase origin "$CURRENT_BRANCH" || echo "[Warning] Git pull --rebase failed. Please check for conflicts."
 git push origin "$CURRENT_BRANCH" || echo "[Warning] Git push failed. Please push manually from the VM."
