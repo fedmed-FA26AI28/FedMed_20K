@@ -1,0 +1,36 @@
+Traceback (most recent call last):
+  File "<frozen runpy>", line 203, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "D:\FPT\KLTN\Code\FedMed_20K\client\client.py", line 957, in <module>
+    main()
+    ~~~~^^
+  File "D:\FPT\KLTN\Code\FedMed_20K\client\client.py", line 856, in main
+    train_dataset, _, test_dataset, num_classes = get_medmnist_datasets(
+                                                  ~~~~~~~~~~~~~~~~~~~~~^
+        args.dataset,
+        ^^^^^^^^^^^^^
+    ...<4 lines>...
+        load_val=False,
+        ^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\FPT\KLTN\Code\FedMed_20K\datasets\medmnist_code.py", line 70, in get_medmnist_datasets
+    train_dataset = DataClass(split='train', transform=train_transform, download=download) if load_train else None
+                    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\FPT\KLTN\Code\.venv\Lib\site-packages\medmnist\dataset.py", line 76, in __init__
+    self.imgs = npz_file[f"{self.split}_images"]
+                ~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\FPT\KLTN\Code\.venv\Lib\site-packages\numpy\lib\_npyio_impl.py", line 257, in __getitem__
+    return format.read_array(
+           ~~~~~~~~~~~~~~~~~^
+        bytes,
+        ^^^^^^
+    ...<2 lines>...
+        max_header_size=self.max_header_size
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\FPT\KLTN\Code\.venv\Lib\site-packages\numpy\lib\_format_impl.py", line 860, in read_array
+    array = numpy.ndarray(count, dtype=dtype)
+numpy._core._exceptions._ArrayMemoryError: Unable to allocate 202. MiB for an array with shape (211670592,) and data type uint8
+[Client 0] Loading partition from data\partitions\partition_pathmnist_practical_localtest_seed41_clients12.json

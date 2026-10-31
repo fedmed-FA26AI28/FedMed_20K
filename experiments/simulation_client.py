@@ -5,9 +5,10 @@ during simulated multi-client runs on a single host.
 
 IMPORTANT:
 - client/client.py is the canonical entry point for physical edge hardware
-  (Jetson Orin, Jetson Nano, PCs) and remains 100% UNTOUCHED.
+  (Jetson Orin, Jetson Nano, PCs). This wrapper calls its training function.
 - experiments/simulation_client.py is strictly used by experiments/run_simulation.py
-  to prevent CUDA context switching contention and VRAM thrashing on single machines.
+  to prevent simultaneous GPU training on single machines. Worker processes
+  still load PyTorch and datasets separately and require sufficient host RAM.
 """
 
 import os

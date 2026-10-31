@@ -35,7 +35,7 @@ partitions:
 #   - 'scaffold' : Control variates for client drift (Karimireddy et al., 2020)
 #   - 'fedbns'   : FedBN + SCAFFOLD (Dual-Heterogeneity, alias: 'proposed')
 #   - 'cla'      : Coverage + Logit Adjustment (CoverageLA: classifier head anchoring & logit offset, alias: 'coverage_la')
-#   - 'scr'      : Selective Client Regularization / Representation (Skeleton)
+#   - 'scr'      : Support-Calibrated Risk (training-count weights + head anchor)
 strategies:
   - fedbns
 
@@ -47,7 +47,7 @@ learning_rate: 0.01               # Base initial learning rate
 model: baseline                        # Architecture: 'cnn' (Modern ~20K params with BatchNorm), 'baseline' (~570K params without BN), or 'baseline_bn' (~571K params with BN)
 optimizer: sgd                   # Optimizer: 'adam', 'sgd', or 'adamw'
 momentum: 0.9                     # SGD momentum (0.0 for pure SGD)
-weight_decay: 1e-4                # L2 regularization penalty (0.0 = none)
+weight_decay: 0                   # No weight decay for matched FedSLD/SCR comparisons
 seed: 42                          # Random seed for partition and initialization reproducibility
 
 # --- Data Augmentation (Training split only) ---
@@ -78,6 +78,8 @@ coverage_kappa: 512.0             # CLA coverage anchoring curve parameter kappa
 coverage_mu_head: 0.1             # CLA classifier head penalty intensity mu_head (mu_head >= 0)
 la_tau: 1.0                       # CLA logit adjustment intensity tau (tau >= 0)
 la_epsilon: 1.0                   # CLA logit adjustment label smoothing epsilon (epsilon > 0)
+scr_gamma: 1.0                    # SCR support smoothing, kappa_c = gamma * n_c / K
+scr_head_lambda: 0.01             # SCR classifier-row anchor strength
 
 # --- Server Evaluation & Metrics Tracking ---
 server_eval: false                 # Centralized evaluation on global test set
@@ -94,8 +96,8 @@ client_cpu_threads: 1             # PyTorch CPU threads per client subprocess (a
 
 # Client execution engine:
 #   'client.client'                : Parallel execution across all clients concurrently
-#   'experiments.simulation_client': Sequential execution with GPU file lock (for low VRAM systems)
-client_module: client.client
+#   'experiments.simulation_client': Concurrent workers with serialized GPU training (workers still use host RAM)
+client_module: experiments.simulation_client
 
 # --- Network & Execution Control ---
 server_host: "127.0.0.1"          # Host address for FL server socket

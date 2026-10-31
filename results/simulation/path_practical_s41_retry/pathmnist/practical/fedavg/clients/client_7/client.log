@@ -1,0 +1,64 @@
+Traceback (most recent call last):
+  File "D:\FPT\KLTN\Code\.venv\Lib\site-packages\medmnist\dataset.py", line 106, in download
+    download_url(
+    ~~~~~~~~~~~~^
+        url=self.info[f"url{self.size_flag}"],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    ...<2 lines>...
+        md5=self.info[f"MD5{self.size_flag}"],
+        ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\FPT\KLTN\Code\.venv\Lib\site-packages\torchvision\datasets\utils.py", line 111, in download_url
+    if check_integrity(fpath, md5):
+       ~~~~~~~~~~~~~~~^^^^^^^^^^^^
+  File "D:\FPT\KLTN\Code\.venv\Lib\site-packages\torchvision\datasets\utils.py", line 55, in check_integrity
+    return check_md5(fpath, md5)
+  File "D:\FPT\KLTN\Code\.venv\Lib\site-packages\torchvision\datasets\utils.py", line 47, in check_md5
+    return md5 == calculate_md5(fpath, **kwargs)
+                  ~~~~~~~~~~~~~^^^^^^^^^^^^^^^^^
+  File "D:\FPT\KLTN\Code\.venv\Lib\site-packages\torchvision\datasets\utils.py", line 41, in calculate_md5
+    while chunk := f.read(chunk_size):
+                   ~~~~~~^^^^^^^^^^^^
+MemoryError
+
+During handling of the above exception, another exception occurred:
+
+Traceback (most recent call last):
+  File "<frozen runpy>", line 203, in _run_module_as_main
+  File "<frozen runpy>", line 88, in _run_code
+  File "D:\FPT\KLTN\Code\FedMed_20K\client\client.py", line 957, in <module>
+    main()
+    ~~~~^^
+  File "D:\FPT\KLTN\Code\FedMed_20K\client\client.py", line 856, in main
+    train_dataset, _, test_dataset, num_classes = get_medmnist_datasets(
+                                                  ~~~~~~~~~~~~~~~~~~~~~^
+        args.dataset,
+        ^^^^^^^^^^^^^
+    ...<4 lines>...
+        load_val=False,
+        ^^^^^^^^^^^^^^^
+    )
+    ^
+  File "D:\FPT\KLTN\Code\FedMed_20K\datasets\medmnist_code.py", line 70, in get_medmnist_datasets
+    train_dataset = DataClass(split='train', transform=train_transform, download=download) if load_train else None
+                    ~~~~~~~~~^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  File "D:\FPT\KLTN\Code\.venv\Lib\site-packages\medmnist\dataset.py", line 56, in __init__
+    self.download()
+    ~~~~~~~~~~~~~^^
+  File "D:\FPT\KLTN\Code\.venv\Lib\site-packages\medmnist\dataset.py", line 113, in download
+    raise RuntimeError(
+    ...<11 lines>...
+    )
+RuntimeError: 
+                Automatic download failed! Please download pathmnist.npz manually.
+                1. [Optional] Check your network connection: 
+                    Go to https://github.com/MedMNIST/MedMNIST/ and find the Zenodo repository
+                2. Download the npz file from the Zenodo repository or its Zenodo data link: 
+                    https://zenodo.org/records/10519652/files/pathmnist.npz?download=1
+                3. [Optional] Verify the MD5: 
+                    a8b06965200029087d5bd730944a56c1
+                4. Put the npz file under your MedMNIST root folder: 
+                    C:\Users\Admin\.medmnist
+                
+[Client 7] Loading partition from data\partitions\partition_pathmnist_practical_localtest_seed41_clients12.json
