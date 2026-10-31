@@ -22,6 +22,7 @@ from typing import Optional, Union, List, Dict, Any
 import numpy as np
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 import torch.optim as optim
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
@@ -36,6 +37,8 @@ from models import (
     set_parameters_fedbn,
     is_bn_key,
 )
+from algorithms.research_methods.models import classifier_head
+from algorithms.research_methods.support import client_support_parameters, head_penalty
 from datasets.medmnist_code import get_medmnist_datasets
 from datasets.partition import load_partition, get_client_dataloader, get_partition_path
 from utils.path_utils import sanitize_run_name
@@ -66,6 +69,10 @@ def _local_train(
     coverage_weights: "torch.Tensor | None" = None,
     la_offsets: "torch.Tensor | None" = None,
     coverage_mu_head: float = 0.0,
+    scr_sample_weights: "torch.Tensor | None" = None,
+    scr_anchor: "torch.Tensor | None" = None,
+    scr_reference: "tuple[torch.Tensor, torch.Tensor] | None" = None,
+    scr_head_lambda: float = 0.0,
 ):
     """Train locally and return rich metrics.
 
@@ -80,6 +87,9 @@ def _local_train(
         coverage_weights: Tensor of shape (C,) with per-class anchoring weights a_{k,c}.
         la_offsets: Tensor of shape (C,) with logit adjustment offsets Delta_{k,c}.
         coverage_mu_head: Intensity of the Coverage head penalty.
+        scr_sample_weights: Fixed per-class training-sample weights for SCR.
+        scr_anchor: Support-dependent classifier row anchor for SCR.
+        scr_reference: Received global classifier weight and bias at round start.
     """
     criterion = nn.CrossEntropyLoss()
     is_coverage_la = (
@@ -88,6 +98,13 @@ def _local_train(
         and coverage_mu_head > 0.0
     )
     use_la = la_offsets is not None
+    use_scr = scr_sample_weights is not None
+    if use_scr:
+        if scr_anchor is None or scr_reference is None:
+            raise ValueError("SCR requires sample weights, anchor and global head reference")
+        scr_sample_weights = scr_sample_weights.to(device)
+        scr_anchor = scr_anchor.to(device)
+        scr_reference = tuple(value.to(device) for value in scr_reference)
 
     best_loss = float("inf")
     patience_counter = 0
@@ -135,7 +152,12 @@ def _local_train(
             outputs = model(images)
 
             # Coverage + LA: compute adjusted cross-entropy loss
-            if use_la:
+            if use_scr:
+                ce = F.cross_entropy(outputs, labels, reduction="none")
+                loss = (scr_sample_weights[labels] * ce).mean()
+                loss = loss + head_penalty(
+                    model, scr_reference, scr_anchor, scr_head_lambda)
+            elif use_la:
                 adjusted_logits = outputs + la_offsets.unsqueeze(0)
                 loss = criterion(adjusted_logits, labels)
             else:
@@ -251,6 +273,24 @@ def _local_train(
 # ──────────────────────────────────────────────────────────────
 # Flower NumPyClient
 # ──────────────────────────────────────────────────────────────
+
+def _training_class_counts(train_loader, num_classes: int) -> np.ndarray:
+    """Count only local training labels, without loading augmented images."""
+    subset = train_loader.dataset
+    source = getattr(subset, "dataset", None)
+    indices = getattr(subset, "indices", None)
+    if source is not None and indices is not None and hasattr(source, "labels"):
+        labels = np.asarray(source.labels).reshape(-1)[np.asarray(indices, dtype=int)]
+    elif hasattr(subset, "labels"):
+        labels = np.asarray(subset.labels).reshape(-1)
+    else:
+        labels = np.concatenate([
+            batch_labels.reshape(-1).cpu().numpy() for _, batch_labels in train_loader
+        ])
+    if len(labels) != len(subset) or np.any(labels < 0) or np.any(labels >= num_classes):
+        raise ValueError("SCR local training labels do not match the model classes")
+    return np.bincount(labels.astype(np.int64), minlength=num_classes)
+
 
 class FedMedAIClient(fl.client.NumPyClient):
     """Flower client for FedMedAI federated learning."""
@@ -521,6 +561,10 @@ class FedMedAIClient(fl.client.NumPyClient):
         coverage_weights_tensor = None
         la_offsets_tensor = None
         coverage_mu_head_val = 0.0
+        scr_sample_weights = None
+        scr_anchor = None
+        scr_reference = None
+        scr_head_lambda = 0.0
 
         if strategy in ("coverage_la", "cla", "coveragela"):
             cov_kappa = float(config.get("coverage_kappa", 512.0))
@@ -573,6 +617,34 @@ class FedMedAIClient(fl.client.NumPyClient):
                 f"tau={la_tau} eps={la_epsilon} | class_counts={class_counts.tolist()}"
             )
 
+        if strategy == "scr":
+            required = ("scr_global_counts", "scr_coverage_sum", "scr_total_samples",
+                        "scr_num_clients", "scr_gamma", "scr_head_lambda")
+            missing = [key for key in required if key not in config]
+            if missing:
+                raise ValueError(f"SCR server configuration missing: {missing}")
+            if not hasattr(self, "_scr_class_counts"):
+                self._scr_class_counts = _training_class_counts(
+                    self.train_loader, self.num_classes)
+            local_counts = self._scr_class_counts
+            global_counts = np.asarray(json.loads(config["scr_global_counts"]), dtype=np.float64)
+            coverage_sum = np.asarray(json.loads(config["scr_coverage_sum"]), dtype=np.float64)
+            scr_gamma = float(config["scr_gamma"])
+            scr_head_lambda = float(config["scr_head_lambda"])
+            if not np.isfinite(scr_head_lambda) or scr_head_lambda < 0:
+                raise ValueError("SCR head lambda must be finite and nonnegative")
+            weights, anchor = client_support_parameters(
+                local_counts, global_counts, coverage_sum,
+                int(config["scr_total_samples"]), int(config["scr_num_clients"]),
+                scr_gamma,
+            )
+            scr_sample_weights = torch.as_tensor(weights, dtype=torch.float32, device=self.device)
+            scr_anchor = torch.as_tensor(anchor, dtype=torch.float32, device=self.device)
+            head = classifier_head(self.model)
+            scr_reference = (head.weight.detach().clone(), head.bias.detach().clone())
+            print(f"[Client {self.client_id}] SCR: gamma={scr_gamma:g} "
+                  f"head_lambda={scr_head_lambda:g} counts={local_counts.tolist()}")
+
         # Train locally
         train_start = time.time()
         train_metrics = _local_train(
@@ -590,6 +662,10 @@ class FedMedAIClient(fl.client.NumPyClient):
             coverage_weights=coverage_weights_tensor,
             la_offsets=la_offsets_tensor,
             coverage_mu_head=coverage_mu_head_val,
+            scr_sample_weights=scr_sample_weights,
+            scr_anchor=scr_anchor,
+            scr_reference=scr_reference,
+            scr_head_lambda=scr_head_lambda,
         )
         training_time = time.time() - train_start
 
@@ -670,6 +746,10 @@ class FedMedAIClient(fl.client.NumPyClient):
             "ram_used_mb": float(res["ram_used_mb"]),
             "gpu_memory_mb": float(res["gpu_memory_allocated_mb"]),
         }
+        if strategy == "scr":
+            metrics["scr_active"] = True
+            metrics["scr_gamma"] = float(config["scr_gamma"])
+            metrics["scr_head_lambda"] = scr_head_lambda
 
         # Track history locally
         self.round_history.append(metrics)

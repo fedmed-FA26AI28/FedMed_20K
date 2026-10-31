@@ -11,7 +11,8 @@ Usage:
     strategy = get_strategy("fedbns")       # FedBN + SCAFFOLD (alias: "proposed")
     strategy = get_strategy("cla")          # Coverage + Logit Adjustment (CoverageLA)
     strategy = get_strategy("coverage_la")  # Coverage + Logit Adjustment (alias)
-    strategy = get_strategy("scr")          # SCR strategy skeleton
+    strategy = get_strategy("scr", model=model, partition_path=partition_path,
+                            num_total_clients=12)  # Support-calibrated risk
 """
 
 from algorithms.base import FedStrategyBase
@@ -48,7 +49,7 @@ STRATEGY_REGISTRY = {
     "cla": CLAStrategy,
     "coverage_la": CoverageLA_Strategy,
     "coveragela": CoverageLA_Strategy,
-    # New Strategies (Skeletons)
+    # Support-calibrated risk
     "scr": SCRStrategy,
 }
 

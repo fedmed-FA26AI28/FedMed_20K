@@ -361,6 +361,8 @@ def run_single_experiment(
     coverage_mu_head: float = 0.1,
     la_tau: float = 1.0,
     la_epsilon: float = 1.0,
+    scr_gamma: float = 1.0,
+    scr_head_lambda: float = 0.01,
 ) -> Dict[str, Any]:
     """Execute a single FL training run (1 Server + N Clients) as isolated subprocesses."""
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -382,6 +384,7 @@ def run_single_experiment(
         "--config", str(config_path),
         "--strategy", strategy,
         "--dataset", dataset_name,
+        "--partition_path", str(partition_path),
         "--model", model,
         "--optimizer", optimizer,
         "--momentum", str(momentum),
@@ -403,6 +406,8 @@ def run_single_experiment(
         "--coverage_mu_head", str(coverage_mu_head),
         "--la_tau", str(la_tau),
         "--la_epsilon", str(la_epsilon),
+        "--scr_gamma", str(scr_gamma),
+        "--scr_head_lambda", str(scr_head_lambda),
         "--early_stop_patience", str(early_stop_patience),
         "--early_stop_metric", early_stop_metric,
         "--host", host,
@@ -1190,6 +1195,8 @@ def main():
     parser.add_argument("--proximal_mu", type=float, default=None, help="Proximal coefficient for FedProx")
     parser.add_argument("--coverage_kappa", type=float, default=None, help="Coverage anchoring parameter kappa")
     parser.add_argument("--coverage_mu_head", type=float, default=None, help="Coverage head penalty intensity mu_head")
+    parser.add_argument("--scr_gamma", type=float, default=None, help="SCR support smoothing gamma")
+    parser.add_argument("--scr_head_lambda", type=float, default=None, help="SCR head anchor strength")
     parser.add_argument("--la_tau", type=float, default=None, help="Logit adjustment intensity tau")
     parser.add_argument("--la_epsilon", type=float, default=None, help="Logit adjustment label count smoothing epsilon")
 
@@ -1233,6 +1240,8 @@ def main():
     proximal_mu = args.proximal_mu if args.proximal_mu is not None else cfg.get("proximal_mu", 0.01)
     coverage_kappa = args.coverage_kappa if args.coverage_kappa is not None else cfg.get("coverage_kappa", 512.0)
     coverage_mu_head = args.coverage_mu_head if args.coverage_mu_head is not None else cfg.get("coverage_mu_head", 0.1)
+    scr_gamma = args.scr_gamma if args.scr_gamma is not None else cfg.get("scr_gamma", 1.0)
+    scr_head_lambda = args.scr_head_lambda if args.scr_head_lambda is not None else cfg.get("scr_head_lambda", 0.01)
     la_tau = args.la_tau if args.la_tau is not None else cfg.get("la_tau", 1.0)
     la_epsilon = args.la_epsilon if args.la_epsilon is not None else cfg.get("la_epsilon", 1.0)
     early_stop_patience = args.early_stop_patience if args.early_stop_patience is not None else cfg.get("early_stop_patience", 0)
@@ -1324,6 +1333,7 @@ def main():
             partition_map[(d, p)] = p_path
 
     results_list: List[Dict[str, Any]] = []
+    failed_results: List[Dict[str, Any]] = []
     rounds_history_list: List[Dict[str, Any]] = []
     current_run_idx = 0
     sim_start_time = time.time()
@@ -1357,6 +1367,8 @@ def main():
                     proximal_mu=proximal_mu,
                     coverage_kappa=coverage_kappa,
                     coverage_mu_head=coverage_mu_head,
+                    scr_gamma=scr_gamma,
+                    scr_head_lambda=scr_head_lambda,
                     la_tau=la_tau,
                     la_epsilon=la_epsilon,
                     early_stop_patience=early_stop_patience,
@@ -1382,9 +1394,17 @@ def main():
                 )
 
                 summary_row = {k: v for k, v in metrics.items() if k != "rounds_history"}
-                results_list.append(summary_row)
+                run_completed = (metrics.get("status") == "completed"
+                                 and int(metrics.get("rounds_completed") or 0) > 0)
+                if run_completed:
+                    results_list.append(summary_row)
+                else:
+                    failed_results.append(summary_row)
+                    print(f"  [Failed] {d}/{p}/{s}: {metrics.get('status')} "
+                          f"({metrics.get('rounds_completed', 0)} partial rounds)")
 
-                for rh in metrics.get("rounds_history", []):
+                completed_history = metrics.get("rounds_history", []) if run_completed else []
+                for rh in completed_history:
                     rounds_history_list.append({
                         "dataset": d,
                         "partition_mode": p,
@@ -1439,6 +1459,8 @@ def main():
         "total_wall_clock_time_seconds": total_sim_time,
         "total_runs": total_runs,
         "completed_runs": len(results_list),
+        "failed_runs": len(failed_results),
+        "failures": failed_results,
         "results": results_list,
     }
     with open(base_output_dir / "simulation_results.json", "w", encoding="utf-8") as f:
@@ -1462,9 +1484,17 @@ def main():
         },
         output_path=report_path,
     )
+    if failed_results:
+        with open(report_path, "a", encoding="utf-8") as report:
+            report.write("\n## Failed runs (excluded from plots and scores)\n\n")
+            for failed in failed_results:
+                report.write(f"- `{failed['dataset']}/{failed['partition_mode']}/"
+                             f"{failed['strategy']}`: `{failed['status']}`; "
+                             f"partial rounds: {failed.get('rounds_completed', 0)}\n")
 
     print(f"\n{'='*75}")
-    print(f"  FedMedAI Simulation Complete! Total Wall-Clock Time: {total_sim_time/60:.1f} minutes")
+    print(f"  FedMedAI Simulation Finished: {len(results_list)} completed, "
+          f"{len(failed_results)} failed. Total Wall-Clock Time: {total_sim_time/60:.1f} minutes")
     print(f"{'='*75}")
     print(f"  Artifacts Saved in Directory: {base_output_dir}")
     print(f"  - Executive Report     : {report_path.name}")
@@ -1472,6 +1502,8 @@ def main():
     print(f"{'='*75}\n")
 
     _close_dual_loggers()
+    if failed_results:
+        raise SystemExit(1)
 
 
 if __name__ == "__main__":

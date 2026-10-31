@@ -425,6 +425,9 @@ def main():
         default=yaml_cfg.get("dataset", "bloodmnist"),
         help=f"Dataset name (bloodmnist, pathmnist, organamnist, dermamnist) (default: {yaml_cfg.get('dataset', 'bloodmnist')})",
     )
+    parser.add_argument("--partition_path", type=str,
+                        default=yaml_cfg.get("partition_path"),
+                        help="Training partition JSON required by SCR")
     parser.add_argument(
         "--strategy",
         type=str,
@@ -545,6 +548,12 @@ def main():
         default=yaml_cfg.get("la_epsilon", 1.0),
         help=f"Logit adjustment label count smoothing epsilon (default: {yaml_cfg.get('la_epsilon', 1.0)})",
     )
+    parser.add_argument("--scr_gamma", type=float,
+                        default=yaml_cfg.get("scr_gamma", 1.0),
+                        help="SCR class-client support smoothing gamma")
+    parser.add_argument("--scr_head_lambda", type=float,
+                        default=yaml_cfg.get("scr_head_lambda", 0.01),
+                        help="SCR support-dependent classifier anchor strength")
     parser.add_argument(
         "--early_stop_patience",
         type=int,
@@ -667,6 +676,8 @@ def main():
         print(f"  Proximal mu  : {args.proximal_mu}")
     if args.strategy.lower() in ("coverage_la", "cla", "coveragela"):
         print(f"  Coverage LA  : kappa={args.coverage_kappa}, mu_head={args.coverage_mu_head}, tau={args.la_tau}, eps={args.la_epsilon}")
+    if args.strategy.lower() == "scr":
+        print(f"  SCR          : gamma={args.scr_gamma}, head_lambda={args.scr_head_lambda}, partition={args.partition_path}")
     print(f"  Early Stop   : Patience={args.early_stop_patience} (metric: {args.early_stop_metric})")
     print(f"  Server Eval  : {args.server_eval}")
     print(f"  Local Test   : {args.local_test}")
@@ -733,8 +744,18 @@ def main():
     strat_key = args.strategy.lower()
     if strat_key == "fedprox":
         strategy_kwargs["proximal_mu"] = args.proximal_mu
-    elif strat_key in ("fedbn", "fednova", "scr"):
+    elif strat_key in ("fedbn", "fednova"):
         strategy_kwargs["model"] = initial_model
+    elif strat_key == "scr":
+        if not args.partition_path:
+            raise ValueError("SCR requires --partition_path with training class distributions")
+        strategy_kwargs.update({
+            "model": initial_model,
+            "partition_path": args.partition_path,
+            "num_total_clients": args.min_clients,
+            "scr_gamma": args.scr_gamma,
+            "scr_head_lambda": args.scr_head_lambda,
+        })
     elif strat_key in ("coverage_la", "cla", "coveragela"):
         strategy_kwargs["coverage_kappa"] = args.coverage_kappa
         strategy_kwargs["coverage_mu_head"] = args.coverage_mu_head
