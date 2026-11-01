@@ -15,6 +15,7 @@ def get_medmnist_datasets(
     crop_padding: int = 2,
     mmap_mode: str = "r",
     load_val: bool = True,
+    root: str = None,
 ):
     """Load and return MedMNIST dataset splits.
 
@@ -64,9 +65,22 @@ def get_medmnist_datasets(
     train_list.append(transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]))
     train_transform = transforms.Compose(train_list)
 
-    train_dataset = DataClass(split='train', transform=train_transform, download=download, mmap_mode=mmap_mode)
-    val_dataset = DataClass(split='val', transform=val_test_transform, download=download, mmap_mode=mmap_mode) if load_val else None
-    test_dataset = DataClass(split='test', transform=val_test_transform, download=download, mmap_mode=mmap_mode)
+    from pathlib import Path
+    if root is None:
+        candidate_dirs = [
+            Path(__file__).resolve().parent.parent / "data" / "medmnist",
+            Path("data/medmnist"),
+            Path("D:/FED_MED_AI/FedMedAI/data/medmnist"),
+        ]
+        for cd in candidate_dirs:
+            if (cd / f"{data_flag}.npz").exists():
+                root = str(cd)
+                break
+
+    dl = download if root is None else False
+    train_dataset = DataClass(root=root, split='train', transform=train_transform, download=dl, mmap_mode=mmap_mode) if root else DataClass(split='train', transform=train_transform, download=dl, mmap_mode=mmap_mode)
+    val_dataset = (DataClass(root=root, split='val', transform=val_test_transform, download=dl, mmap_mode=mmap_mode) if root else DataClass(split='val', transform=val_test_transform, download=dl, mmap_mode=mmap_mode)) if load_val else None
+    test_dataset = DataClass(root=root, split='test', transform=val_test_transform, download=dl, mmap_mode=mmap_mode) if root else DataClass(split='test', transform=val_test_transform, download=dl, mmap_mode=mmap_mode)
 
     return train_dataset, val_dataset, test_dataset, num_classes
 

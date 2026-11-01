@@ -182,11 +182,42 @@ def generate_initial_template_rows() -> List[Dict[str, Any]]:
                         "learning_rate": 0.01,
                     })
 
+        # 3. Dirichlet Partitions (dirichlet_0.1 and dirichlet_0.3)
+        # Exclude bloodmnist until target hardware (e.g. Jetson Orin) client count is determined
+        if d != "bloodmnist":
+            dirichlet_partitions = ["dirichlet_0.1", "dirichlet_0.3"]
+            for p in dirichlet_partitions:
+                for s in fl_strategies:
+                    for m in models:
+                        num_params, model_size_mb = get_model_stats(m, d)
+                        for r in runs:
+                            rows.append({
+                                "dataset": d,
+                                "partition_method": p,
+                                "strategy": s,
+                                "model": m,
+                                "run": r,
+                                "num_params": num_params,
+                                "model_size_mb": model_size_mb,
+                                "total_comm_mb": "",
+                                "total_time_min": "",
+                                "total_time_s": "",
+                                "BTA": "",
+                                "BMCTA": "",
+                                "Loss": "",
+                                "optimizer": "sgd",
+                                "learning_rate": 0.01,
+                            })
+
     return rows
 
 
 def save_master_csv_with_spacing(df: pd.DataFrame, csv_path: Path):
     """Saves DataFrame to CSV with a blank row separating distinct experiment groups (5 runs + average)."""
+    csv_path = Path(csv_path)
+    if csv_path.suffix == ".xlsx":
+        export_master_excel(df, csv_path)
+        return
     lines = [",".join(MASTER_COLUMNS)]
 
     # Discover unique groups preserving logical order
@@ -253,31 +284,264 @@ def save_master_csv_with_spacing(df: pd.DataFrame, csv_path: Path):
 
 
 def export_master_excel(df: pd.DataFrame, excel_path: Path):
-    """Exports both 'All Runs' and 'Averages' sheets into an Excel workbook."""
+    """Exports 'All Runs', 'Average Summary', 'Dirichlet Alpha', and 'Dirichlet Summary' sheets into a cleanly formatted Excel workbook."""
     excel_path = Path(excel_path)
     excel_path.parent.mkdir(parents=True, exist_ok=True)
 
-    # 1. Sheet 1: All Runs (ordered with proper columns)
-    all_runs_df = df[MASTER_COLUMNS].copy()
+    run_order = [
+        "run_1_seed_42",
+        "run_2_seed_43",
+        "run_3_seed_44",
+        "run_4_seed_45",
+        "run_5_seed_46",
+        "average",
+    ]
 
-    # 2. Sheet 2: Average Only
-    avg_mask = all_runs_df["run"].apply(normalize_run_id) == "average"
-    avg_df = all_runs_df[avg_mask].copy()
+    # Discover unique groups preserving logical order
+    groups = []
+    seen = set()
+    for _, row in df.iterrows():
+        d_val = str(row.get("dataset", "")).lower().strip()
+        p_val = str(row.get("partition_method", "")).lower().strip()
+        s_val = normalize_strategy_name(str(row.get("strategy", "")))
+        m_val = normalize_model_name(str(row.get("model", "")))
+        if not d_val:
+            continue
+        key = (d_val, p_val, s_val, m_val)
+        if key not in seen:
+            seen.add(key)
+            groups.append(key)
+
+    # 1. Sheet 1: All Runs (Centralized & Practical)
+    groups_practical = [g for g in groups if g[1] in ("centralized", "practical")]
+    sheet1_rows = []
+    for key in groups_practical:
+        d, p, s, m = key
+        mask = (
+            (df["dataset"].str.lower().str.strip() == d) &
+            (df["partition_method"].str.lower().str.strip() == p) &
+            (df["strategy"].apply(normalize_strategy_name) == s) &
+            (df["model"].apply(normalize_model_name) == m)
+        )
+        group_df = df[mask]
+        for r in run_order:
+            r_match = group_df[group_df["run"].apply(normalize_run_id) == r]
+            if not r_match.empty:
+                sheet1_rows.append(r_match.iloc[0].to_dict())
+        sheet1_rows.append({col: "" for col in MASTER_COLUMNS})
+    sheet1_df = pd.DataFrame(sheet1_rows, columns=MASTER_COLUMNS)
+
+    # 2. Sheet 2: Average Summary (Centralized & Practical)
+    avg_mask = (df["run"].apply(normalize_run_id) == "average") & (df["partition_method"].apply(normalize_partition_name).isin(["centralized", "practical"]))
+    raw_avg_df = df[avg_mask].copy()
+    sheet2_rows = []
+    current_d = None
+    for _, row in raw_avg_df.iterrows():
+        d_val = str(row.get("dataset", "")).lower().strip()
+        if current_d is not None and d_val != current_d:
+            sheet2_rows.append({col: "" for col in MASTER_COLUMNS})
+        current_d = d_val
+        sheet2_rows.append(row.to_dict())
+    sheet2_df = pd.DataFrame(sheet2_rows, columns=MASTER_COLUMNS)
+
+    # 3. Sheet 3: Dirichlet Alpha (All Runs for dirichlet_0.1 and dirichlet_0.3)
+    groups_dirichlet = [g for g in groups if str(g[1]).startswith("dirichlet")]
+    sheet3_rows = []
+    for key in groups_dirichlet:
+        d, p, s, m = key
+        mask = (
+            (df["dataset"].str.lower().str.strip() == d) &
+            (df["partition_method"].str.lower().str.strip() == p) &
+            (df["strategy"].apply(normalize_strategy_name) == s) &
+            (df["model"].apply(normalize_model_name) == m)
+        )
+        group_df = df[mask]
+        for r in run_order:
+            r_match = group_df[group_df["run"].apply(normalize_run_id) == r]
+            if not r_match.empty:
+                sheet3_rows.append(r_match.iloc[0].to_dict())
+        sheet3_rows.append({col: "" for col in MASTER_COLUMNS})
+    sheet3_df = pd.DataFrame(sheet3_rows, columns=MASTER_COLUMNS)
+
+    # 4. Sheet 4: Dirichlet Summary (Only Averages for dirichlet_0.1 and dirichlet_0.3)
+    avg_dir_mask = (df["run"].apply(normalize_run_id) == "average") & (df["partition_method"].str.startswith("dirichlet"))
+    raw_avg_dir_df = df[avg_dir_mask].copy()
+    sheet4_rows = []
+    current_dp = None
+    for _, row in raw_avg_dir_df.iterrows():
+        d_val = str(row.get("dataset", "")).lower().strip()
+        p_val = str(row.get("partition_method", "")).lower().strip()
+        dp_key = (d_val, p_val)
+        if current_dp is not None and dp_key != current_dp:
+            sheet4_rows.append({col: "" for col in MASTER_COLUMNS})
+        current_dp = dp_key
+        sheet4_rows.append(row.to_dict())
+    sheet4_df = pd.DataFrame(sheet4_rows, columns=MASTER_COLUMNS)
 
     with pd.ExcelWriter(excel_path, engine="openpyxl") as writer:
-        all_runs_df.to_excel(writer, sheet_name="All Runs", index=False)
-        avg_df.to_excel(writer, sheet_name="Average Summary", index=False)
+        sheet1_df.to_excel(writer, sheet_name="All Runs", index=False)
+        sheet2_df.to_excel(writer, sheet_name="Average Summary", index=False)
+        sheet3_df.to_excel(writer, sheet_name="Dirichlet Alpha", index=False)
+        sheet4_df.to_excel(writer, sheet_name="Dirichlet Summary", index=False)
+
+    # Style workbook with professional borders and highlights
+    try:
+        import openpyxl
+        from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
+        from openpyxl.utils import get_column_letter
+
+        wb = openpyxl.load_workbook(excel_path)
+
+        header_fill = PatternFill(start_color="1F497D", end_color="1F497D", fill_type="solid")
+        header_font = Font(name="Calibri", size=11, bold=True, color="FFFFFF")
+
+        avg_fill = PatternFill(start_color="E2EFDA", end_color="E2EFDA", fill_type="solid")
+        avg_font = Font(name="Calibri", size=10, bold=True, color="276A3C")
+
+        normal_font = Font(name="Calibri", size=10, color="000000")
+        thin_side = Side(border_style="thin", color="D9D9D9")
+        thick_bottom_side = Side(border_style="medium", color="1F497D")
+
+        thin_border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thin_side)
+        header_border = Border(left=thin_side, right=thin_side, top=thin_side, bottom=thick_bottom_side)
+
+        center_align = Alignment(horizontal="center", vertical="center")
+        left_align = Alignment(horizontal="left", vertical="center")
+        right_align = Alignment(horizontal="right", vertical="center")
+
+        num_cols = ["num_params", "model_size_mb", "total_comm_mb", "total_time_min", "total_time_s", "BTA", "BMCTA", "Loss", "learning_rate"]
+        text_left_cols = ["dataset", "partition_method", "strategy", "model", "optimizer"]
+
+        for sheetname in wb.sheetnames:
+            ws = wb[sheetname]
+            ws.views.sheetView[0].showGridLines = True
+
+            # Format headers
+            for col_idx in range(1, ws.max_column + 1):
+                cell = ws.cell(row=1, column=col_idx)
+                cell.fill = header_fill
+                cell.font = header_font
+                cell.alignment = center_align
+                cell.border = header_border
+
+            # Format data rows
+            for row_idx in range(2, ws.max_row + 1):
+                d_val = str(ws.cell(row=row_idx, column=1).value or "").strip()
+                r_val = str(ws.cell(row=row_idx, column=5).value or "").strip().lower()
+
+                # If this is a blank separator line
+                if not d_val and not r_val:
+                    ws.row_dimensions[row_idx].height = 12
+                    for col_idx in range(1, ws.max_column + 1):
+                        cell = ws.cell(row=row_idx, column=col_idx)
+                        cell.fill = PatternFill(fill_type=None)
+                        cell.border = Border()
+                    continue
+
+                is_avg = ("average" in r_val)
+
+                for col_idx in range(1, ws.max_column + 1):
+                    cell = ws.cell(row=row_idx, column=col_idx)
+                    col_header = str(ws.cell(row=1, column=col_idx).value or "")
+
+                    if is_avg:
+                        cell.fill = avg_fill
+                        cell.font = avg_font
+                        cell.border = thin_border
+                    else:
+                        cell.fill = PatternFill(fill_type=None)
+                        cell.font = normal_font
+                        cell.border = thin_border
+
+                    if col_header in num_cols:
+                        cell.alignment = right_align
+                    elif col_header in text_left_cols:
+                        cell.alignment = left_align
+                    else:
+                        cell.alignment = center_align
+
+            # Auto-fit column widths
+            for col in ws.columns:
+                max_len = 0
+                col_letter = get_column_letter(col[0].column)
+                for cell in col:
+                    val_str = str(cell.value or "")
+                    if len(val_str) > max_len:
+                        max_len = len(val_str)
+                ws.column_dimensions[col_letter].width = max(max_len + 4, 12)
+
+        wb.save(excel_path)
+    except Exception as err:
+        print(f"  [Notice] Openpyxl styling skipped: {err}")
+
+
+def load_master_dataframe(csv_path: Path) -> Tuple[pd.DataFrame, Path]:
+    """Loads current master DataFrame from master_runs.xlsx or CSV, ensuring missing template rows are appended."""
+    csv_path = Path(csv_path)
+    excel_path = csv_path.parent / "master_runs.xlsx" if csv_path.suffix == ".csv" else csv_path
+
+    df = None
+    if excel_path.exists():
+        try:
+            xl = pd.ExcelFile(excel_path)
+            dfs = []
+            for sname in ["All Runs", "Dirichlet Alpha"]:
+                if sname in xl.sheet_names:
+                    sdf = pd.read_excel(excel_path, sheet_name=sname, dtype=str).fillna("")
+                    sdf = sdf[sdf["dataset"].astype(str).str.strip() != ""]
+                    dfs.append(sdf)
+            if dfs:
+                df = pd.concat(dfs, ignore_index=True)
+            elif xl.sheet_names:
+                df = pd.read_excel(excel_path, sheet_name=0, dtype=str).fillna("")
+                df = df[df["dataset"].astype(str).str.strip() != ""]
+        except Exception as e:
+            print(f"  [Notice] Could not load from {excel_path}: {e}")
+            df = None
+
+    if df is None or df.empty:
+        if csv_path.exists() and csv_path.stat().st_size > 0:
+            df = pd.read_csv(csv_path, dtype=str, keep_default_na=False).dropna(how="all")
+            df = df[df["dataset"].astype(str).str.strip() != ""]
+        else:
+            rows = generate_initial_template_rows()
+            df = pd.DataFrame(rows, columns=MASTER_COLUMNS)
+
+    # Ensure all canonical template rows (including new Dirichlet rows) exist
+    existing_keys = set(zip(
+        df["dataset"].str.lower().str.strip(),
+        df["partition_method"].apply(normalize_partition_name),
+        df["strategy"].apply(normalize_strategy_name),
+        df["model"].apply(normalize_model_name),
+        df["run"].apply(normalize_run_id)
+    ))
+    missing_rows = []
+    for trow in generate_initial_template_rows():
+        tkey = (
+            trow["dataset"].lower().strip(),
+            normalize_partition_name(trow["partition_method"]),
+            normalize_strategy_name(trow["strategy"]),
+            normalize_model_name(trow["model"]),
+            normalize_run_id(trow["run"])
+        )
+        if tkey not in existing_keys:
+            missing_rows.append(trow)
+    if missing_rows:
+        df = pd.concat([df, pd.DataFrame(missing_rows, columns=MASTER_COLUMNS)], ignore_index=True)
+
+    return df, excel_path
 
 
 def init_master_csv(file_path: Path) -> Path:
-    """Ensures master_runs.csv exists. If not, creates it with full initial template and block spacing."""
+    """Ensures master_runs.xlsx (and optional CSV) exists. If not, creates it with full initial template and block spacing."""
     file_path = Path(file_path)
     file_path.parent.mkdir(parents=True, exist_ok=True)
-    if not file_path.exists() or file_path.stat().st_size == 0:
+    excel_path = file_path.parent / "master_runs.xlsx" if file_path.suffix == ".csv" else file_path
+    if not excel_path.exists() or excel_path.stat().st_size == 0:
         rows = generate_initial_template_rows()
         df = pd.DataFrame(rows, columns=MASTER_COLUMNS)
-        save_master_csv_with_spacing(df, file_path)
-        print(f"  [Master CSV] Initialized template with {len(rows)} rows at: {file_path}")
+        export_master_excel(df, excel_path)
+        print(f"  [Master Tracker] Initialized template with {len(rows)} rows at: {excel_path}")
     return file_path
 
 
@@ -292,7 +556,7 @@ def update_master_csv(
     optimizer: Optional[str] = None,
     learning_rate: Optional[float] = None,
 ) -> Path:
-    """Updates master CSV with a completed run's metrics, recalculates the average row, and formats spacing."""
+    """Updates master Excel / CSV with a completed run's metrics, recalculates the average row, and formats spacing."""
     csv_path = Path(csv_path)
     init_master_csv(csv_path)
 
@@ -302,9 +566,8 @@ def update_master_csv(
     m_norm = normalize_model_name(model)
     r_norm = normalize_run_id(run_id)
 
-    # Read CSV ignoring empty/blank separator lines
-    df = pd.read_csv(csv_path, dtype=str, keep_default_na=False).dropna(how="all")
-    df = df[df["dataset"].astype(str).str.strip() != ""]
+    # Read from Excel workbook (or CSV fallback) ensuring existing runs are preserved and missing template rows added
+    df, excel_path = load_master_dataframe(csv_path)
 
     for col in MASTER_COLUMNS:
         if col not in df.columns:
@@ -419,9 +682,18 @@ def update_master_csv(
     time_s_series = _to_num(completed_runs["total_time_s"])
     comm_series = _to_num(completed_runs["total_comm_mb"])
 
-    avg_bta = f"{bta_series.mean():.2f}" if not bta_series.empty else ""
-    avg_bmcta = f"{bmcta_series.mean():.2f}" if not bmcta_series.empty else ""
-    avg_loss = f"{loss_series.mean():.4f}" if not loss_series.empty else ""
+    def _format_mean_std(series: pd.Series, decimals: int = 2) -> str:
+        if series.empty:
+            return ""
+        m = series.mean()
+        if len(series) > 1:
+            s = series.std(ddof=1)
+            return f"{m:.{decimals}f} ± {s:.{decimals}f}"
+        return f"{m:.{decimals}f}"
+
+    avg_bta = _format_mean_std(bta_series, 2)
+    avg_bmcta = _format_mean_std(bmcta_series, 2)
+    avg_loss = _format_mean_std(loss_series, 4)
     avg_time_s = f"{time_s_series.mean():.2f}" if not time_s_series.empty else ""
     avg_time_min = f"{(time_s_series.mean() / 60.0):.2f}" if not time_s_series.empty else ""
     avg_comm = f"{comm_series.mean():.2f}" if not comm_series.empty else ""
@@ -460,8 +732,10 @@ def update_master_csv(
         new_avg_df = pd.DataFrame([avg_data], columns=MASTER_COLUMNS)
         df = pd.concat([df, new_avg_df], ignore_index=True)
 
-    # Save cleanly with blank line separation between blocks
-    save_master_csv_with_spacing(df, csv_path)
+    # Save cleanly to master Excel (with 4 formatted sheets) and optional CSV
+    export_master_excel(df, excel_path)
+    if csv_path.suffix == ".csv":
+        save_master_csv_with_spacing(df, csv_path)
 
     print(f"\n{'='*70}")
     print(f"  [Master CSV Updated] -> {csv_path.name}")

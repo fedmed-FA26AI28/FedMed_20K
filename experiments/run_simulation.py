@@ -530,6 +530,8 @@ def run_single_experiment(
                 env=env,
             )
             client_procs.append(c_proc)
+            if sys.platform == "win32":
+                time.sleep(0.15)
 
         loop_start = time.time()
 
@@ -997,12 +999,16 @@ def generate_markdown_report(
             sep,
         ])
         for _, row in df_summary.iterrows():
-            bmcta_val = f"**{row['bmcta']*100:.2f}%** (R{int(row.get('bmcta_round', 0))})" if pd.notna(row.get("bmcta")) else "N/A"
-            bta_val = f"**{row['bta']*100:.2f}%** (R{int(row.get('bta_round', 0))})" if pd.notna(row.get("bta")) else "N/A"
+            bmcta_round = int(row["bmcta_round"]) if pd.notna(row.get("bmcta_round")) else 0
+            bmcta_val = f"**{row['bmcta']*100:.2f}%** (R{bmcta_round})" if pd.notna(row.get("bmcta")) else "N/A"
+            bta_round = int(row["bta_round"]) if pd.notna(row.get("bta_round")) else 0
+            bta_val = f"**{row['bta']*100:.2f}%** (R{bta_round})" if pd.notna(row.get("bta")) else "N/A"
+            best_round = int(row["best_round"]) if pd.notna(row.get("best_round")) else 0
             model_col = f"`{row['model']}` | " if has_model else ""
             opt_col = f"`{row['optimizer']}` | " if has_opt else ""
             aug_col = f"{'Yes' if row.get('augment', True) else 'No'} | " if has_aug else ""
-            lines.append(f"| **{row['dataset']}** | {model_col}{opt_col}{aug_col}**{row['strategy'].upper()}** | `{row['partition_mode']}` | {row['final_test_accuracy']*100:.2f}% | **{row['best_test_accuracy']*100:.2f}%** | {bmcta_val} | {bta_val} | R{int(row['best_round'])} | {row['final_test_loss']:.4f} | {row['total_time_seconds']:.1f}s |")
+            final_loss_str = f"{row['final_test_loss']:.4f}" if pd.notna(row.get("final_test_loss")) else "N/A"
+            lines.append(f"| **{row['dataset']}** | {model_col}{opt_col}{aug_col}**{row['strategy'].upper()}** | `{row['partition_mode']}` | {row['final_test_accuracy']*100:.2f}% | **{row['best_test_accuracy']*100:.2f}%** | {bmcta_val} | {bta_val} | R{best_round} | {final_loss_str} | {row['total_time_seconds']:.1f}s |")
     else:
         header = f"| Dataset |{model_hdr}{opt_hdr}{aug_hdr} Strategy | Partition | Final Acc (%) | Best Acc (%) | Best Round | Final Loss | Total Time |"
         sep = f"| :--- |{model_sep}{opt_sep}{aug_sep} :--- | :--- | :---: | :---: | :---: | :---: | :---: |"
@@ -1014,10 +1020,12 @@ def generate_markdown_report(
             sep,
         ])
         for _, row in df_summary.iterrows():
+            best_round = int(row["best_round"]) if pd.notna(row.get("best_round")) else 0
             model_col = f"`{row['model']}` | " if has_model else ""
             opt_col = f"`{row['optimizer']}` | " if has_opt else ""
             aug_col = f"{'Yes' if row.get('augment', True) else 'No'} | " if has_aug else ""
-            lines.append(f"| **{row['dataset']}** | {model_col}{opt_col}{aug_col}**{row['strategy'].upper()}** | `{row['partition_mode']}` | {row['final_test_accuracy']*100:.2f}% | **{row['best_test_accuracy']*100:.2f}%** | R{int(row['best_round'])} | {row['final_test_loss']:.4f} | {row['total_time_seconds']:.1f}s |")
+            final_loss_str = f"{row['final_test_loss']:.4f}" if pd.notna(row.get("final_test_loss")) else "N/A"
+            lines.append(f"| **{row['dataset']}** | {model_col}{opt_col}{aug_col}**{row['strategy'].upper()}** | `{row['partition_mode']}` | {row['final_test_accuracy']*100:.2f}% | **{row['best_test_accuracy']*100:.2f}%** | R{best_round} | {final_loss_str} | {row['total_time_seconds']:.1f}s |")
 
     with open(output_path, "w", encoding="utf-8") as f:
         f.write("\n".join(lines))

@@ -136,8 +136,8 @@ def _local_train(
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 
-        epoch_loss = running_loss / total
-        epoch_acc = correct / total
+        epoch_loss = running_loss / max(1, total)
+        epoch_acc = correct / max(1, total)
         epoch_time = time.time() - epoch_start
         current_lr = optimizer.param_groups[0]["lr"]
 
@@ -642,8 +642,8 @@ class FedMedAIClient(fl.client.NumPyClient):
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
 
-        avg_loss = total_loss / total
-        accuracy = correct / total
+        avg_loss = (total_loss / total) if total > 0 else 0.0
+        accuracy = (correct / total) if total > 0 else 0.0
 
         print(
             f"[Client {self.client_id}] evaluate | "
