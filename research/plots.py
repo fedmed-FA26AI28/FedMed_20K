@@ -72,15 +72,19 @@ def plot_matrix(paths: list[Path], output_root: Path, signature: str | None = No
     if not include_smoke:
         completed = [(path, result) for path, result in completed
                      if not result["configuration"].get("limit_per_client", 0)]
-    cohorts: dict[tuple[str, str], list[tuple[Path, dict]]] = defaultdict(list)
+    cohorts: dict[tuple[str, str, float | None], list[tuple[Path, dict]]] = defaultdict(list)
     for path, result in completed:
         cfg = result["configuration"]
-        cohorts[(cfg["dataset"], cfg["partition"])].append((path, result))
+        alpha = cfg.get("alpha", 0.1) if cfg["partition"] == "dirichlet" else None
+        cohorts[(cfg["dataset"], cfg["partition"], alpha)].append((path, result))
     outputs = []
-    for (dataset, partition), cohort in sorted(cohorts.items()):
+    for (dataset, partition, alpha), cohort in sorted(
+            cohorts.items(), key=lambda item: (item[0][0], item[0][1],
+                                               -1 if item[0][2] is None else item[0][2])):
         digest = signature or hashlib.sha256(
             "\n".join(sorted(str(path) for path, _ in cohort)).encode()).hexdigest()[:10]
-        folder = output_root / "plots" / f"{dataset}_{partition}_{digest}"
+        alpha_label = f"_alpha{alpha:g}" if alpha is not None else ""
+        folder = output_root / "plots" / f"{dataset}_{partition}{alpha_label}_{digest}"
         folder.mkdir(parents=True, exist_ok=True)
         rows = []
         for path, result in cohort:
@@ -88,11 +92,15 @@ def plot_matrix(paths: list[Path], output_root: Path, signature: str | None = No
             rows.append({
                 "model": cfg["norm"], "method": cfg["method"], "seed": cfg["seed"],
                 "lr": cfg["lr"], "gamma": cfg["gamma"],
+                "rho": cfg.get("rho", 0.5) if cfg["method"] == "support_shrink" else "",
                 "head_lambda": cfg["head_lambda"],
                 "selected_round": result["best_validation_round"],
                 "validation_macro_f1": best["macro_f1"],
                 "validation_accuracy": best["accuracy"],
                 "validation_worst_class_recall": best["worst_class_recall"],
+                "training_round_seconds": (sum(item["seconds"] for item in result["history"])
+                                           if all("seconds" in item for item in result["history"])
+                                           else None),
                 "development_file": str(path),
             })
         rows.sort(key=lambda row: (row["model"], row["method"], row["seed"],
@@ -107,7 +115,7 @@ def plot_matrix(paths: list[Path], output_root: Path, signature: str | None = No
             groups[(row["model"], row["method"])].append(row)
         ordered = sorted(groups, key=lambda key: (key[0] != "baseline", key[0], key[1]))
         colors = {"fedavg": "#4e79a7", "pooled_uniform_head": "#f28e2b",
-                  "support_calibrated": "#59a14f"}
+                  "support_calibrated": "#59a14f", "support_shrink": "#b07aa1"}
         fig, (left, right) = plt.subplots(1, 2, figsize=(14, 5.5),
                                          constrained_layout=True)
         if len(rows) <= 12:
@@ -137,19 +145,37 @@ def plot_matrix(paths: list[Path], output_root: Path, signature: str | None = No
                      ylim=(0, 1.02))
             left.tick_params(axis="x", labelrotation=20, labelsize=8)
         left.grid(axis="y", alpha=0.25)
-        if len(rows) <= 12 and all(len(groups[group]) == 1 for group in ordered):
+        if (len(rows) <= 12 and all(len(groups[group]) == 1 for group in ordered)
+                and all(row["training_round_seconds"] is not None for row in rows)):
+            for model, method in ordered:
+                row = groups[(model, method)][0]
+                right.scatter(row["training_round_seconds"] / 60,
+                              row["validation_macro_f1"], s=85,
+                              marker="s" if model == "baseline_bn" else "o",
+                              color=colors.get(method, "#777777"))
+                right.annotate(f"{model} / {method}",
+                               (row["training_round_seconds"] / 60,
+                                row["validation_macro_f1"]),
+                               xytext=(4, 4), textcoords="offset points", fontsize=7)
+            right.set(title="Validation score vs training time",
+                      xlabel="Sum of round times (minutes)", ylabel="Best macro-F1",
+                      ylim=(0, 1.02))
+            right.margins(x=0.18)
+        elif len(rows) <= 12 and all(len(groups[group]) == 1 for group in ordered):
             right.bar(range(len(ordered)),
                       [groups[group][0]["validation_macro_f1"] for group in ordered],
                       color=[colors.get(group[1], "#777777") for group in ordered])
             right.set(title="Best validation macro-F1 per arm", ylabel="Macro-F1",
-                      ylim=(0, 1.02))
+                      ylim=(0, 1.02), xticks=range(len(ordered)),
+                      xticklabels=[f"{model}\n{method}" for model, method in ordered])
+            right.tick_params(axis="x", labelrotation=20, labelsize=8)
         else:
             right.bar(range(len(ordered)), [len(groups[group]) for group in ordered],
                       color=[colors.get(group[1], "#777777") for group in ordered])
             right.set(title="Completed development runs per arm", ylabel="Run count")
-        right.set_xticks(range(len(ordered)),
-                         [f"{model}\n{method}" for model, method in ordered],
-                         rotation=20, fontsize=8)
+            right.set_xticks(range(len(ordered)),
+                             [f"{model}\n{method}" for model, method in ordered],
+                             rotation=20, fontsize=8)
         right.grid(axis="y", alpha=0.25)
         fig.suptitle(f"{dataset} / {partition}: {len(rows)} completed development runs\n"
                      "Validation scores only; choose settings before final test", fontsize=12)

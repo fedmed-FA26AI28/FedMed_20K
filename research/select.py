@@ -25,7 +25,7 @@ def file_sha256(path: Path) -> str:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--dataset", choices=("bloodmnist", "pathmnist", "organamnist"), required=True)
+    parser.add_argument("--dataset", choices=("bloodmnist", "dermamnist", "pathmnist", "organamnist"), required=True)
     parser.add_argument("--partition", choices=("practical", "dirichlet"), required=True)
     parser.add_argument("--model", "--norm", dest="norm",
                         choices=("baseline", "baseline_bn", "gn", "bn"), default="baseline")
@@ -47,6 +47,7 @@ def main() -> None:
     parser.add_argument("--coverage-kappa", type=float, default=10.0)
     parser.add_argument("--lrs", type=float, nargs="+", default=[1e-4, 3e-4, 1e-3])
     parser.add_argument("--gammas", type=float, nargs="+", default=[0.1, 1.0, 10.0])
+    parser.add_argument("--rhos", type=float, nargs="+", default=[0.25, 0.5])
     parser.add_argument("--head-lambdas", type=float, nargs="+", default=[0.0, 0.01, 0.1])
     parser.add_argument("--fedlc-taus", type=float, nargs="+", default=[0.1, 0.5, 1.0])
     parser.add_argument("--fedvls-lambdas", type=float, nargs="+", default=[0.01, 0.1, 1.0])
@@ -73,12 +74,13 @@ def main() -> None:
             continue
         method = cfg["method"]
         defaults = {"gamma": 1.0, "head_lambda": 0.0,
-                    "fedlc_tau": 0.5, "fedvls_lambda": 0.1}
+                    "fedlc_tau": 0.5, "fedvls_lambda": 0.1, "rho": 0.5}
         if any(cfg.get(name, defaults[name]) not in getattr(args, TUNING_GRIDS[name])
                for name in get_method(method).tuning_parameters):
             continue
         settings = {key: value for key, value in cfg.items()
-                    if key not in ("seed", "device", "download", "output_root")}
+                    if key not in ("seed", "device", "download", "output_root")
+                    and (key != "rho" or "rho" in get_method(method).tuning_parameters)}
         key = json.dumps(settings, sort_keys=True)
         checkpoint = file.parent / "best.pt"
         if not checkpoint.exists():
@@ -121,7 +123,8 @@ def main() -> None:
             "protocol": {name: getattr(args, name) for name in protocol},
             "learning_rate_grid": args.lrs, "fedlc_tau_grid": args.fedlc_taus,
             "fedvls_lambda_grid": args.fedvls_lambdas,
-            "gamma_grid": args.gammas, "head_lambda_grid": args.head_lambdas}
+            "gamma_grid": args.gammas, "head_lambda_grid": args.head_lambdas,
+            "rho_grid": args.rhos}
     path = args.lock_file or args.output_root / f"lock_{args.dataset}_{args.partition}_{args.norm}.json"
     if path.exists():
         raise FileExistsError(f"lock already exists: {path}")

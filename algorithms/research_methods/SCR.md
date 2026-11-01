@@ -25,6 +25,23 @@ BatchNorm. Training-mode BatchNorm couples examples within each minibatch, so
 the BN arm is an empirical test of SCR rather than an exact use of the
 per-example gradient identity.
 
+## Controlled correction (`support_shrink`)
+
+This separate research arm keeps the same training partition and the same
+coverage-dependent classifier anchor. It interpolates the data term with the
+ordinary empirical FedAvg risk using a fixed `rho`:
+
+```text
+blended_weight[k,c] = (1 - rho) + rho * w[k,c]   for n[k,c] > 0
+R_blend = (1 - rho) * R_empirical + rho * R_SCR
+```
+
+`rho=1` reproduces SCR's data term; `rho=0` and `head_lambda=0` reproduce
+FedAvg's objective. Intermediate values reduce extreme per-sample weights.
+Select `rho` from validation data only. This interpolation is a candidate
+mechanism, not an established accuracy improvement or novelty claim. The
+one-step risk identity has the same limitations stated above.
+
 The `baseline_bn` arm shares BatchNorm parameters and running statistics in
 FedAvg. It is **global BatchNorm**, not FedBN with client-local statistics.
 The two team architectures share convolutions and classifier layers;

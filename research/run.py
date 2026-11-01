@@ -35,7 +35,7 @@ REPO = Path(__file__).resolve().parents[1]
 
 def arguments(argv: list[str] | None = None) -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--dataset", choices=("bloodmnist", "pathmnist", "organamnist"), required=True)
+    parser.add_argument("--dataset", choices=("bloodmnist", "dermamnist", "pathmnist", "organamnist"), required=True)
     parser.add_argument("--partition", choices=("practical", "dirichlet"), required=True)
     parser.add_argument("--method", choices=METHODS, required=True)
     parser.add_argument("--model", "--norm", dest="norm",
@@ -54,6 +54,8 @@ def arguments(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--augment", action="store_true",
                         help="Enable train-only random crop and horizontal flip")
     parser.add_argument("--gamma", type=float, default=1.0)
+    parser.add_argument("--rho", type=float, default=0.5,
+                        help="FedAvg/SCR data-risk interpolation for support_shrink")
     parser.add_argument("--head-lambda", type=float, default=0.01)
     parser.add_argument("--coverage-kappa", type=float, default=10.0,
                         help="Fixed scalar head-support parameter for Coverage-IW")
@@ -189,7 +191,8 @@ def _jsonable(value):
 
 def run_name(config: argparse.Namespace) -> str:
     payload = {key: _jsonable(value) for key, value in vars(config).items()
-               if key not in ("output_root", "download", "device")}
+               if key not in ("output_root", "download", "device")
+               and (key != "rho" or config.method == "support_shrink")}
     digest = hashlib.sha256(json.dumps(payload, sort_keys=True).encode()).hexdigest()[:12]
     return f"{config.dataset}_{config.partition}_{config.method}_s{config.seed}_{digest}"
 
@@ -229,14 +232,16 @@ def evaluate(model: TinyCNNGN, dataset, device: torch.device, batch_size: int,
              client_groups: list[list[int]] | None = None) -> dict:
     model.eval()
     probabilities, labels = [], []
-    for images, targets in DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=0):
-        images = images.to(device)
+    for images, targets in DataLoader(dataset, batch_size=batch_size, shuffle=False,
+                                      num_workers=0, pin_memory=device.type == "cuda"):
+        images = images.to(device, non_blocking=True)
         if images.dtype == torch.uint8:
             images = prepare_batch(images, dataset.resolution, training=False)
         logits = model(images)
-        probabilities.append(logits.softmax(dim=1).cpu().numpy())
+        probabilities.append(logits.softmax(dim=1))
         labels.append(np.asarray(targets).reshape(-1))
-    probs, true = np.concatenate(probabilities), np.concatenate(labels)
+    probs = torch.cat(probabilities).cpu().numpy()
+    true = np.concatenate(labels)
     metrics = metrics_from_probabilities(probs, true)
     if client_groups is not None:
         client_scores = []
@@ -278,7 +283,9 @@ def train_client(
     anchor_t = torch.as_tensor(anchor, dtype=torch.float32, device=device)
     head = classifier_head(model)
     reference = (head.weight.detach().clone(), head.bias.detach().clone())
-    total_loss, batches = 0.0, 0
+    total_loss = torch.zeros((), device=device)
+    all_finite = torch.ones((), dtype=torch.bool, device=device)
+    batches = 0
     model.train()
     if config.client_shift_strength:
         gains, offsets = client_shift_parameters(config.seed, client_id,
@@ -299,15 +306,16 @@ def train_client(
                 weights_t, anchor_t, reference, config.head_lambda,
                 config.fedlc_tau, teacher, config.fedvls_lambda,
             )
-            if not torch.isfinite(loss):
-                raise FloatingPointError(f"nonfinite loss at round {round_number}, client {client_id}")
+            all_finite &= torch.isfinite(loss.detach())
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), 5.0)
             optimizer.step()
-            total_loss += float(loss.detach())
+            total_loss += loss.detach()
             batches += 1
+    if not bool(all_finite):
+        raise FloatingPointError(f"nonfinite loss at round {round_number}, client {client_id}")
     state = {key: value.detach().cpu().clone() for key, value in model.state_dict().items()}
-    return state, total_loss / batches
+    return state, float(total_loss / batches)
 
 
 def main() -> None:
@@ -324,6 +332,8 @@ def main() -> None:
         raise ValueError("weight-decay must be nonnegative")
     if not 0 <= config.momentum < 1:
         raise ValueError("momentum must be in [0, 1)")
+    if config.method == "support_shrink" and not 0 <= config.rho <= 1:
+        raise ValueError("rho must be between 0 and 1")
     if config.client_shift_strength and config.fast_data:
         raise ValueError("synthetic client shift requires --slow-data")
     if config.device == "cuda" and not torch.cuda.is_available():
@@ -397,7 +407,7 @@ def main() -> None:
             weights, anchor = method.client_parameters(ClientContext(
                 counts[client_id], total_per_class, support.coverage.sum(axis=0),
                 pooled.coverage.sum(axis=0), int(counts.sum()), len(groups),
-                config.gamma, config.coverage_kappa,
+                config.gamma, config.coverage_kappa, getattr(config, "rho", 0.5),
             ))
             local_state, local_loss = train_client(
                 model, teacher, train, indices, counts[client_id], total_per_class,

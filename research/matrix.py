@@ -26,13 +26,14 @@ def commands(args):
         lambda_values = args.head_lambdas if "head_lambda" in tuned else [0.0]
         tau_values = args.fedlc_taus if "fedlc_tau" in tuned else [0.5]
         fedvls_values = args.fedvls_lambdas if "fedvls_lambda" in tuned else [0.1]
-        for gamma, head_lambda, tau, fedvls_lambda in itertools.product(
-            gamma_values, lambda_values, tau_values, fedvls_values,
+        rho_values = args.rhos if "rho" in tuned else [0.5]
+        for gamma, head_lambda, tau, fedvls_lambda, rho in itertools.product(
+            gamma_values, lambda_values, tau_values, fedvls_values, rho_values,
         ):
             yield [
                 sys.executable, "-m", "research.run", "--dataset", dataset,
                 "--partition", partition, "--method", method, "--seed", str(seed),
-                "--norm", norm, "--clients", str(args.clients),
+                "--norm", norm, "--clients", str(args.clients), "--alpha", str(args.alpha),
                 "--lr", str(lr), "--gamma", str(gamma),
                 "--optimizer", args.optimizer, "--momentum", str(args.momentum),
                 "--weight-decay", str(args.weight_decay),
@@ -43,12 +44,12 @@ def commands(args):
                 "--resolution", str(args.resolution), "--device", args.device,
                 "--client-shift-strength", str(args.client_shift_strength),
                 "--output-root", str(args.output_root),
-            ] + (["--download"] if args.download else []) + (["--slow-data"] if args.slow_data else []) + (["--augment"] if args.augment else [])
+            ] + (["--rho", str(rho)] if "rho" in tuned else []) + (["--download"] if args.download else []) + (["--slow-data"] if args.slow_data else []) + (["--augment"] if args.augment else [])
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument("--datasets", nargs="+", choices=("bloodmnist", "pathmnist", "organamnist"),
+    parser.add_argument("--datasets", nargs="+", choices=("bloodmnist", "dermamnist", "pathmnist", "organamnist"),
                         default=["bloodmnist", "pathmnist", "organamnist"])
     parser.add_argument("--partitions", nargs="+", choices=("practical", "dirichlet"),
                         default=["practical", "dirichlet"])
@@ -57,9 +58,12 @@ def main():
                         choices=("baseline", "baseline_bn", "gn", "bn"),
                         default=["baseline", "baseline_bn"])
     parser.add_argument("--clients", type=int, default=12)
+    parser.add_argument("--alpha", type=float, default=0.1,
+                        help="Dirichlet concentration; use a separate output root for each value")
     parser.add_argument("--seeds", nargs="+", type=int, default=[42, 43, 44, 45, 46])
     parser.add_argument("--lrs", nargs="+", type=float, default=[1e-4, 3e-4, 1e-3])
     parser.add_argument("--gammas", nargs="+", type=float, default=[0.1, 1.0, 10.0])
+    parser.add_argument("--rhos", nargs="+", type=float, default=[0.25, 0.5])
     parser.add_argument("--head-lambdas", nargs="+", type=float, default=[0.0, 0.01, 0.1])
     parser.add_argument("--coverage-kappa", type=float, default=10.0)
     parser.add_argument("--fedlc-taus", nargs="+", type=float, default=[0.1, 0.5, 1.0])
