@@ -13,6 +13,7 @@ Usage:
     strategy = get_strategy("coverage_la")  # Coverage + Logit Adjustment (alias)
     strategy = get_strategy("scr", model=model, partition_path=partition_path,
                             num_total_clients=12)  # Support-calibrated risk
+    strategy = get_strategy("fedsld", partition_path=partition_path)  # FedSLD (ISBI 2022)
 """
 
 from algorithms.base import FedStrategyBase
@@ -30,6 +31,7 @@ from algorithms.fedbns import (
 )
 from algorithms.cla import CLAStrategy, CoverageLA_Strategy
 from algorithms.scr import SCRStrategy
+from algorithms.fedsld import FedSLDStrategy
 
 
 STRATEGY_REGISTRY = {
@@ -51,6 +53,9 @@ STRATEGY_REGISTRY = {
     "coveragela": CoverageLA_Strategy,
     # Support-calibrated risk
     "scr": SCRStrategy,
+    # FedSLD (Shared Label Distribution)
+    "fedsld": FedSLDStrategy,
+    "fed_sld": FedSLDStrategy,
 }
 
 
@@ -58,7 +63,7 @@ def get_strategy(name: str = "fedavg", **kwargs):
     """Factory function to create a strategy by name.
 
     Args:
-        name: One of 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold', 'fedbns', 'proposed', 'cla', 'coverage_la', 'coveragela', 'scr'.
+        name: One of 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold', 'fedbns', 'proposed', 'cla', 'coverage_la', 'coveragela', 'scr', 'fedsld'.
         **kwargs: Forwarded to the strategy constructor.
 
     Returns:
@@ -91,6 +96,7 @@ __all__ = [
     "CLAStrategy",
     "CoverageLA_Strategy",
     "SCRStrategy",
+    "FedSLDStrategy",
     "STRATEGY_REGISTRY",
     "get_strategy",
 ]

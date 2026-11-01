@@ -1,7 +1,7 @@
 """FL Server entry point with Step LR Decay, Early Stopping, and YAML config support.
 
 Starts a Flower server with a user-selectable aggregation strategy from
-the algorithms/ folder (FedAvg, FedProx, FedNova).
+the algorithms/ folder (FedAvg, FedProx, FedNova, FedBN, SCAFFOLD, FedBNS, CLA, SCR, FedSLD).
 
 Usage:
     # Run with default settings from configs/experiment.yaml:
@@ -200,8 +200,8 @@ class FedMedAIServer(fl.server.Server):
                 )
                 break
 
-        end_time = timeit.default_timer()
-        elapsed = end_time - start_time
+            end_time = timeit.default_timer()
+            elapsed = end_time - start_time
         return history, elapsed
 
 
@@ -294,13 +294,7 @@ def _make_on_fit_config_fn(
     la_tau: float = 1.0,
     la_epsilon: float = 1.0,
 ):
-    """Create a function that calculates and sends training config to clients each round.
-
-    Supports three LR scheduling modes:
-    - 'client_loss': Server sends initial LR on round 1; each client independently reduces LR on local loss plateau.
-    - 'server_decay': Server computes global step decay every N rounds and synchronizes across all clients.
-    - 'fixed': Constant initial learning rate across all rounds and clients (classic Flower baseline).
-    """
+    """Create a function that calculates and sends training config to clients each round."""
     mode = str(lr_mode).lower().strip()
     opt_name = str(optimizer).lower().strip()
 
@@ -325,7 +319,6 @@ def _make_on_fit_config_fn(
             config["la_epsilon"] = float(la_epsilon)
 
         if mode == "fixed":
-            # Constant learning rate for all rounds (classic Flower baseline)
             config["learning_rate"] = float(learning_rate)
             log(
                 INFO,
@@ -336,7 +329,6 @@ def _make_on_fit_config_fn(
                 learning_rate,
             )
         elif mode in ("server_decay", "server", "step"):
-            # Synchronized global step decay: lr = max(initial_lr * (gamma ** ((round - 1) // steps)), server_lr_min)
             if lr_decay_steps > 0 and server_round > 1:
                 step_count = (server_round - 1) // lr_decay_steps
                 decayed_lr = learning_rate * (lr_decay_gamma ** step_count)
@@ -356,7 +348,6 @@ def _make_on_fit_config_fn(
                 server_lr_min,
             )
         else:
-            # 'client_loss' mode: server sends initial LR on Round 1 only
             config["client_lr_patience"] = int(client_lr_patience)
             config["client_lr_factor"] = float(client_lr_factor)
             config["client_lr_min"] = float(client_lr_min)
@@ -415,6 +406,12 @@ def main():
 
     yaml_cfg = load_yaml_config(pre_args.config)
 
+    server_host = yaml_cfg.get("server_host", "127.0.0.1")
+    if server_host == "0.0.0.0":
+        server_host = "127.0.0.1"
+    server_port = yaml_cfg.get("server_port", 8080)
+    default_server_address = f"{server_host}:{server_port}"
+
     parser = argparse.ArgumentParser(
         description="FedMedAI FL Server with Configurable LR Scheduling, Early Stopping, and YAML config",
         parents=[pre_parser],
@@ -427,7 +424,7 @@ def main():
     )
     parser.add_argument("--partition_path", type=str,
                         default=yaml_cfg.get("partition_path"),
-                        help="Training partition JSON required by SCR")
+                        help="Training partition JSON required by SCR and FedSLD")
     parser.add_argument(
         "--strategy",
         type=str,
@@ -445,6 +442,8 @@ def main():
             "scr",
             "coverage_la",
             "coveragela",
+            "fedsld",
+            "fed_sld",
         ],
         help=f"FL aggregation strategy (default: {yaml_cfg.get('strategy', 'fedavg')})",
     )
@@ -678,6 +677,8 @@ def main():
         print(f"  Coverage LA  : kappa={args.coverage_kappa}, mu_head={args.coverage_mu_head}, tau={args.la_tau}, eps={args.la_epsilon}")
     if args.strategy.lower() == "scr":
         print(f"  SCR          : gamma={args.scr_gamma}, head_lambda={args.scr_head_lambda}, partition={args.partition_path}")
+    if args.strategy.lower() in ("fedsld", "fed_sld"):
+        print(f"  FedSLD       : partition={args.partition_path}")
     print(f"  Early Stop   : Patience={args.early_stop_patience} (metric: {args.early_stop_metric})")
     print(f"  Server Eval  : {args.server_eval}")
     print(f"  Local Test   : {args.local_test}")
@@ -755,6 +756,12 @@ def main():
             "num_total_clients": args.min_clients,
             "scr_gamma": args.scr_gamma,
             "scr_head_lambda": args.scr_head_lambda,
+        })
+    elif strat_key in ("fedsld", "fed_sld"):
+        strategy_kwargs.update({
+            "model": initial_model,
+            "partition_path": args.partition_path,
+            "num_classes": num_classes,
         })
     elif strat_key in ("coverage_la", "cla", "coveragela"):
         strategy_kwargs["coverage_kappa"] = args.coverage_kappa
@@ -872,7 +879,7 @@ def main():
     if "tau_eff" in summary:
         extra_metadata["tau_eff"] = summary.get("tau_eff")
 
-    # Save model weights checkpoints (best weights and final round weights) before saving artifacts
+    # Save model weights checkpoints
     best_pth_size = None
     best_params = strategy.get_best_parameters()
     if best_params is not None:
