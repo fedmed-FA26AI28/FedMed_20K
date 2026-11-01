@@ -117,6 +117,10 @@ MOMENTUM="${MOMENTUM:-0.9}"
 OPTIMIZER="${OPTIMIZER:-sgd}"
 LR_MODE="${LR_MODE:-fixed}"
 TIMEOUT="${TIMEOUT:-0}"
+MU="${MU:-}"
+ABLATION_PRESET="${ABLATION_PRESET:-}"
+BN_MODE="${BN_MODE:-}"
+LA_MODE="${LA_MODE:-}"
 COVERAGE_KAPPA="${COVERAGE_KAPPA:-}"
 COVERAGE_MU_HEAD="${COVERAGE_MU_HEAD:-}"
 LA_TAU="${LA_TAU:-}"
@@ -225,6 +229,10 @@ for d_idx in "${!DATASETS[@]}"; do
                 echo ">>> [Overall: $GLOBAL_RUN_COUNTER/$TOTAL_ALL_RUNS | $CURRENT_DATASET | $CURRENT_PARTITION | $CURRENT_STRATEGY: Run $RUN_NUM/$RUNS_PER_CONFIG] (Seed: $SEED, Name: $RUN_NAME) <<<"
 
                 EXTRA_ARGS=()
+                [ -n "$MU" ] && EXTRA_ARGS+=(--mu "$MU")
+                [ -n "$ABLATION_PRESET" ] && EXTRA_ARGS+=(--ablation_preset "$ABLATION_PRESET")
+                [ -n "$BN_MODE" ] && EXTRA_ARGS+=(--bn_mode "$BN_MODE")
+                [ -n "$LA_MODE" ] && EXTRA_ARGS+=(--la_mode "$LA_MODE")
                 [ -n "$COVERAGE_KAPPA" ] && EXTRA_ARGS+=(--coverage_kappa "$COVERAGE_KAPPA")
                 [ -n "$COVERAGE_MU_HEAD" ] && EXTRA_ARGS+=(--coverage_mu_head "$COVERAGE_MU_HEAD")
                 [ -n "$LA_TAU" ] && EXTRA_ARGS+=(--la_tau "$LA_TAU")
