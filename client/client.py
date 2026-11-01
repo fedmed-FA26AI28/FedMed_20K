@@ -5,6 +5,7 @@ Implements a Flower NumPyClient that:
 - Trains the CNN model locally with LR scheduling and early stopping.
 - Reports extended metrics: per-epoch time, total training time, weight size.
 - Supports FedProx proximal term when instructed by the server config.
+- Supports FedSLD shared label distribution reweighted loss.
 
 Usage:
     python -m client.client --client_id 0 --server_address 127.0.0.1:8080
@@ -73,6 +74,10 @@ def _local_train(
     scr_anchor: "torch.Tensor | None" = None,
     scr_reference: "tuple[torch.Tensor, torch.Tensor] | None" = None,
     scr_head_lambda: float = 0.0,
+    is_fedsld: bool = False,
+    fedsld_prior: "torch.Tensor | None" = None,
+    fedsld_epsilon: float = 1e-6,
+    fedsld_reduction: str = "mean",
 ):
     """Train locally and return rich metrics.
 
@@ -90,6 +95,11 @@ def _local_train(
         scr_sample_weights: Fixed per-class training-sample weights for SCR.
         scr_anchor: Support-dependent classifier row anchor for SCR.
         scr_reference: Received global classifier weight and bias at round start.
+        scr_head_lambda: SCR head anchor penalty strength.
+        is_fedsld: Whether FedSLD batch reweighting is active.
+        fedsld_prior: Global prior label distribution P~(y) tensor of shape (C,).
+        fedsld_epsilon: Smoothing epsilon to prevent zero division in FedSLD.
+        fedsld_reduction: Batch loss reduction ('mean' or 'sum').
     """
     criterion = nn.CrossEntropyLoss()
     is_coverage_la = (
@@ -105,6 +115,9 @@ def _local_train(
         scr_sample_weights = scr_sample_weights.to(device)
         scr_anchor = scr_anchor.to(device)
         scr_reference = tuple(value.to(device) for value in scr_reference)
+
+    if is_fedsld and fedsld_prior is not None:
+        fedsld_prior = fedsld_prior.to(device)
 
     best_loss = float("inf")
     patience_counter = 0
@@ -151,8 +164,18 @@ def _local_train(
             optimizer.zero_grad()
             outputs = model(images)
 
-            # Coverage + LA: compute adjusted cross-entropy loss
-            if use_scr:
+            # Strategy-specific loss formulation
+            if is_fedsld and fedsld_prior is not None:
+                # FedSLD: reweight local mini-batch CE by p_b(y) / (P~(y) + eps)
+                batch_counts = torch.bincount(labels, minlength=fedsld_prior.size(0)).float()
+                pb = batch_counts / float(labels.size(0))
+                weights = pb[labels] / (fedsld_prior[labels] + fedsld_epsilon)
+                ce = F.cross_entropy(outputs, labels, reduction="none")
+                if fedsld_reduction == "sum":
+                    loss = (weights * ce).sum()
+                else:
+                    loss = (weights * ce).mean()
+            elif use_scr:
                 ce = F.cross_entropy(outputs, labels, reduction="none")
                 loss = (scr_sample_weights[labels] * ce).mean()
                 loss = loss + head_penalty(
@@ -194,9 +217,6 @@ def _local_train(
             optimizer.step()
 
             # SCAFFOLD drift correction (NVFlare decoupled post-step):
-            # Applying drift directly to parameters post-step avoids polluting the optimizer's
-            # momentum buffer (or Adam moment vectors), ensuring mathematical stability
-            # under SGD momentum (e.g. beta=0.9), Adam, and dynamic LR schedules.
             if scaffold_drift is not None:
                 step_lr = float(optimizer.param_groups[0]["lr"])
                 with torch.no_grad():
@@ -205,7 +225,7 @@ def _local_train(
             total_steps += 1
 
             running_loss += loss.item() * images.size(0)
-            # Accuracy always computed from raw logits (no LA offset)
+            # Accuracy always computed from raw logits
             _, predicted = torch.max(outputs.data, 1)
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
@@ -311,6 +331,7 @@ class FedMedAIClient(fl.client.NumPyClient):
         save_local_metrics: bool = True,
         server_address: str = "127.0.0.1:8080",
         strategy: str = None,
+        partition_path: Optional[str] = None,
         client_dir: Optional[Union[str, Path]] = None,
         model_name: str = "cnn",
         optimizer_name: str = "adam",
@@ -337,6 +358,7 @@ class FedMedAIClient(fl.client.NumPyClient):
         self.save_local_metrics = save_local_metrics
         self.server_address = server_address
         self.strategy = strategy.lower() if strategy else None
+        self.partition_path = str(partition_path) if partition_path else None
         self.client_control_variate: Optional[List[np.ndarray]] = None
 
         self.round_history = []
@@ -438,7 +460,6 @@ class FedMedAIClient(fl.client.NumPyClient):
                 self.client_control_variate = [np.zeros_like(p) for p in initial_weights]
 
             # Construct drift correction terms (server_c - client_c) for trainable parameters
-            # Under FedBN, BatchNorm layers must NOT receive drift correction to preserve local adaptation
             sd_keys = list(self.model.state_dict().keys())
             named_params = dict(self.model.named_parameters())
             scaffold_drift = [
@@ -489,7 +510,7 @@ class FedMedAIClient(fl.client.NumPyClient):
         active_scheduler = None
 
         if lr_mode == "fixed":
-            # Fixed constant LR mode (classical Flower baseline)
+            # Fixed constant LR mode
             fixed_lr = float(config.get("learning_rate", self.learning_rate))
             for pg in self.optimizer.param_groups:
                 pg["lr"] = fixed_lr
@@ -507,7 +528,7 @@ class FedMedAIClient(fl.client.NumPyClient):
             print(f"[Client {self.client_id}] Round {server_round}: Server decayed LR = {scheduled_lr:.6f}")
 
         else:
-            # 'client_loss' mode: independent client-side loss-based reducer
+            # 'client_loss' mode
             if server_round == 1 or not self._lr_initialized:
                 self._lr_initialized = True
                 init_lr = config.get("learning_rate")
@@ -518,7 +539,6 @@ class FedMedAIClient(fl.client.NumPyClient):
                     pg["lr"] = init_lr
                 self.learning_rate = init_lr
 
-                # Read client LR scheduler hyperparams if provided by server
                 if "client_lr_patience" in config:
                     self.lr_patience = int(config["client_lr_patience"])
                 if "client_lr_factor" in config:
@@ -556,7 +576,7 @@ class FedMedAIClient(fl.client.NumPyClient):
                 p.clone().detach() for p in self.model.parameters()
             ]
 
-        # Prepare Coverage + LA parameters if strategy is coverage_la
+        # Prepare Coverage + LA parameters
         coverage_head_ref = None
         coverage_weights_tensor = None
         la_offsets_tensor = None
@@ -572,10 +592,8 @@ class FedMedAIClient(fl.client.NumPyClient):
             la_tau = float(config.get("la_tau", 1.0))
             la_epsilon = float(config.get("la_epsilon", 1.0))
 
-            # Reset optimizer state each round (AdamW moment reset per Section 7.1)
             self.optimizer.state.clear()
 
-            # Count per-class samples from local train data (cached across rounds)
             if not hasattr(self, "_class_counts") or self._class_counts is None:
                 last_linear = None
                 for m in self.model.modules():
@@ -591,14 +609,11 @@ class FedMedAIClient(fl.client.NumPyClient):
             else:
                 class_counts = self._class_counts
 
-            # Coverage weights: a_{k,c} = kappa / (n_{k,c} + kappa)
             coverage_weights_tensor = (cov_kappa / (class_counts + cov_kappa)).to(self.device)
 
-            # LA offsets: Delta_{k,c} = tau * log(n_{k,c} + epsilon)
             if la_tau > 0:
                 la_offsets_tensor = (la_tau * torch.log(class_counts + la_epsilon)).to(self.device)
 
-            # Save reference classifier head (weight and bias of the last Linear layer)
             if cov_mu_head > 0:
                 last_linear = None
                 for m in self.model.modules():
@@ -645,6 +660,28 @@ class FedMedAIClient(fl.client.NumPyClient):
             print(f"[Client {self.client_id}] SCR: gamma={scr_gamma:g} "
                   f"head_lambda={scr_head_lambda:g} counts={local_counts.tolist()}")
 
+        # Prepare FedSLD parameters
+        fedsld_prior_tensor = None
+        is_fedsld = strategy in ("fedsld", "fed_sld")
+        fedsld_epsilon = float(config.get("fedsld_epsilon", 1e-6))
+        fedsld_reduction = str(config.get("fedsld_reduction", "mean")).lower()
+
+        if is_fedsld:
+            if "fedsld_prior" in config:
+                prior_list = json.loads(config["fedsld_prior"])
+                fedsld_prior_tensor = torch.tensor(prior_list, dtype=torch.float32, device=self.device)
+            elif hasattr(self, "partition_path") and self.partition_path and Path(self.partition_path).exists():
+                from algorithms.fedsld import load_prior_from_partition
+                prior_list = load_prior_from_partition(self.partition_path, num_classes=self.num_classes)
+                fedsld_prior_tensor = torch.tensor(prior_list, dtype=torch.float32, device=self.device)
+            else:
+                fedsld_prior_tensor = torch.ones(self.num_classes, dtype=torch.float32, device=self.device) / float(self.num_classes)
+
+            print(
+                f"[Client {self.client_id}] FedSLD: eps={fedsld_epsilon} reduction={fedsld_reduction} "
+                f"| prior={[round(p, 4) for p in fedsld_prior_tensor.tolist()]}"
+            )
+
         # Train locally
         train_start = time.time()
         train_metrics = _local_train(
@@ -666,6 +703,10 @@ class FedMedAIClient(fl.client.NumPyClient):
             scr_anchor=scr_anchor,
             scr_reference=scr_reference,
             scr_head_lambda=scr_head_lambda,
+            is_fedsld=is_fedsld,
+            fedsld_prior=fedsld_prior_tensor,
+            fedsld_epsilon=fedsld_epsilon,
+            fedsld_reduction=fedsld_reduction,
         )
         training_time = time.time() - train_start
 
@@ -686,21 +727,17 @@ class FedMedAIClient(fl.client.NumPyClient):
                     is_bn = is_fedbn and is_bn_key(self.model, k)
                     if not is_bn:
                         if grad_avg is not None and trainable_idx < len(grad_avg):
-                            # Option 2: Exact empirical loss gradient average (optimizer-agnostic)
                             c_i_new = grad_avg[trainable_idx]
                             d_c = c_i_new - self.client_control_variate[idx]
                         else:
-                            # Fallback Option 1: displacement-based
                             lr = float(self.optimizer.param_groups[0]["lr"])
                             d_c = (1.0 / (K * lr)) * (initial_weights[idx] - updated_model_params[idx]) - server_c[idx]
                             c_i_new = self.client_control_variate[idx] + d_c
                     else:
-                        # BatchNorm layer under FedBN: zero control variate drift
                         d_c = np.zeros_like(updated_model_params[idx], dtype=np.float64)
                         c_i_new = np.zeros_like(updated_model_params[idx], dtype=np.float64)
                     trainable_idx += 1
                 else:
-                    # Non-trainable buffer: zero delta
                     d_c = np.zeros_like(updated_model_params[idx], dtype=np.float64)
                     c_i_new = np.zeros_like(updated_model_params[idx], dtype=np.float64)
                 delta_c.append(d_c)
@@ -718,7 +755,7 @@ class FedMedAIClient(fl.client.NumPyClient):
         weight_size_bytes = sum(p.nbytes for p in return_parameters)
         weight_size_kb = weight_size_bytes / 1024.0
 
-        # Build metrics dict (only Scalar types: bool, bytes, float, int, str)
+        # Build metrics dict
         metrics = {
             "client_id": int(self.client_id),
             "device_type": str(self.device_type),
@@ -750,6 +787,10 @@ class FedMedAIClient(fl.client.NumPyClient):
             metrics["scr_active"] = True
             metrics["scr_gamma"] = float(config["scr_gamma"])
             metrics["scr_head_lambda"] = scr_head_lambda
+        if is_fedsld:
+            metrics["fedsld_active"] = True
+            metrics["fedsld_epsilon"] = fedsld_epsilon
+            metrics["fedsld_reduction"] = fedsld_reduction
 
         # Track history locally
         self.round_history.append(metrics)
@@ -825,7 +866,6 @@ class FedMedAIClient(fl.client.NumPyClient):
             "fedbn", "proposed", "fedbns", "fedbn_scaffold", "bn_scaffold", "scaffold_fedbn",
         )
         if strategy in fedbn_eval_strats:
-            # Retain local BN statistics and evaluate non-BN global layers
             set_parameters_fedbn(self.model, parameters)
         else:
             set_parameters(self.model, parameters)
@@ -999,6 +1039,8 @@ def main():
             "scr",
             "coverage_la",
             "coveragela",
+            "fedsld",
+            "fed_sld",
         ],
         help=f"FL strategy (default: {yaml_cfg.get('strategy', 'fedavg')})",
     )
@@ -1202,6 +1244,7 @@ def main():
         save_local_metrics=args.save_metrics,
         server_address=args.server_address,
         strategy=args.strategy,
+        partition_path=partition_path,
         client_dir=args.client_dir,
         model_name=args.model,
         optimizer_name=args.optimizer,
