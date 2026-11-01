@@ -42,6 +42,7 @@ from flwr.common.logger import log
 
 from models import get_model, set_seed, get_parameters, set_parameters
 from algorithms import get_strategy
+from algorithms.cla import load_global_counts_from_partition, ABLATION_PRESETS
 from monitoring.metrics import FLMetricsRecorder
 from utils.path_utils import sanitize_run_name
 from monitoring.network import get_device_ipv4
@@ -289,10 +290,19 @@ def _make_on_fit_config_fn(
     client_lr_min: float = 1e-6,
     optimizer: str = "adam",
     momentum: float = 0.0,
+    mu: float = 0.1,
+    use_la: bool = True,
+    la_mode: str = "prior_aligned",
+    adaptive_kappa: bool = True,
+    multi_linear_coverage: bool = True,
+    disable_covered_wd: bool = True,
+    bn_mode: str = "pooled_global",
+    ablation_preset: Optional[str] = None,
     coverage_kappa: float = 512.0,
     coverage_mu_head: float = 0.1,
     la_tau: float = 1.0,
     la_epsilon: float = 1.0,
+    global_class_counts: Optional[List[int]] = None,
 ):
     """Create a function that calculates and sends training config to clients each round."""
     mode = str(lr_mode).lower().strip()
@@ -313,10 +323,24 @@ def _make_on_fit_config_fn(
             config["proximal_mu"] = proximal_mu
 
         if strategy_name.lower() in ("coverage_la", "cla", "coveragela"):
+            config["mu"] = float(mu)
+            config["coverage_mu_head"] = float(mu)
+            config["use_la"] = bool(use_la)
+            config["la_mode"] = str(la_mode)
+            config["adaptive_kappa"] = bool(adaptive_kappa)
+            config["multi_linear_coverage"] = bool(multi_linear_coverage)
+            config["disable_covered_wd"] = bool(disable_covered_wd)
+            config["bn_mode"] = str(bn_mode)
+            config["legacy_kappa"] = float(coverage_kappa)
             config["coverage_kappa"] = float(coverage_kappa)
-            config["coverage_mu_head"] = float(coverage_mu_head)
+            config["legacy_tau"] = float(la_tau)
             config["la_tau"] = float(la_tau)
+            config["legacy_eps"] = float(la_epsilon)
             config["la_epsilon"] = float(la_epsilon)
+            if ablation_preset:
+                config["ablation_preset"] = str(ablation_preset)
+            if global_class_counts:
+                config["global_class_counts"] = json.dumps(global_class_counts)
 
         if mode == "fixed":
             config["learning_rate"] = float(learning_rate)
@@ -524,6 +548,56 @@ def main():
         help=f"FedProx proximal mu parameter (default: {yaml_cfg.get('proximal_mu', 0.01)})",
     )
     parser.add_argument(
+        "--mu",
+        type=float,
+        default=yaml_cfg.get("mu", yaml_cfg.get("coverage_mu_head", 0.1)),
+        help=f"CLA coverage penalty intensity mu (default: {yaml_cfg.get('mu', yaml_cfg.get('coverage_mu_head', 0.1))})",
+    )
+    parser.add_argument(
+        "--use_la",
+        action=argparse.BooleanOptionalAction,
+        default=yaml_cfg.get("use_la", True),
+        help=f"Toggle CLA Logit Adjustment (default: {yaml_cfg.get('use_la', True)})",
+    )
+    parser.add_argument(
+        "--la_mode",
+        type=str,
+        default=yaml_cfg.get("la_mode", "prior_aligned"),
+        choices=["prior_aligned", "v1_legacy"],
+        help=f"CLA Logit Adjustment mode (default: {yaml_cfg.get('la_mode', 'prior_aligned')})",
+    )
+    parser.add_argument(
+        "--adaptive_kappa",
+        action=argparse.BooleanOptionalAction,
+        default=yaml_cfg.get("adaptive_kappa", True),
+        help=f"CLA adaptive Empirical Bayes shrinkage (default: {yaml_cfg.get('adaptive_kappa', True)})",
+    )
+    parser.add_argument(
+        "--multi_linear_coverage",
+        action=argparse.BooleanOptionalAction,
+        default=yaml_cfg.get("multi_linear_coverage", True),
+        help=f"CLA multi-linear coverage across all Linear layers (default: {yaml_cfg.get('multi_linear_coverage', True)})",
+    )
+    parser.add_argument(
+        "--disable_covered_wd",
+        action=argparse.BooleanOptionalAction,
+        default=yaml_cfg.get("disable_covered_wd", True),
+        help=f"Disable optimizer weight decay on covered Linear layers (default: {yaml_cfg.get('disable_covered_wd', True)})",
+    )
+    parser.add_argument(
+        "--bn_mode",
+        type=str,
+        default=yaml_cfg.get("bn_mode", "pooled_global"),
+        choices=["pooled_global", "naive_avg", "local_bn"],
+        help=f"CLA BatchNorm aggregation mode (default: {yaml_cfg.get('bn_mode', 'pooled_global')})",
+    )
+    parser.add_argument(
+        "--ablation_preset",
+        type=str,
+        default=yaml_cfg.get("ablation_preset", None),
+        help="CLA ablation preset (e.g. A0_fedavg, A1_cla_v1_legacy, A5_full_proposed_v2)",
+    )
+    parser.add_argument(
         "--coverage_kappa",
         type=float,
         default=yaml_cfg.get("coverage_kappa", 512.0),
@@ -674,7 +748,9 @@ def main():
     if args.strategy == "fedprox":
         print(f"  Proximal mu  : {args.proximal_mu}")
     if args.strategy.lower() in ("coverage_la", "cla", "coveragela"):
-        print(f"  Coverage LA  : kappa={args.coverage_kappa}, mu_head={args.coverage_mu_head}, tau={args.la_tau}, eps={args.la_epsilon}")
+        preset_tag = f" [preset={args.ablation_preset}]" if args.ablation_preset else ""
+        print(f"  Coverage LA v2 : mu={args.mu}{preset_tag}, la_mode={args.la_mode}, adaptive_kappa={args.adaptive_kappa}, "
+              f"multi_linear={args.multi_linear_coverage}, disable_wd={args.disable_covered_wd}, bn_mode={args.bn_mode}")
     if args.strategy.lower() == "scr":
         print(f"  SCR          : gamma={args.scr_gamma}, head_lambda={args.scr_head_lambda}, partition={args.partition_path}")
     if args.strategy.lower() in ("fedsld", "fed_sld"):
@@ -687,6 +763,10 @@ def main():
 
     initial_model = get_model(args.model, num_classes=num_classes)
     initial_params = ndarrays_to_parameters(get_parameters(initial_model))
+
+    global_class_counts = None
+    if args.partition_path:
+        global_class_counts = load_global_counts_from_partition(args.partition_path, num_classes=num_classes)
 
     recorder = FLMetricsRecorder(
         strategy_name=args.strategy,
@@ -716,10 +796,19 @@ def main():
             client_lr_min=args.client_lr_min,
             optimizer=args.optimizer,
             momentum=args.momentum,
+            mu=args.mu,
+            use_la=args.use_la,
+            la_mode=args.la_mode,
+            adaptive_kappa=args.adaptive_kappa,
+            multi_linear_coverage=args.multi_linear_coverage,
+            disable_covered_wd=args.disable_covered_wd,
+            bn_mode=args.bn_mode,
+            ablation_preset=args.ablation_preset,
             coverage_kappa=args.coverage_kappa,
             coverage_mu_head=args.coverage_mu_head,
             la_tau=args.la_tau,
             la_epsilon=args.la_epsilon,
+            global_class_counts=global_class_counts,
         ),
         "evaluate_metrics_aggregation_fn": _evaluate_metrics_aggregation_fn,
         "early_stop_patience": args.early_stop_patience,
@@ -730,15 +819,16 @@ def main():
         "fedbn", "proposed", "fedbns",
         "fedbn_scaffold", "bn_scaffold", "scaffold_fedbn",
     )
+    is_local_bn_cla = (args.strategy.lower() in ("coverage_la", "cla", "coveragela")) and (args.bn_mode == "local_bn")
 
-    if args.server_eval and args.strategy not in fedbn_strategies:
+    if args.server_eval and args.strategy not in fedbn_strategies and not is_local_bn_cla:
         strategy_kwargs["evaluate_fn"] = _get_evaluate_fn(
             dataset_name=args.dataset,
             num_classes=num_classes,
             recorder=recorder,
             model_name=args.model,
         )
-    elif args.strategy in fedbn_strategies:
+    elif args.strategy in fedbn_strategies or is_local_bn_cla:
         print("  [Server] Centralized server evaluation is disabled.\n"
               "           Model performance is evaluated via distributed client evaluation.")
 
@@ -764,11 +854,26 @@ def main():
             "num_classes": num_classes,
         })
     elif strat_key in ("coverage_la", "cla", "coveragela"):
-        strategy_kwargs["coverage_kappa"] = args.coverage_kappa
-        strategy_kwargs["coverage_mu_head"] = args.coverage_mu_head
-        strategy_kwargs["la_tau"] = args.la_tau
-        strategy_kwargs["la_epsilon"] = args.la_epsilon
-        strategy_kwargs["model"] = initial_model
+        strategy_kwargs.update({
+            "mu": args.mu,
+            "use_la": args.use_la,
+            "la_mode": args.la_mode,
+            "adaptive_kappa": args.adaptive_kappa,
+            "multi_linear_coverage": args.multi_linear_coverage,
+            "disable_covered_wd": args.disable_covered_wd,
+            "bn_mode": args.bn_mode,
+            "ablation_preset": args.ablation_preset,
+            "legacy_kappa": args.coverage_kappa,
+            "legacy_tau": args.la_tau,
+            "legacy_eps": args.la_epsilon,
+            "coverage_kappa": args.coverage_kappa,
+            "coverage_mu_head": args.coverage_mu_head,
+            "la_tau": args.la_tau,
+            "la_epsilon": args.la_epsilon,
+            "model": initial_model,
+            "partition_path": args.partition_path,
+            "global_class_counts": global_class_counts,
+        })
     elif strat_key in (
         "scaffold",
         "fedbn_scaffold", "bn_scaffold", "scaffold_fedbn",
@@ -822,11 +927,14 @@ def main():
     print(f"  Early Stopped  : {summary.get('early_stopped', False)}")
     if "proximal_mu" in summary or args.strategy == "fedprox":
         print(f"  Proximal mu    : {summary.get('proximal_mu', getattr(args, 'proximal_mu', 'N/A'))}")
-    if "coverage_kappa" in summary or args.strategy.lower() in ("coverage_la", "cla", "coveragela"):
-        print(f"  Coverage LA    : kappa={summary.get('coverage_kappa', getattr(args, 'coverage_kappa', 512.0))}, "
-              f"mu_head={summary.get('coverage_mu_head', getattr(args, 'coverage_mu_head', 0.1))}, "
-              f"tau={summary.get('la_tau', getattr(args, 'la_tau', 1.0))}, "
-              f"eps={summary.get('la_epsilon', getattr(args, 'la_epsilon', 1.0))}")
+    if "mu" in summary or "coverage_kappa" in summary or args.strategy.lower() in ("coverage_la", "cla", "coveragela"):
+        preset_s = f" (preset={summary.get('ablation_preset')})" if summary.get('ablation_preset') else ""
+        print(f"  Coverage LA v2 : mu={summary.get('mu', getattr(args, 'mu', 0.1))}{preset_s}, "
+              f"la_mode={summary.get('la_mode', getattr(args, 'la_mode', 'prior_aligned'))}, "
+              f"adaptive_kappa={summary.get('adaptive_kappa', getattr(args, 'adaptive_kappa', True))}, "
+              f"multi_linear={summary.get('multi_linear_coverage', getattr(args, 'multi_linear_coverage', True))}, "
+              f"disable_wd={summary.get('disable_covered_wd', getattr(args, 'disable_covered_wd', True))}, "
+              f"bn_mode={summary.get('bn_mode', getattr(args, 'bn_mode', 'pooled_global'))}")
     if "num_bn_layers_local" in summary:
         print(f"  Local BN Layers: {summary.get('num_bn_layers_local', 'N/A')}")
         print(f"  Aggregated Non-BN: {summary.get('num_non_bn_layers_aggregated', 'N/A')}")

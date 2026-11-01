@@ -360,6 +360,14 @@ def run_single_experiment(
     random_crop: bool = True,
     random_flip: bool = True,
     client_module: str = "experiments.simulation_client",
+    mu: float = 0.1,
+    use_la: bool = True,
+    la_mode: str = "prior_aligned",
+    adaptive_kappa: bool = True,
+    multi_linear_coverage: bool = True,
+    disable_covered_wd: bool = True,
+    bn_mode: str = "pooled_global",
+    ablation_preset: Optional[str] = None,
     coverage_kappa: float = 512.0,
     coverage_mu_head: float = 0.1,
     la_tau: float = 1.0,
@@ -405,6 +413,9 @@ def run_single_experiment(
         "--lr_decay_gamma", str(lr_decay_gamma),
         "--server_lr_min", str(server_lr_min),
         "--proximal_mu", str(proximal_mu),
+        "--mu", str(mu),
+        "--la_mode", str(la_mode),
+        "--bn_mode", str(bn_mode),
         "--coverage_kappa", str(coverage_kappa),
         "--coverage_mu_head", str(coverage_mu_head),
         "--la_tau", str(la_tau),
@@ -417,6 +428,24 @@ def run_single_experiment(
         "--port", str(port),
         "--save_dir", str(run_dir),
     ]
+    if use_la:
+        server_cmd.append("--use_la")
+    else:
+        server_cmd.append("--no-use_la")
+    if adaptive_kappa:
+        server_cmd.append("--adaptive_kappa")
+    else:
+        server_cmd.append("--no-adaptive_kappa")
+    if multi_linear_coverage:
+        server_cmd.append("--multi_linear_coverage")
+    else:
+        server_cmd.append("--no-multi_linear_coverage")
+    if disable_covered_wd:
+        server_cmd.append("--disable_covered_wd")
+    else:
+        server_cmd.append("--no-disable_covered_wd")
+    if ablation_preset:
+        server_cmd.extend(["--ablation_preset", str(ablation_preset)])
     if server_eval:
         server_cmd.append("--server_eval")
     else:
@@ -526,11 +555,32 @@ def run_single_experiment(
                 "--momentum", str(momentum),
                 "--weight_decay", str(weight_decay),
                 "--seed", str(seed),
+                "--mu", str(mu),
+                "--la_mode", str(la_mode),
+                "--bn_mode", str(bn_mode),
                 "--coverage_kappa", str(coverage_kappa),
                 "--coverage_mu_head", str(coverage_mu_head),
                 "--la_tau", str(la_tau),
                 "--la_epsilon", str(la_epsilon),
             ]
+            if use_la:
+                client_cmd.append("--use_la")
+            else:
+                client_cmd.append("--no-use_la")
+            if adaptive_kappa:
+                client_cmd.append("--adaptive_kappa")
+            else:
+                client_cmd.append("--no-adaptive_kappa")
+            if multi_linear_coverage:
+                client_cmd.append("--multi_linear_coverage")
+            else:
+                client_cmd.append("--no-multi_linear_coverage")
+            if disable_covered_wd:
+                client_cmd.append("--disable_covered_wd")
+            else:
+                client_cmd.append("--no-disable_covered_wd")
+            if ablation_preset:
+                client_cmd.extend(["--ablation_preset", str(ablation_preset)])
             if local_test:
                 client_cmd.append("--local_test")
             else:
@@ -1200,6 +1250,14 @@ def main():
     parser.add_argument("--client_lr_factor", type=float, default=None, help="Factor for reducing client LR on plateau")
     parser.add_argument("--client_lr_min", type=float, default=None, help="Minimum client learning rate bound")
     parser.add_argument("--proximal_mu", type=float, default=None, help="Proximal coefficient for FedProx")
+    parser.add_argument("--mu", type=float, default=None, help="Coverage penalty intensity mu")
+    parser.add_argument("--use_la", action=argparse.BooleanOptionalAction, default=None, help="Toggle Logit Adjustment")
+    parser.add_argument("--la_mode", type=str, default=None, choices=["prior_aligned", "v1_legacy"], help="Logit Adjustment mode")
+    parser.add_argument("--adaptive_kappa", action=argparse.BooleanOptionalAction, default=None, help="Toggle adaptive Empirical Bayes shrinkage")
+    parser.add_argument("--multi_linear_coverage", action=argparse.BooleanOptionalAction, default=None, help="Toggle multi-linear back-projected coverage")
+    parser.add_argument("--disable_covered_wd", action=argparse.BooleanOptionalAction, default=None, help="Disable weight decay on covered layers")
+    parser.add_argument("--bn_mode", type=str, default=None, choices=["pooled_global", "naive_avg", "local_bn"], help="BatchNorm aggregation mode")
+    parser.add_argument("--ablation_preset", type=str, default=None, help="CLA ablation preset (e.g. A0_fedavg, A5_full_proposed_v2)")
     parser.add_argument("--coverage_kappa", type=float, default=None, help="Coverage anchoring parameter kappa")
     parser.add_argument("--coverage_mu_head", type=float, default=None, help="Coverage head penalty intensity mu_head")
     parser.add_argument("--scr_gamma", type=float, default=None, help="SCR support smoothing gamma")
@@ -1245,6 +1303,14 @@ def main():
     lr_decay_gamma = args.lr_decay_gamma if args.lr_decay_gamma is not None else cfg.get("lr_decay_gamma", 0.5)
     server_lr_min = args.server_lr_min if args.server_lr_min is not None else cfg.get("server_lr_min", cfg.get("lr_decay_min", 1e-5))
     proximal_mu = args.proximal_mu if args.proximal_mu is not None else cfg.get("proximal_mu", 0.01)
+    mu = args.mu if args.mu is not None else cfg.get("mu", cfg.get("coverage_mu_head", 0.1))
+    use_la = args.use_la if args.use_la is not None else cfg.get("use_la", True)
+    la_mode = args.la_mode if args.la_mode is not None else cfg.get("la_mode", "prior_aligned")
+    adaptive_kappa = args.adaptive_kappa if args.adaptive_kappa is not None else cfg.get("adaptive_kappa", True)
+    multi_linear_coverage = args.multi_linear_coverage if args.multi_linear_coverage is not None else cfg.get("multi_linear_coverage", True)
+    disable_covered_wd = args.disable_covered_wd if args.disable_covered_wd is not None else cfg.get("disable_covered_wd", True)
+    bn_mode = args.bn_mode if args.bn_mode is not None else cfg.get("bn_mode", "pooled_global")
+    ablation_preset = args.ablation_preset if args.ablation_preset is not None else cfg.get("ablation_preset", None)
     coverage_kappa = args.coverage_kappa if args.coverage_kappa is not None else cfg.get("coverage_kappa", 512.0)
     coverage_mu_head = args.coverage_mu_head if args.coverage_mu_head is not None else cfg.get("coverage_mu_head", 0.1)
     scr_gamma = args.scr_gamma if args.scr_gamma is not None else cfg.get("scr_gamma", 1.0)
@@ -1372,6 +1438,14 @@ def main():
                     lr_decay_gamma=lr_decay_gamma,
                     server_lr_min=server_lr_min,
                     proximal_mu=proximal_mu,
+                    mu=mu,
+                    use_la=use_la,
+                    la_mode=la_mode,
+                    adaptive_kappa=adaptive_kappa,
+                    multi_linear_coverage=multi_linear_coverage,
+                    disable_covered_wd=disable_covered_wd,
+                    bn_mode=bn_mode,
+                    ablation_preset=ablation_preset,
                     coverage_kappa=coverage_kappa,
                     coverage_mu_head=coverage_mu_head,
                     scr_gamma=scr_gamma,

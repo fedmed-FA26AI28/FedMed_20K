@@ -75,10 +75,19 @@ server_lr_min: 0.00001            # Minimum learning rate lower bound for server
 
 # --- Algorithm-Specific Hyperparameters ---
 proximal_mu: 0.01                 # FedProx proximal coefficient (0.0 = FedAvg)
-coverage_kappa: 512.0             # CLA coverage anchoring curve parameter kappa (kappa > 0)
-coverage_mu_head: 0.1             # CLA classifier head penalty intensity mu_head (mu_head >= 0)
-la_tau: 1.0                       # CLA logit adjustment intensity tau (tau >= 0)
-la_epsilon: 1.0                   # CLA logit adjustment label smoothing epsilon (epsilon > 0)
+# CLA v2 (Minimalist AdaCoverage + Prior-Aligned LA - 1 Hyperparameter `mu`):
+mu: 0.1                           # Single primary hyperparameter: Coverage penalty intensity (default: 0.1)
+use_la: true                      # Toggle Logit Adjustment (default: true)
+la_mode: prior_aligned            # LA mode: 'prior_aligned' (Bayes Log-Odds v2) or 'v1_legacy'
+adaptive_kappa: true              # Adaptive Empirical Bayes shrinkage a_{k,c} = n_k / (C*n_{k,c} + n_k) (default: true)
+multi_linear_coverage: true       # Back-projected coverage across all nn.Linear layers (default: true)
+disable_covered_wd: true          # Disable weight decay on covered Linear layers (default: true)
+bn_mode: pooled_global            # BatchNorm variance aggregation: 'pooled_global', 'naive_avg', 'local_bn'
+# Legacy backward-compatible parameters:
+coverage_kappa: 512.0             # Legacy kappa (used if adaptive_kappa=false)
+coverage_mu_head: 0.1             # Legacy alias for mu
+la_tau: 1.0                       # Legacy tau (used if la_mode='v1_legacy')
+la_epsilon: 1.0                   # Legacy epsilon (used if la_mode='v1_legacy')
 scr_gamma: 1.0                    # SCR support smoothing, kappa_c = gamma * n_c / K
 scr_head_lambda: 0.01             # SCR classifier-row anchor strength
 

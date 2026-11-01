@@ -29,7 +29,15 @@ from algorithms.fedbns import (
     FedBNScaffoldStrategy,
     ScaffoldFedBNStrategy,
 )
-from algorithms.cla import CLAStrategy, CoverageLA_Strategy
+from algorithms.cla import (
+    CLAStrategy,
+    CoverageLA_Strategy,
+    MinimalistAdaCoverageLACriterion,
+    build_client_optimizer,
+    aggregate_models_with_pooled_bn,
+    get_linear_layers_in_order,
+    ABLATION_PRESETS,
+)
 from algorithms.scr import SCRStrategy
 from algorithms.fedsld import FedSLDStrategy
 
@@ -95,6 +103,11 @@ __all__ = [
     "ScaffoldFedBNStrategy",
     "CLAStrategy",
     "CoverageLA_Strategy",
+    "MinimalistAdaCoverageLACriterion",
+    "build_client_optimizer",
+    "aggregate_models_with_pooled_bn",
+    "get_linear_layers_in_order",
+    "ABLATION_PRESETS",
     "SCRStrategy",
     "FedSLDStrategy",
     "STRATEGY_REGISTRY",

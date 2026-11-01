@@ -39,6 +39,13 @@ from models import (
     is_bn_key,
 )
 from algorithms.scr import classifier_head, client_support_parameters, head_penalty
+from algorithms.cla import (
+    get_linear_layers_in_order,
+    MinimalistAdaCoverageLACriterion,
+    build_client_optimizer,
+    load_global_counts_from_partition,
+    ABLATION_PRESETS,
+)
 from datasets.medmnist_code import get_medmnist_datasets
 from datasets.partition import load_partition, get_client_dataloader, get_partition_path
 from utils.path_utils import sanitize_run_name
@@ -65,6 +72,7 @@ def _local_train(
     is_scaffold: bool = False,
     min_lr: float = 1e-6,
     early_stop_patience: int = 5,
+    cla_criterion: Optional[Any] = None,
     coverage_head_ref: dict = None,
     coverage_weights: "torch.Tensor | None" = None,
     la_offsets: "torch.Tensor | None" = None,
@@ -164,7 +172,10 @@ def _local_train(
             outputs = model(images)
 
             # Strategy-specific loss formulation
-            if is_fedsld and fedsld_prior is not None:
+            if cla_criterion is not None:
+                curr_linear_layers = get_linear_layers_in_order(model)
+                loss, _ = cla_criterion(outputs, labels, curr_linear_layers)
+            elif is_fedsld and fedsld_prior is not None:
                 # FedSLD: reweight local mini-batch CE by p_b(y) / (P~(y) + eps)
                 batch_counts = torch.bincount(labels, minlength=fedsld_prior.size(0)).float()
                 pb = batch_counts / float(labels.size(0))
@@ -185,8 +196,8 @@ def _local_train(
             else:
                 loss = criterion(outputs, labels)
 
-            # Coverage head penalty: anchor classifier rows to reference
-            if is_coverage_la and head_weight_param is not None:
+            # Coverage head penalty: anchor classifier rows to reference (legacy v1 fallback only when cla_criterion is None)
+            if cla_criterion is None and is_coverage_la and head_weight_param is not None:
                 w_ref = coverage_head_ref["weight"]
                 penalty = (coverage_weights.unsqueeze(1) *
                            (head_weight_param - w_ref) ** 2).sum()
@@ -337,6 +348,18 @@ class FedMedAIClient(fl.client.NumPyClient):
         momentum: float = 0.0,
         weight_decay: float = 0.0,
         name: Optional[str] = None,
+        mu: float = 0.1,
+        use_la: bool = True,
+        la_mode: str = "prior_aligned",
+        adaptive_kappa: bool = True,
+        multi_linear_coverage: bool = True,
+        disable_covered_wd: bool = True,
+        bn_mode: str = "pooled_global",
+        ablation_preset: Optional[str] = None,
+        coverage_kappa: float = 512.0,
+        coverage_mu_head: float = 0.1,
+        la_tau: float = 1.0,
+        la_epsilon: float = 1.0,
     ):
         self.client_id = client_id
         self.model_name = model_name
@@ -358,6 +381,18 @@ class FedMedAIClient(fl.client.NumPyClient):
         self.server_address = server_address
         self.strategy = strategy.lower() if strategy else None
         self.partition_path = str(partition_path) if partition_path else None
+        self.mu = float(mu)
+        self.use_la = bool(use_la)
+        self.la_mode = str(la_mode)
+        self.adaptive_kappa = bool(adaptive_kappa)
+        self.multi_linear_coverage = bool(multi_linear_coverage)
+        self.disable_covered_wd = bool(disable_covered_wd)
+        self.bn_mode = str(bn_mode)
+        self.ablation_preset = ablation_preset
+        self.coverage_kappa = float(coverage_kappa)
+        self.coverage_mu_head = float(coverage_mu_head)
+        self.la_tau = float(la_tau)
+        self.la_epsilon = float(la_epsilon)
         self.client_control_variate: Optional[List[np.ndarray]] = None
 
         self.round_history = []
@@ -435,8 +470,9 @@ class FedMedAIClient(fl.client.NumPyClient):
         scaffold_strategies = (
             "scaffold", "proposed", "fedbns", "fedbn_scaffold", "bn_scaffold", "scaffold_fedbn",
         )
+        bn_mode_cfg = str(config.get("bn_mode", getattr(self, "bn_mode", "pooled_global"))).lower().strip()
         is_scaffold = (strategy in scaffold_strategies) or (len(parameters) == 2 * num_model_layers)
-        is_fedbn = strategy in fedbn_strategies
+        is_fedbn = (strategy in fedbn_strategies) or (strategy in ("coverage_la", "cla", "coveragela") and bn_mode_cfg == "local_bn")
 
         initial_weights = None
         server_c = None
@@ -580,25 +616,41 @@ class FedMedAIClient(fl.client.NumPyClient):
         coverage_weights_tensor = None
         la_offsets_tensor = None
         coverage_mu_head_val = 0.0
+        cla_criterion = None
         scr_sample_weights = None
         scr_anchor = None
         scr_reference = None
         scr_head_lambda = 0.0
 
         if strategy in ("coverage_la", "cla", "coveragela"):
-            cov_kappa = float(config.get("coverage_kappa", 512.0))
-            cov_mu_head = float(config.get("coverage_mu_head", 0.1))
-            la_tau = float(config.get("la_tau", 1.0))
-            la_epsilon = float(config.get("la_epsilon", 1.0))
+            preset_name = config.get("ablation_preset", getattr(self, "ablation_preset", None))
+            preset_cfg = {}
+            if preset_name:
+                for k_p, v_p in ABLATION_PRESETS.items():
+                    if k_p.lower() == str(preset_name).strip().lower():
+                        preset_cfg = v_p
+                        break
+
+            mu = float(config.get("mu", preset_cfg.get("mu", config.get("coverage_mu_head", getattr(self, "mu", 0.1)))))
+            use_la = bool(config.get("use_la", preset_cfg.get("use_la", getattr(self, "use_la", True))))
+            la_mode = str(config.get("la_mode", preset_cfg.get("la_mode", getattr(self, "la_mode", "prior_aligned"))))
+            adaptive_kappa = bool(config.get("adaptive_kappa", preset_cfg.get("adaptive_kappa", getattr(self, "adaptive_kappa", True))))
+            multi_linear_coverage = bool(config.get("multi_linear_coverage", preset_cfg.get("multi_linear_coverage", getattr(self, "multi_linear_coverage", True))))
+            disable_covered_wd = bool(config.get("disable_covered_wd", preset_cfg.get("disable_covered_wd", getattr(self, "disable_covered_wd", True))))
+            bn_mode = str(config.get("bn_mode", preset_cfg.get("bn_mode", getattr(self, "bn_mode", "pooled_global"))))
+
+            cov_kappa = float(config.get("legacy_kappa", config.get("coverage_kappa", getattr(self, "coverage_kappa", 512.0))))
+            la_tau = float(config.get("legacy_tau", config.get("la_tau", getattr(self, "la_tau", 1.0))))
+            la_epsilon = float(config.get("legacy_eps", config.get("la_epsilon", getattr(self, "la_epsilon", 1.0))))
 
             self.optimizer.state.clear()
 
+            # Reference Linear layers at round start
+            ref_linear_layers = [copy.deepcopy(m) for m in get_linear_layers_in_order(self.model)]
+
+            # Compute local class counts
             if not hasattr(self, "_class_counts") or self._class_counts is None:
-                last_linear = None
-                for m in self.model.modules():
-                    if isinstance(m, nn.Linear):
-                        last_linear = m
-                num_cls = last_linear.out_features if last_linear is not None else getattr(self, "num_classes", 8)
+                num_cls = getattr(self, "num_classes", 8)
                 class_counts = torch.zeros(num_cls, dtype=torch.float32)
                 for _, labels_batch in self.train_loader:
                     labels_flat = labels_batch.view(-1).long()
@@ -608,27 +660,61 @@ class FedMedAIClient(fl.client.NumPyClient):
             else:
                 class_counts = self._class_counts
 
-            coverage_weights_tensor = (cov_kappa / (class_counts + cov_kappa)).to(self.device)
+            class_counts_list = [int(x) for x in class_counts.tolist()]
 
-            if la_tau > 0:
-                la_offsets_tensor = (la_tau * torch.log(class_counts + la_epsilon)).to(self.device)
+            # Determine global class counts
+            global_class_counts = None
+            if "global_class_counts" in config:
+                raw_gc = config["global_class_counts"]
+                if isinstance(raw_gc, str):
+                    try:
+                        global_class_counts = [int(x) for x in json.loads(raw_gc)]
+                    except Exception:
+                        pass
+                elif isinstance(raw_gc, (list, tuple)):
+                    global_class_counts = [int(x) for x in raw_gc]
 
-            if cov_mu_head > 0:
-                last_linear = None
-                for m in self.model.modules():
-                    if isinstance(m, nn.Linear):
-                        last_linear = m
-                if last_linear is not None:
-                    coverage_head_ref = {
-                        "weight": last_linear.weight.clone().detach(),
-                    }
-                    if last_linear.bias is not None:
-                        coverage_head_ref["bias"] = last_linear.bias.clone().detach()
-                    coverage_mu_head_val = cov_mu_head
+            if global_class_counts is None and getattr(self, "partition_path", None):
+                global_class_counts = load_global_counts_from_partition(self.partition_path, num_classes=self.num_classes)
+
+            # Build CLA v2 criterion
+            cla_criterion = MinimalistAdaCoverageLACriterion(
+                class_counts=class_counts_list,
+                global_class_counts=global_class_counts,
+                num_classes=self.num_classes,
+                ref_linear_layers=ref_linear_layers,
+                mu=mu,
+                use_la=use_la,
+                la_mode=la_mode,
+                adaptive_kappa=adaptive_kappa,
+                multi_linear_coverage=multi_linear_coverage,
+                legacy_kappa=cov_kappa,
+                legacy_tau=la_tau,
+                legacy_eps=la_epsilon,
+                device=self.device,
+            )
+
+            # Build client optimizer separating covered linear parameters from backbone
+            if disable_covered_wd and mu > 0.0:
+                covered_layers = (
+                    get_linear_layers_in_order(self.model)
+                    if multi_linear_coverage
+                    else [get_linear_layers_in_order(self.model)[-1]]
+                )
+                self.optimizer = build_client_optimizer(
+                    model=self.model,
+                    covered_linear_layers=covered_layers,
+                    optimizer_name=self.optimizer_name,
+                    lr=self.learning_rate,
+                    weight_decay=self.weight_decay,
+                    momentum=self.momentum,
+                    disable_covered_wd=True,
+                )
 
             print(
-                f"[Client {self.client_id}] Coverage+LA: kappa={cov_kappa} mu_head={cov_mu_head} "
-                f"tau={la_tau} eps={la_epsilon} | class_counts={class_counts.tolist()}"
+                f"[Client {self.client_id}] CLA v2: mu={mu} (preset={preset_name}) | "
+                f"la_mode={la_mode} | adaptive_kappa={adaptive_kappa} | multi_linear={multi_linear_coverage} | "
+                f"disable_wd={disable_covered_wd} | bn_mode={bn_mode} | local_counts={class_counts_list}"
             )
 
         if strategy == "scr":
@@ -694,6 +780,7 @@ class FedMedAIClient(fl.client.NumPyClient):
             global_params=global_params,
             scaffold_drift=scaffold_drift,
             is_scaffold=is_scaffold,
+            cla_criterion=cla_criterion,
             coverage_head_ref=coverage_head_ref,
             coverage_weights=coverage_weights_tensor,
             la_offsets=la_offsets_tensor,
@@ -1077,6 +1164,56 @@ def main():
         help=f"Client local optimizer ('adam', 'sgd', or 'adamw') (default: {yaml_cfg.get('optimizer', 'adam')})",
     )
     parser.add_argument(
+        "--mu",
+        type=float,
+        default=yaml_cfg.get("mu", yaml_cfg.get("coverage_mu_head", 0.1)),
+        help=f"CLA coverage penalty intensity mu (default: {yaml_cfg.get('mu', yaml_cfg.get('coverage_mu_head', 0.1))})",
+    )
+    parser.add_argument(
+        "--use_la",
+        action=argparse.BooleanOptionalAction,
+        default=yaml_cfg.get("use_la", True),
+        help=f"Toggle CLA Logit Adjustment (default: {yaml_cfg.get('use_la', True)})",
+    )
+    parser.add_argument(
+        "--la_mode",
+        type=str,
+        default=yaml_cfg.get("la_mode", "prior_aligned"),
+        choices=["prior_aligned", "v1_legacy"],
+        help=f"CLA Logit Adjustment mode (default: {yaml_cfg.get('la_mode', 'prior_aligned')})",
+    )
+    parser.add_argument(
+        "--adaptive_kappa",
+        action=argparse.BooleanOptionalAction,
+        default=yaml_cfg.get("adaptive_kappa", True),
+        help=f"CLA adaptive Empirical Bayes shrinkage (default: {yaml_cfg.get('adaptive_kappa', True)})",
+    )
+    parser.add_argument(
+        "--multi_linear_coverage",
+        action=argparse.BooleanOptionalAction,
+        default=yaml_cfg.get("multi_linear_coverage", True),
+        help=f"CLA multi-linear coverage across all Linear layers (default: {yaml_cfg.get('multi_linear_coverage', True)})",
+    )
+    parser.add_argument(
+        "--disable_covered_wd",
+        action=argparse.BooleanOptionalAction,
+        default=yaml_cfg.get("disable_covered_wd", True),
+        help=f"Disable optimizer weight decay on covered Linear layers (default: {yaml_cfg.get('disable_covered_wd', True)})",
+    )
+    parser.add_argument(
+        "--bn_mode",
+        type=str,
+        default=yaml_cfg.get("bn_mode", "pooled_global"),
+        choices=["pooled_global", "naive_avg", "local_bn"],
+        help=f"CLA BatchNorm aggregation mode (default: {yaml_cfg.get('bn_mode', 'pooled_global')})",
+    )
+    parser.add_argument(
+        "--ablation_preset",
+        type=str,
+        default=yaml_cfg.get("ablation_preset", None),
+        help="CLA ablation preset (e.g. A0_fedavg, A1_cla_v1_legacy, A5_full_proposed_v2)",
+    )
+    parser.add_argument(
         "--coverage_kappa",
         type=float,
         default=yaml_cfg.get("coverage_kappa", 512.0),
@@ -1250,6 +1387,18 @@ def main():
         momentum=args.momentum,
         weight_decay=args.weight_decay,
         name=args.name,
+        mu=args.mu,
+        use_la=args.use_la,
+        la_mode=args.la_mode,
+        adaptive_kappa=args.adaptive_kappa,
+        multi_linear_coverage=args.multi_linear_coverage,
+        disable_covered_wd=args.disable_covered_wd,
+        bn_mode=args.bn_mode,
+        ablation_preset=args.ablation_preset,
+        coverage_kappa=args.coverage_kappa,
+        coverage_mu_head=args.coverage_mu_head,
+        la_tau=args.la_tau,
+        la_epsilon=args.la_epsilon,
     )
 
     print(f"[Client {args.client_id}] Connecting to {args.server_address}...")
