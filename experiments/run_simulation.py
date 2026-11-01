@@ -251,6 +251,9 @@ def ensure_partition_exists(
         res = pathological_partition(train_dataset, num_clients, seed, test_dataset=target_test_dataset)
     elif partition_mode == "practical":
         res = practical_partition(train_dataset, num_clients, seed, test_dataset=target_test_dataset)
+    elif partition_mode == "dirichlet":
+        alpha = 0.3
+        res = dirichlet_partition(train_dataset, num_clients, alpha, seed, test_dataset=target_test_dataset)
     elif partition_mode.startswith("dirichlet_"):
         alpha = float(partition_mode.split("_")[1])
         res = dirichlet_partition(train_dataset, num_clients, alpha, seed, test_dataset=target_test_dataset)
@@ -851,6 +854,8 @@ STRATEGY_COLORS = {
     "scr": "#eab308",
     "coverage_la": "#059669",
     "coveragela": "#059669",
+    "fedsld": "#d97706",
+    "fed_sld": "#d97706",
 }
 
 STRATEGY_MARKERS = {
@@ -868,6 +873,8 @@ STRATEGY_MARKERS = {
     "scr": "*",
     "coverage_la": "X",
     "coveragela": "X",
+    "fedsld": "d",
+    "fed_sld": "d",
 }
 
 
@@ -1268,7 +1275,7 @@ def main():
     if timeout_per_run is None or timeout_per_run <= 0:
         timeout_per_run = 0
     datasets = [d.lower().strip() for d in datasets]
-    partitions = [p.lower().strip() for p in partitions]
+    partitions = ["dirichlet_0.3" if p.lower().strip() == "dirichlet" else p.lower().strip() for p in partitions]
     strategies = [s.lower().strip() for s in strategies]
 
     raw_name = args.name or cfg.get("name")
