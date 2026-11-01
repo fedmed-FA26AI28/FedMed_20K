@@ -121,6 +121,9 @@ COVERAGE_KAPPA="${COVERAGE_KAPPA:-}"
 COVERAGE_MU_HEAD="${COVERAGE_MU_HEAD:-}"
 LA_TAU="${LA_TAU:-}"
 LA_EPSILON="${LA_EPSILON:-}"
+SCR_GAMMA="${SCR_GAMMA:-}"
+SCR_HEAD_LAMBDA="${SCR_HEAD_LAMBDA:-}"
+PROXIMAL_MU="${PROXIMAL_MU:-}"
 
 # List of random seeds for the sequential runs (default: 5 runs per config)
 SEEDS=(42 43 44 45 46)
@@ -198,17 +201,11 @@ for d_idx in "${!DATASETS[@]}"; do
             if [ -n "$CUSTOM_BASE_NAME" ]; then
                 if [ "$TOTAL_DATASETS" -eq 1 ] && [ "$TOTAL_PARTITIONS" -eq 1 ] && [ "$TOTAL_STRATEGIES" -eq 1 ]; then
                     BASE_NAME="$CUSTOM_BASE_NAME"
-                elif [ "$TOTAL_PARTITIONS" -eq 1 ] && [ "$CURRENT_PARTITION" = "practical" ]; then
-                    BASE_NAME="${CUSTOM_BASE_NAME}_${CURRENT_DATASET}_${CURRENT_STRATEGY}"
                 else
-                    BASE_NAME="${CUSTOM_BASE_NAME}_${CURRENT_DATASET}_${CURRENT_PARTITION}_${CURRENT_STRATEGY}"
+                    BASE_NAME="${CUSTOM_BASE_NAME}_${CURRENT_DATASET}_${CURRENT_PARTITION}_${CURRENT_STRATEGY}_${MODEL}"
                 fi
             else
-                if [ "$TOTAL_PARTITIONS" -eq 1 ] && [ "$CURRENT_PARTITION" = "practical" ]; then
-                    BASE_NAME="${CURRENT_DATASET}_${CURRENT_STRATEGY}_${MODEL}"
-                else
-                    BASE_NAME="${CURRENT_DATASET}_${CURRENT_PARTITION}_${CURRENT_STRATEGY}_${MODEL}"
-                fi
+                BASE_NAME="${CURRENT_DATASET}_${CURRENT_PARTITION}_${CURRENT_STRATEGY}_${MODEL}"
             fi
 
             echo ""
@@ -232,6 +229,9 @@ for d_idx in "${!DATASETS[@]}"; do
                 [ -n "$COVERAGE_MU_HEAD" ] && EXTRA_ARGS+=(--coverage_mu_head "$COVERAGE_MU_HEAD")
                 [ -n "$LA_TAU" ] && EXTRA_ARGS+=(--la_tau "$LA_TAU")
                 [ -n "$LA_EPSILON" ] && EXTRA_ARGS+=(--la_epsilon "$LA_EPSILON")
+                [ -n "$SCR_GAMMA" ] && EXTRA_ARGS+=(--scr_gamma "$SCR_GAMMA")
+                [ -n "$SCR_HEAD_LAMBDA" ] && EXTRA_ARGS+=(--scr_head_lambda "$SCR_HEAD_LAMBDA")
+                [ -n "$PROXIMAL_MU" ] && EXTRA_ARGS+=(--proximal_mu "$PROXIMAL_MU")
 
                 python -u -m experiments.run_simulation \
                     --rounds "$ROUNDS" \
