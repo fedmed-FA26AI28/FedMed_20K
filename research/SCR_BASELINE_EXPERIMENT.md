@@ -4,6 +4,8 @@ Research methods are implemented in
 [`algorithms/research_methods`](../algorithms/research_methods/README.md).
 The [SCR formulation](../algorithms/research_methods/SCR.md) explains its
 weights, anchor and limits.
+The separate [controlled-correction guide](SCR_SHRINK_GUIDE.md) adds the
+`support_shrink` candidate while retaining original SCR as a control.
 Use `python -m research.matrix --list-methods` to see the available choices;
 the `--methods` flag switches among them in the shared experiment runner.
 

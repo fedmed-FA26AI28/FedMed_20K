@@ -12,7 +12,8 @@ pipeline. `research.matrix` runs them sequentially and produces comparison plots
 Change `--methods` to switch algorithms. Run `python -m research.matrix
 --list-methods` to see all available choices and their tuning axes. The
 [SCR formulation](SCR.md) and its
-[validation/test commands](../../research/SCR_BASELINE_EXPERIMENT.md) are documented separately.
+[validation/test commands](../../research/SCR_BASELINE_EXPERIMENT.md), and the
+[controlled-correction pilot](../../research/SCR_SHRINK_GUIDE.md) are documented separately.
 
 | File | Responsibility |
 | --- | --- |
@@ -23,7 +24,7 @@ Change `--methods` to switch algorithms. Run `python -m research.matrix
 
 To add a research algorithm, write its local loss in `objectives.py` and
 register it in `METHOD_REGISTRY` with its client weight policy and any tuning
-axes. Existing axes (`gamma`, `head_lambda`, `fedlc_tau`, `fedvls_lambda`) are
+axes. Existing axes (`gamma`, `head_lambda`, `rho`, `fedlc_tau`, `fedvls_lambda`) are
 shared by the matrix and validation selector. A new hyperparameter also needs
 CLI arguments in `research/run.py`, `research/matrix.py`, and
 `research/select.py`, plus a grid entry here. A method requiring different

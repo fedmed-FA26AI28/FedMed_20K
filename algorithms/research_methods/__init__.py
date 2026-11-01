@@ -35,6 +35,7 @@ class ClientContext:
     clients: int
     gamma: float
     coverage_kappa: float
+    rho: float = 1.0
 
 
 def _plain(context: ClientContext) -> tuple[np.ndarray, np.ndarray]:
@@ -50,6 +51,16 @@ def _support(context: ClientContext) -> tuple[np.ndarray, np.ndarray]:
 def _support_uniform(context: ClientContext) -> tuple[np.ndarray, np.ndarray]:
     weights, _ = _support(context)
     return weights, np.ones_like(context.local_counts)
+
+
+def _support_shrink(context: ClientContext) -> tuple[np.ndarray, np.ndarray]:
+    """Interpolate the empirical FedAvg risk and SCR data risk."""
+    if not 0 <= context.rho <= 1:
+        raise ValueError("rho must be between 0 and 1")
+    weights, anchor = _support(context)
+    blended = (1 - context.rho) + context.rho * weights
+    blended[context.local_counts == 0] = 0
+    return blended, anchor
 
 
 def _coverage_head(context: ClientContext) -> tuple[np.ndarray, np.ndarray]:
@@ -96,11 +107,14 @@ METHOD_REGISTRY = {
                        tuning_parameters=("gamma", "head_lambda")),
         ResearchMethod("support_calibrated", objectives.weighted_head, _support,
                        tuning_parameters=("gamma", "head_lambda")),
+        ResearchMethod("support_shrink", objectives.weighted_head, _support_shrink,
+                       tuning_parameters=("gamma", "head_lambda", "rho")),
     )
 }
 METHODS = tuple(METHOD_REGISTRY)
 TUNING_GRIDS = {"gamma": "gammas", "head_lambda": "head_lambdas",
-                "fedlc_tau": "fedlc_taus", "fedvls_lambda": "fedvls_lambdas"}
+                "fedlc_tau": "fedlc_taus", "fedvls_lambda": "fedvls_lambdas",
+                "rho": "rhos"}
 
 
 def get_method(name: str) -> ResearchMethod:
