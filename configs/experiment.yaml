@@ -34,7 +34,7 @@ num_clients: 12                   # Total number of physical clients participati
 min_clients: 12                   # Minimum connected clients before server starts the round
 
 # --- Server & FL Training Hyperparameters ---
-# Supported strategies: 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold', 'fedbns', 'proposed', 'cla', 'coverage_la', 'scr'
+# Supported strategies: 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold', 'fedbns', 'proposed', 'cla', 'coverage_la', 'scr', 'fedsld'
 strategy: fedbns
 rounds: 40                        # Total federated communication rounds
 fl_rounds: 40                     # Alias for rounds
@@ -71,6 +71,8 @@ coverage_kappa: 512.0             # CLA coverage anchoring curve parameter kappa
 coverage_mu_head: 0.1             # CLA classifier head penalty intensity mu_head (mu_head >= 0)
 la_tau: 1.0                       # CLA logit adjustment intensity tau (tau >= 0)
 la_epsilon: 1.0                   # CLA logit adjustment label smoothing epsilon (epsilon > 0)
+scr_gamma: 1.0                    # SCR support smoothing, kappa_c = gamma * n_c / K
+scr_head_lambda: 0.01             # SCR classifier-row anchor strength
 
 # --- Hardware & Client Execution ---
 device_type: pc                   # Hardware profile: 'pc', 'jetson_orin', 'jetson_nano'

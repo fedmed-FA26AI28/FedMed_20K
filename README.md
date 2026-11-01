@@ -98,7 +98,7 @@ FedMedAI_Study/
 Activate the virtual environment:
 - **Windows PowerShell**:
   ```powershell
-  D:\FPT\KLTN\FED\.venv\Scripts\Activate.ps1
+  .venv\Scripts\Activate.ps1
   ```
 - **Linux / Jetson Bash**:
   ```bash

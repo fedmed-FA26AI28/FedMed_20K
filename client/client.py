@@ -38,8 +38,7 @@ from models import (
     set_parameters_fedbn,
     is_bn_key,
 )
-from algorithms.research_methods.models import classifier_head
-from algorithms.research_methods.support import client_support_parameters, head_penalty
+from algorithms.scr import classifier_head, client_support_parameters, head_penalty
 from datasets.medmnist_code import get_medmnist_datasets
 from datasets.partition import load_partition, get_client_dataloader, get_partition_path
 from utils.path_utils import sanitize_run_name
