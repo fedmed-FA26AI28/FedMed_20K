@@ -266,7 +266,7 @@ def run_centralized(
     if sanitized_name:
         run_name = f"{sanitized_name}_{run_id}" if run_id not in sanitized_name else sanitized_name
     else:
-        run_name = f"{dataset_name}_centralized_{run_id}_seed{seed}_{model_name}"
+        run_name = f"{dataset_name}_centralized_{run_id}_{model_name}_centralized"
 
     if save_dir:
         final_save_dir = str(save_dir)

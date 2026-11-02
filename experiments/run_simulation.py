@@ -1163,7 +1163,8 @@ def main():
     else:
         d_tag = "_".join(datasets)
         p_tag = "_".join(partitions)
-        run_name = f"{d_tag}_{p_tag}_{run_id}_seed{seed}_{model}"
+        s_tag = "_".join(strategies)
+        run_name = f"{d_tag}_{p_tag}_{run_id}_{model}_{s_tag}"
     timestamp_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
     if args.output_dir:
