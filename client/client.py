@@ -13,6 +13,7 @@ Usage:
 """
 
 import argparse
+import copy
 import json
 import os
 import sys
@@ -705,7 +706,7 @@ class FedMedAIClient(fl.client.NumPyClient):
                     model=self.model,
                     covered_linear_layers=covered_layers,
                     optimizer_name=self.optimizer_name,
-                    lr=self.learning_rate,
+                    lr=self.optimizer.param_groups[0]["lr"],
                     weight_decay=self.weight_decay,
                     momentum=self.momentum,
                     disable_covered_wd=True,

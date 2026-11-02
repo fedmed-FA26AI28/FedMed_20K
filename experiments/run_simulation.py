@@ -456,6 +456,15 @@ def run_single_experiment(
         server_cmd.append("--no-local_test")
 
     server_log_file = open(server_log_path, "w", encoding="utf-8")
+
+    # Clean up stale artifacts from previous runs in the same directory to prevent false reporting
+    for stale_file in ["fl_results.json", "simulation_rounds_history.csv", "round_metrics.csv", "client_round_metrics.csv"]:
+        stale_p = run_dir / stale_file
+        if stale_p.exists():
+            try:
+                stale_p.unlink()
+            except Exception:
+                pass
     
     lock_path = run_dir / ".gpu.lock"
     if lock_path.exists():
@@ -688,6 +697,18 @@ def run_single_experiment(
                 cid, err_code = failed_clients[0]
                 status = f"client_error({err_code})"
                 print(f"  [Error] Client {cid} exited with error code {err_code}!")
+                c_log_path = run_dir / "clients" / f"client_{cid}" / "client.log"
+                if c_log_path.exists():
+                    try:
+                        with open(c_log_path, "r", encoding="utf-8", errors="ignore") as clf:
+                            tail_lines = [l.strip() for l in clf.readlines()[-12:] if l.strip()]
+                            if tail_lines:
+                                print(f"  [Client {cid} Log Tail]:")
+                                for tl in tail_lines:
+                                    print(f"    {tl}")
+                                sys.stdout.flush()
+                    except Exception:
+                        pass
                 server_proc.kill()
                 for cp in client_procs:
                     cp.kill()
