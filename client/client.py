@@ -169,6 +169,9 @@ def _local_train(
                 batch_counts = torch.bincount(labels, minlength=fedsld_prior.size(0)).float()
                 pb = batch_counts / float(labels.size(0))
                 weights = pb[labels] / (fedsld_prior[labels] + fedsld_epsilon)
+                # Self-normalize weights to unit mean across batch to preserve standard CE gradient scale
+                # and prevent exponential divergence under severe non-IID label skew
+                weights = weights / (weights.mean() + 1e-8)
                 ce = F.cross_entropy(outputs, labels, reduction="none")
                 if fedsld_reduction == "sum":
                     loss = (weights * ce).sum()
