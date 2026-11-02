@@ -60,7 +60,10 @@ def load_prior_from_partition(
     if total_samples <= 0:
         return np.ones(num_classes, dtype=np.float64) / num_classes
 
-    return total_counts / total_samples
+    prior = total_counts / total_samples
+    # Safeguard against zero-frequency classes in partitions: enforce minimum positive floor
+    prior = np.maximum(prior, 1e-4)
+    return prior / prior.sum()
 
 
 class FedSLDStrategy(FedStrategyBase):
