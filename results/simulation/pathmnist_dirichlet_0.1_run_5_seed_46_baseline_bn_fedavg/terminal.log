@@ -1,0 +1,54 @@
+
+======================================================================
+  FedMedAI Automated Simulation Benchmark
+======================================================================
+  Run Identifier   : RUN_5_SEED_46
+  Master CSV File  : /home/ezycloudx-admin/FedMed_20K/CSV file/master_runs.csv
+  Run Name         : pathmnist_dirichlet_0.1_run_5_seed_46_baseline_bn_fedavg
+  Output Directory : results/simulation/pathmnist_dirichlet_0.1_run_5_seed_46_baseline_bn_fedavg
+  Terminal Log     : results/simulation/pathmnist_dirichlet_0.1_run_5_seed_46_baseline_bn_fedavg/terminal.log
+  Model            : BASELINE_BN
+  Optimizer        : SGD (momentum=0.9)
+  Augmentation     : Disabled (crop=False, flip=False)
+  Seed             : 46
+  Clients          : 12
+  Rounds per Run   : 80
+  Local Epochs     : 5
+  Local Test Eval  : Enabled (BMCTA/BTA tracking)
+  Client Module    : client.client (Parallel Execution)
+  Timeout per Run  : Disabled (Infinite)
+  Datasets         : ['pathmnist']
+  Partitions       : ['dirichlet_0.1']
+  Strategies       : ['fedavg']
+  Total Runs Grid  : 1 combinations
+======================================================================
+
+Verifying data partition files for all dataset and partition combinations...
+
+>>> [Simulation Matrix 1/1] Starting: Dataset=pathmnist | Partition=dirichlet_0.1 | Strategy=FEDAVG
+
+-----------------------------------------------------------------
+  Launching FL Server: FEDAVG | Model: BASELINE_BN | Optimizer: SGD | Dataset: pathmnist | Partition: dirichlet_0.1 | Port: 40321 | LocalTest: True | Seed: 46
+  Artifact Directory : results/simulation/pathmnist_dirichlet_0.1_run_5_seed_46_baseline_bn_fedavg/pathmnist/dirichlet_0.1/fedavg
+-----------------------------------------------------------------
+  [Server] Listening. Launching 12 client workers (Module: client.client)...
+  [Success] Finished FEDAVG (dirichlet_0.1) [Local Test]: BMCTA: 67.58% (R58) | BTA: 73.70% (R47) | Time: 647.5s
+
+======================================================================
+  [Master CSV Updated] -> master_runs.csv
+  Configuration : PATHMNIST | FEDAVG | BASELINE_BN | dirichlet_0.1
+  Recorded Run  : run_5_seed_46 -> BTA=73.70% | BMCTA=67.58% | Loss=1.0443
+  Current Mean  : average (5 runs) -> BTA=72.62 ± 4.11% | BMCTA=70.15 ± 4.22% | Loss=0.9993 ± 0.2117
+======================================================================
+
+
+Generating multi-strategy comparison plots grouped by dataset...
+
+===========================================================================
+  FedMedAI Simulation Complete! Total Wall-Clock Time: 11.0 minutes
+===========================================================================
+  Artifacts Saved in Directory: results/simulation/pathmnist_dirichlet_0.1_run_5_seed_46_baseline_bn_fedavg
+  - Executive Report     : simulation_report.md
+  - Terminal Log         : terminal.log
+===========================================================================
+
