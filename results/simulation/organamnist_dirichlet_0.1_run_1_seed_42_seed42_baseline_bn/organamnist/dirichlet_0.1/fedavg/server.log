@@ -1,0 +1,1378 @@
+
+============================================================
+  FedMedAI FL Server
+  Config Source: configs/simulation.yaml
+  Dataset      : organamnist (Classes: 11)
+  Model        : BASELINE_BN
+  Optimizer    : SGD (momentum=0.9)
+  Seed         : 42
+  Strategy     : FEDAVG
+  Server IPv4  : 10.20.101.160
+  Client Target: 10.20.101.160:46673
+  Rounds       : 80
+  Min Clients  : 12
+  Local Epochs : 5
+  LR Mode      : FIXED
+  Base LR      : 0.01
+  LR Policy    : Fixed constant learning rate across all rounds
+  Early Stop   : Patience=0 (metric: accuracy)
+  Server Eval  : True
+  Local Test   : True
+  Listen       : 127.0.0.1:46673
+============================================================
+
+[Server] Strategy created: FedAvgStrategy
+[Server] Waiting for 12 clients on 127.0.0.1:46673 (Connect target: 10.20.101.160:46673)...
+
+[93mWARNING [0m:   DEPRECATED FEATURE: flwr.server.start_server() is deprecated.
+	Instead, use the `flower-superlink` CLI command to start a SuperLink as shown below:
+
+		$ flower-superlink --insecure
+
+	To view usage and all available options, run:
+
+		$ flower-superlink --help
+
+	Using `start_server()` is deprecated.
+
+            This is a deprecated feature. It will be removed
+            entirely in future versions of Flower.
+        
+[92mINFO [0m:      Starting Flower server, config: num_rounds=80, no round_timeout
+[92mINFO [0m:      Flower ECE: gRPC server running (80 rounds), SSL is disabled
+[92mINFO [0m:      [INIT]
+[92mINFO [0m:      Using initial global parameters provided by strategy
+[92mINFO [0m:      Starting evaluation of initial global parameters
+
+============================================================
+  [Server] Round 0 Global Evaluation
+  Loss: 2.4026 | Accuracy: 0.1002 (10.02%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 0: new best accuracy = 0.1002
+[92mINFO [0m:      initial parameters (loss, other metrics): 2.402558627661281, {'accuracy': 0.10023624704691192}
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 1]
+[92mINFO [0m:      [Server] Config for Round 1: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 5 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 1 | 6.2s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 1 Global Evaluation
+  Loss: 2.0872 | Accuracy: 0.2351 (23.51%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 1: new best accuracy = 0.2351
+[92mINFO [0m:      fit progress: (1, 2.0871669745093886, {'accuracy': 0.23512206097423782}, 7.346812351000153)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 1 Eval | MCTA: 18.66% (BMCTA: 18.66% @ R1) | Combined: 23.51% (BTA: 23.51% @ R1)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 2]
+[92mINFO [0m:      [Server] Config for Round 2: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 9 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 2 | 2.9s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 2 Global Evaluation
+  Loss: 2.0473 | Accuracy: 0.3792 (37.92%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 2: new best accuracy = 0.3792
+[92mINFO [0m:      fit progress: (2, 2.0472702502346047, {'accuracy': 0.3792327595905051}, 11.599068208000062)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 2 Eval | MCTA: 30.51% (BMCTA: 30.51% @ R2) | Combined: 37.92% (BTA: 37.92% @ R2)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 3]
+[92mINFO [0m:      [Server] Config for Round 3: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 3 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 3 | 2.9s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 3 Global Evaluation
+  Loss: 1.6922 | Accuracy: 0.3741 (37.41%)
+============================================================
+
+[92mINFO [0m:      fit progress: (3, 1.6922322995403323, {'accuracy': 0.37411407357408033}, 15.89976287100012)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 3 Eval | MCTA: 33.30% (BMCTA: 33.30% @ R3) | Combined: 37.42% (BTA: 37.92% @ R2)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 4]
+[92mINFO [0m:      [Server] Config for Round 4: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 4 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 4 | 2.9s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 4 Global Evaluation
+  Loss: 1.6752 | Accuracy: 0.4990 (49.90%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 4: new best accuracy = 0.4990
+[92mINFO [0m:      fit progress: (4, 1.6751965283408772, {'accuracy': 0.49904376195297556}, 20.233558893999998)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 4 Eval | MCTA: 41.90% (BMCTA: 41.90% @ R4) | Combined: 49.91% (BTA: 49.91% @ R4)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 5]
+[92mINFO [0m:      [Server] Config for Round 5: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 8 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 5 | 3.0s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 5 Global Evaluation
+  Loss: 1.3044 | Accuracy: 0.5367 (53.67%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 5: new best accuracy = 0.5367
+[92mINFO [0m:      fit progress: (5, 1.304418750347846, {'accuracy': 0.5367307908651142}, 24.5864305340001)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 5 Eval | MCTA: 46.65% (BMCTA: 46.65% @ R5) | Combined: 53.68% (BTA: 53.68% @ R5)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 6]
+[92mINFO [0m:      [Server] Config for Round 6: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 9 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 6 | 2.9s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 6 Global Evaluation
+  Loss: 1.0603 | Accuracy: 0.6655 (66.55%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 6: new best accuracy = 0.6655
+[92mINFO [0m:      fit progress: (6, 1.0603164409086425, {'accuracy': 0.6654854314321071}, 28.86002329200005)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 6 Eval | MCTA: 59.65% (BMCTA: 59.65% @ R6) | Combined: 66.55% (BTA: 66.55% @ R6)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 7]
+[92mINFO [0m:      [Server] Config for Round 7: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 4 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 7 | 3.1s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 7 Global Evaluation
+  Loss: 1.5314 | Accuracy: 0.4685 (46.85%)
+============================================================
+
+[92mINFO [0m:      fit progress: (7, 1.5314050950407512, {'accuracy': 0.4685003937450782}, 33.38506287300015)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 7 Eval | MCTA: 41.45% (BMCTA: 59.65% @ R6) | Combined: 46.84% (BTA: 66.55% @ R6)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 8]
+[92mINFO [0m:      [Server] Config for Round 8: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 8 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 8 | 3.2s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 8 Global Evaluation
+  Loss: 1.2906 | Accuracy: 0.6181 (61.81%)
+============================================================
+
+[92mINFO [0m:      fit progress: (8, 1.2905506553015835, {'accuracy': 0.618067274159073}, 37.99302636200014)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 8 Eval | MCTA: 52.30% (BMCTA: 59.65% @ R6) | Combined: 61.81% (BTA: 66.55% @ R6)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 9]
+[92mINFO [0m:      [Server] Config for Round 9: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 5 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 9 | 3.2s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 9 Global Evaluation
+  Loss: 0.9200 | Accuracy: 0.6794 (67.94%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 9: new best accuracy = 0.6794
+[92mINFO [0m:      fit progress: (9, 0.9200259338201453, {'accuracy': 0.6794352570592868}, 42.593280822999986)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 9 Eval | MCTA: 59.46% (BMCTA: 59.65% @ R6) | Combined: 67.94% (BTA: 67.94% @ R9)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 10]
+[92mINFO [0m:      [Server] Config for Round 10: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 5 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 10 | 3.2s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 10 Global Evaluation
+  Loss: 1.0169 | Accuracy: 0.6770 (67.70%)
+============================================================
+
+[92mINFO [0m:      fit progress: (10, 1.0169438359466227, {'accuracy': 0.6770165372932838}, 47.263959288000024)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 10 Eval | MCTA: 58.30% (BMCTA: 59.65% @ R6) | Combined: 67.70% (BTA: 67.94% @ R9)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 11]
+[92mINFO [0m:      [Server] Config for Round 11: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 4 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 11 | 3.1s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 11 Global Evaluation
+  Loss: 0.7796 | Accuracy: 0.7325 (73.25%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 11: new best accuracy = 0.7325
+[92mINFO [0m:      fit progress: (11, 0.7795649460148175, {'accuracy': 0.7325345933175835}, 51.710309972000005)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 11 Eval | MCTA: 64.13% (BMCTA: 64.13% @ R11) | Combined: 73.25% (BTA: 73.25% @ R11)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 12]
+[92mINFO [0m:      [Server] Config for Round 12: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 10 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 12 | 3.1s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 12 Global Evaluation
+  Loss: 0.7056 | Accuracy: 0.7580 (75.80%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 12: new best accuracy = 0.7580
+[92mINFO [0m:      fit progress: (12, 0.705599938606784, {'accuracy': 0.7579592755090562}, 56.21168950800006)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 12 Eval | MCTA: 67.03% (BMCTA: 67.03% @ R12) | Combined: 75.80% (BTA: 75.80% @ R12)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 13]
+[92mINFO [0m:      [Server] Config for Round 13: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 5 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 13 | 3.2s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 13 Global Evaluation
+  Loss: 0.6866 | Accuracy: 0.7593 (75.93%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 13: new best accuracy = 0.7593
+[92mINFO [0m:      fit progress: (13, 0.6865639281978301, {'accuracy': 0.7592530093373833}, 60.77422803100012)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 13 Eval | MCTA: 66.63% (BMCTA: 67.03% @ R12) | Combined: 75.93% (BTA: 75.93% @ R13)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 14]
+[92mINFO [0m:      [Server] Config for Round 14: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 0 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 14 | 3.0s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 14 Global Evaluation
+  Loss: 0.6529 | Accuracy: 0.7712 (77.12%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 14: new best accuracy = 0.7712
+[92mINFO [0m:      fit progress: (14, 0.6528919348098227, {'accuracy': 0.7711778602767465}, 65.15217279400008)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 14 Eval | MCTA: 68.52% (BMCTA: 68.52% @ R14) | Combined: 77.12% (BTA: 77.12% @ R14)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 15]
+[92mINFO [0m:      [Server] Config for Round 15: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 5 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 15 | 3.2s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 15 Global Evaluation
+  Loss: 0.6469 | Accuracy: 0.7758 (77.58%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 15: new best accuracy = 0.7758
+[92mINFO [0m:      fit progress: (15, 0.646893341115629, {'accuracy': 0.7757903026212173}, 69.80507374600006)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 15 Eval | MCTA: 68.67% (BMCTA: 68.67% @ R15) | Combined: 77.58% (BTA: 77.58% @ R15)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 16]
+[92mINFO [0m:      [Server] Config for Round 16: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 10 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 16 | 3.2s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 16 Global Evaluation
+  Loss: 0.6212 | Accuracy: 0.7854 (78.54%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 16: new best accuracy = 0.7854
+[92mINFO [0m:      fit progress: (16, 0.6211607389622269, {'accuracy': 0.7853526830914613}, 74.49257442400017)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 16 Eval | MCTA: 70.47% (BMCTA: 70.47% @ R16) | Combined: 78.53% (BTA: 78.54% @ R16)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 17]
+[92mINFO [0m:      [Server] Config for Round 17: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 11 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 17 | 3.2s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 17 Global Evaluation
+  Loss: 0.6290 | Accuracy: 0.7808 (78.08%)
+============================================================
+
+[92mINFO [0m:      fit progress: (17, 0.6290017467326154, {'accuracy': 0.7807964900438744}, 79.03218966899999)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 17 Eval | MCTA: 69.54% (BMCTA: 70.47% @ R16) | Combined: 78.08% (BTA: 78.54% @ R16)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 18]
+[92mINFO [0m:      [Server] Config for Round 18: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 9 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 18 | 2.9s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 18 Global Evaluation
+  Loss: 0.5810 | Accuracy: 0.8003 (80.03%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 18: new best accuracy = 0.8003
+[92mINFO [0m:      fit progress: (18, 0.5809612754011116, {'accuracy': 0.8002587467656654}, 83.34957367700008)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 18 Eval | MCTA: 72.07% (BMCTA: 72.07% @ R18) | Combined: 80.03% (BTA: 80.03% @ R18)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 19]
+[92mINFO [0m:      [Server] Config for Round 19: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 5 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 19 | 2.9s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 19 Global Evaluation
+  Loss: 0.5881 | Accuracy: 0.7996 (79.96%)
+============================================================
+
+[92mINFO [0m:      fit progress: (19, 0.5880784975059498, {'accuracy': 0.7995837552030599}, 87.70905646599999)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 19 Eval | MCTA: 72.54% (BMCTA: 72.54% @ R19) | Combined: 79.95% (BTA: 80.03% @ R18)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 20]
+[92mINFO [0m:      [Server] Config for Round 20: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 11 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 20 | 2.9s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 20 Global Evaluation
+  Loss: 0.5759 | Accuracy: 0.8023 (80.23%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 20: new best accuracy = 0.8023
+[92mINFO [0m:      fit progress: (20, 0.5759128932207772, {'accuracy': 0.8022837214534818}, 91.97915563600009)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 20 Eval | MCTA: 72.37% (BMCTA: 72.54% @ R19) | Combined: 80.23% (BTA: 80.23% @ R20)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 21]
+[92mINFO [0m:      [Server] Config for Round 21: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 3 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 21 | 3.1s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 21 Global Evaluation
+  Loss: 0.5646 | Accuracy: 0.8063 (80.63%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 21: new best accuracy = 0.8063
+[92mINFO [0m:      fit progress: (21, 0.56461588592628, {'accuracy': 0.8063336708291147}, 96.50131963900003)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 21 Eval | MCTA: 73.32% (BMCTA: 73.32% @ R21) | Combined: 80.63% (BTA: 80.63% @ R21)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 22]
+[92mINFO [0m:      [Server] Config for Round 22: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 3 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 22 | 3.1s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 22 Global Evaluation
+  Loss: 0.5575 | Accuracy: 0.8103 (81.03%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 22: new best accuracy = 0.8103
+[92mINFO [0m:      fit progress: (22, 0.5575006221247036, {'accuracy': 0.8102711216109799}, 100.987423089)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 22 Eval | MCTA: 73.96% (BMCTA: 73.96% @ R22) | Combined: 81.03% (BTA: 81.03% @ R22)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 23]
+[92mINFO [0m:      [Server] Config for Round 23: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 2 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 23 | 3.1s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 23 Global Evaluation
+  Loss: 0.5540 | Accuracy: 0.8103 (81.03%)
+============================================================
+
+[92mINFO [0m:      fit progress: (23, 0.5540401702630452, {'accuracy': 0.8102711216109799}, 105.49904031799997)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 23 Eval | MCTA: 73.61% (BMCTA: 73.96% @ R22) | Combined: 81.03% (BTA: 81.03% @ R22)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 24]
+[92mINFO [0m:      [Server] Config for Round 24: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 10 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 24 | 3.1s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 24 Global Evaluation
+  Loss: 0.5410 | Accuracy: 0.8140 (81.40%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 24: new best accuracy = 0.8140
+[92mINFO [0m:      fit progress: (24, 0.5410070851074723, {'accuracy': 0.81398357520531}, 110.00594073399998)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 24 Eval | MCTA: 74.46% (BMCTA: 74.46% @ R24) | Combined: 81.40% (BTA: 81.40% @ R24)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 25]
+[92mINFO [0m:      [Server] Config for Round 25: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 5 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 25 | 2.9s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 25 Global Evaluation
+  Loss: 0.5465 | Accuracy: 0.8149 (81.49%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 25: new best accuracy = 0.8149
+[92mINFO [0m:      fit progress: (25, 0.5465320266866217, {'accuracy': 0.8149398132523343}, 114.35644084800015)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 25 Eval | MCTA: 74.37% (BMCTA: 74.46% @ R24) | Combined: 81.49% (BTA: 81.49% @ R25)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 26]
+[92mINFO [0m:      [Server] Config for Round 26: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 0 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 26 | 2.9s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 26 Global Evaluation
+  Loss: 0.5327 | Accuracy: 0.8197 (81.97%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 26: new best accuracy = 0.8197
+[92mINFO [0m:      fit progress: (26, 0.5326773601396908, {'accuracy': 0.8196647541905726}, 118.69979493000005)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 26 Eval | MCTA: 75.52% (BMCTA: 75.52% @ R26) | Combined: 81.95% (BTA: 81.97% @ R26)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 27]
+[92mINFO [0m:      [Server] Config for Round 27: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 0 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 27 | 2.9s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 27 Global Evaluation
+  Loss: 0.5348 | Accuracy: 0.8194 (81.94%)
+============================================================
+
+[92mINFO [0m:      fit progress: (27, 0.5347616546654784, {'accuracy': 0.8194397570030375}, 123.02776216400002)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 27 Eval | MCTA: 75.13% (BMCTA: 75.52% @ R26) | Combined: 81.94% (BTA: 81.97% @ R26)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 28]
+[92mINFO [0m:      [Server] Config for Round 28: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 4 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 28 | 3.2s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 28 Global Evaluation
+  Loss: 1.4411 | Accuracy: 0.4778 (47.78%)
+============================================================
+
+[92mINFO [0m:      fit progress: (28, 1.4410700039917765, {'accuracy': 0.4778377770277871}, 127.6548735660001)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 28 Eval | MCTA: 47.57% (BMCTA: 75.52% @ R26) | Combined: 47.78% (BTA: 81.97% @ R26)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 29]
+[92mINFO [0m:      [Server] Config for Round 29: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 10 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 29 | 3.2s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 29 Global Evaluation
+  Loss: 0.6806 | Accuracy: 0.7657 (76.57%)
+============================================================
+
+[92mINFO [0m:      fit progress: (29, 0.6806352674552059, {'accuracy': 0.7656654291821352}, 132.3006611630001)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 29 Eval | MCTA: 69.84% (BMCTA: 75.52% @ R26) | Combined: 76.57% (BTA: 81.97% @ R26)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 30]
+[92mINFO [0m:      [Server] Config for Round 30: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 7 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 30 | 3.1s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 30 Global Evaluation
+  Loss: 0.6401 | Accuracy: 0.7806 (78.06%)
+============================================================
+
+[92mINFO [0m:      fit progress: (30, 0.6401246449370421, {'accuracy': 0.7806277421532231}, 136.878593615)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 30 Eval | MCTA: 70.25% (BMCTA: 75.52% @ R26) | Combined: 78.06% (BTA: 81.97% @ R26)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 31]
+[92mINFO [0m:      [Server] Config for Round 31: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 8 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 31 | 3.1s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 31 Global Evaluation
+  Loss: 0.7517 | Accuracy: 0.7442 (74.42%)
+============================================================
+
+[92mINFO [0m:      fit progress: (31, 0.7517352543259139, {'accuracy': 0.7441781977725278}, 141.35101938000003)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 31 Eval | MCTA: 65.41% (BMCTA: 75.52% @ R26) | Combined: 74.42% (BTA: 81.97% @ R26)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 32]
+[92mINFO [0m:      [Server] Config for Round 32: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 3 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 32 | 3.2s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 32 Global Evaluation
+  Loss: 0.6536 | Accuracy: 0.7762 (77.62%)
+============================================================
+
+[92mINFO [0m:      fit progress: (32, 0.6536183281064986, {'accuracy': 0.7762402969962875}, 145.90043701800005)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 32 Eval | MCTA: 69.39% (BMCTA: 75.52% @ R26) | Combined: 77.62% (BTA: 81.97% @ R26)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 33]
+[92mINFO [0m:      [Server] Config for Round 33: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 5 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 33 | 3.1s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 33 Global Evaluation
+  Loss: 0.5839 | Accuracy: 0.8023 (80.23%)
+============================================================
+
+[92mINFO [0m:      fit progress: (33, 0.5838805649985692, {'accuracy': 0.8023399707503657}, 150.48374767200016)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 33 Eval | MCTA: 73.00% (BMCTA: 75.52% @ R26) | Combined: 80.23% (BTA: 81.97% @ R26)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 34]
+[92mINFO [0m:      [Server] Config for Round 34: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 2 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 34 | 3.3s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 34 Global Evaluation
+  Loss: 1.1254 | Accuracy: 0.6251 (62.51%)
+============================================================
+
+[92mINFO [0m:      fit progress: (34, 1.125374919035958, {'accuracy': 0.6250984362695466}, 155.27251897099995)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 34 Eval | MCTA: 56.05% (BMCTA: 75.52% @ R26) | Combined: 62.50% (BTA: 81.97% @ R26)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 35]
+[92mINFO [0m:      [Server] Config for Round 35: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 9 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 35 | 3.1s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 35 Global Evaluation
+  Loss: 0.6386 | Accuracy: 0.7836 (78.36%)
+============================================================
+
+[92mINFO [0m:      fit progress: (35, 0.6386403198155821, {'accuracy': 0.7836089548880639}, 159.78708792500015)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 35 Eval | MCTA: 70.50% (BMCTA: 75.52% @ R26) | Combined: 78.36% (BTA: 81.97% @ R26)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 36]
+[92mINFO [0m:      [Server] Config for Round 36: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 3 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 36 | 3.3s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 36 Global Evaluation
+  Loss: 0.5878 | Accuracy: 0.7974 (79.74%)
+============================================================
+
+[92mINFO [0m:      fit progress: (36, 0.5878305354983617, {'accuracy': 0.7974462819214759}, 164.54701131900015)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 36 Eval | MCTA: 73.25% (BMCTA: 75.52% @ R26) | Combined: 79.75% (BTA: 81.97% @ R26)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 37]
+[92mINFO [0m:      [Server] Config for Round 37: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 2 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 37 | 3.1s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 37 Global Evaluation
+  Loss: 0.5678 | Accuracy: 0.8115 (81.15%)
+============================================================
+
+[92mINFO [0m:      fit progress: (37, 0.5677638820795069, {'accuracy': 0.8114523568455394}, 169.01483299200004)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 37 Eval | MCTA: 74.50% (BMCTA: 75.52% @ R26) | Combined: 81.15% (BTA: 81.97% @ R26)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 38]
+[92mINFO [0m:      [Server] Config for Round 38: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 0 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 38 | 3.3s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 38 Global Evaluation
+  Loss: 0.5538 | Accuracy: 0.8122 (81.22%)
+============================================================
+
+[92mINFO [0m:      fit progress: (38, 0.5538125469105519, {'accuracy': 0.8121835977050287}, 173.65004900200006)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 38 Eval | MCTA: 74.59% (BMCTA: 75.52% @ R26) | Combined: 81.22% (BTA: 81.97% @ R26)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 39]
+[92mINFO [0m:      [Server] Config for Round 39: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 9 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 39 | 3.2s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 39 Global Evaluation
+  Loss: 0.5484 | Accuracy: 0.8183 (81.83%)
+============================================================
+
+[92mINFO [0m:      fit progress: (39, 0.548382092090838, {'accuracy': 0.8183147710653617}, 178.25027154999998)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 39 Eval | MCTA: 76.14% (BMCTA: 76.14% @ R39) | Combined: 81.83% (BTA: 81.97% @ R26)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 40]
+[92mINFO [0m:      [Server] Config for Round 40: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 8 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 40 | 2.9s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 40 Global Evaluation
+  Loss: 0.5376 | Accuracy: 0.8212 (82.12%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 40: new best accuracy = 0.8212
+[92mINFO [0m:      fit progress: (40, 0.5375681781288689, {'accuracy': 0.8212397345033187}, 182.606016941)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 40 Eval | MCTA: 75.75% (BMCTA: 76.14% @ R39) | Combined: 82.13% (BTA: 82.13% @ R40)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 41]
+[92mINFO [0m:      [Server] Config for Round 41: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 0 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 41 | 3.2s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 41 Global Evaluation
+  Loss: 0.5298 | Accuracy: 0.8270 (82.70%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 41: new best accuracy = 0.8270
+[92mINFO [0m:      fit progress: (41, 0.5298424965821124, {'accuracy': 0.8269771627854652}, 187.232101435)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 41 Eval | MCTA: 76.69% (BMCTA: 76.69% @ R41) | Combined: 82.70% (BTA: 82.70% @ R41)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 42]
+[92mINFO [0m:      [Server] Config for Round 42: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 1 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 42 | 3.1s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 42 Global Evaluation
+  Loss: 0.8142 | Accuracy: 0.7321 (73.21%)
+============================================================
+
+[92mINFO [0m:      fit progress: (42, 0.8141599042917991, {'accuracy': 0.7320845989425132}, 191.78160116699996)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 42 Eval | MCTA: 64.36% (BMCTA: 76.69% @ R41) | Combined: 73.21% (BTA: 82.70% @ R41)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 43]
+[92mINFO [0m:      [Server] Config for Round 43: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 2 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 43 | 2.9s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 43 Global Evaluation
+  Loss: 0.5388 | Accuracy: 0.8184 (81.84%)
+============================================================
+
+[92mINFO [0m:      fit progress: (43, 0.5387554100305697, {'accuracy': 0.8184272696591293}, 196.13302244600004)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 43 Eval | MCTA: 76.55% (BMCTA: 76.69% @ R41) | Combined: 81.84% (BTA: 82.70% @ R41)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 44]
+[92mINFO [0m:      [Server] Config for Round 44: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 0 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 44 | 2.9s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 44 Global Evaluation
+  Loss: 0.5170 | Accuracy: 0.8313 (83.13%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 44: new best accuracy = 0.8313
+[92mINFO [0m:      fit progress: (44, 0.5170246487072045, {'accuracy': 0.8313083586455169}, 200.45730501100002)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 44 Eval | MCTA: 76.86% (BMCTA: 76.86% @ R44) | Combined: 83.14% (BTA: 83.14% @ R44)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 45]
+[92mINFO [0m:      [Server] Config for Round 45: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 6 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 45 | 3.4s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 45 Global Evaluation
+  Loss: 0.5089 | Accuracy: 0.8309 (83.09%)
+============================================================
+
+[92mINFO [0m:      fit progress: (45, 0.5089177611386739, {'accuracy': 0.8309146135673304}, 205.21860049500015)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 45 Eval | MCTA: 77.49% (BMCTA: 77.49% @ R45) | Combined: 83.09% (BTA: 83.14% @ R44)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 46]
+[92mINFO [0m:      [Server] Config for Round 46: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 8 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 46 | 3.2s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 46 Global Evaluation
+  Loss: 0.5179 | Accuracy: 0.8343 (83.43%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 46: new best accuracy = 0.8343
+[92mINFO [0m:      fit progress: (46, 0.5178601218967714, {'accuracy': 0.8342895713803578}, 209.810250494)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 46 Eval | MCTA: 77.10% (BMCTA: 77.49% @ R45) | Combined: 83.43% (BTA: 83.43% @ R46)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 47]
+[92mINFO [0m:      [Server] Config for Round 47: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 9 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 47 | 3.3s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 47 Global Evaluation
+  Loss: 0.9014 | Accuracy: 0.7044 (70.44%)
+============================================================
+
+[92mINFO [0m:      fit progress: (47, 0.90142095864778, {'accuracy': 0.7044099448756891}, 214.551519934)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 47 Eval | MCTA: 65.26% (BMCTA: 77.49% @ R45) | Combined: 70.45% (BTA: 83.43% @ R46)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 48]
+[92mINFO [0m:      [Server] Config for Round 48: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 8 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 48 | 3.0s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 48 Global Evaluation
+  Loss: 0.6543 | Accuracy: 0.7704 (77.04%)
+============================================================
+
+[92mINFO [0m:      fit progress: (48, 0.6543392914730084, {'accuracy': 0.7703903701203735}, 218.97087576100012)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 48 Eval | MCTA: 70.04% (BMCTA: 77.49% @ R45) | Combined: 77.04% (BTA: 83.43% @ R46)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 49]
+[92mINFO [0m:      [Server] Config for Round 49: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 10 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 49 | 3.2s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 49 Global Evaluation
+  Loss: 0.5432 | Accuracy: 0.8139 (81.39%)
+============================================================
+
+[92mINFO [0m:      fit progress: (49, 0.5431915184606354, {'accuracy': 0.8138710766115423}, 223.63382562700008)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 49 Eval | MCTA: 75.40% (BMCTA: 77.49% @ R45) | Combined: 81.39% (BTA: 83.43% @ R46)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 50]
+[92mINFO [0m:      [Server] Config for Round 50: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 11 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 50 | 3.0s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 50 Global Evaluation
+  Loss: 0.5114 | Accuracy: 0.8237 (82.37%)
+============================================================
+
+[92mINFO [0m:      fit progress: (50, 0.5113728615440766, {'accuracy': 0.8237147035662055}, 228.04648684400013)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 50 Eval | MCTA: 76.63% (BMCTA: 77.49% @ R45) | Combined: 82.37% (BTA: 83.43% @ R46)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 51]
+[92mINFO [0m:      [Server] Config for Round 51: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 5 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 51 | 2.9s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 51 Global Evaluation
+  Loss: 0.5007 | Accuracy: 0.8329 (83.29%)
+============================================================
+
+[92mINFO [0m:      fit progress: (51, 0.5006539097035048, {'accuracy': 0.832883338958263}, 232.37989489300003)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 51 Eval | MCTA: 77.88% (BMCTA: 77.88% @ R51) | Combined: 83.29% (BTA: 83.43% @ R46)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 52]
+[92mINFO [0m:      [Server] Config for Round 52: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 9 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 52 | 3.1s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 52 Global Evaluation
+  Loss: 0.4969 | Accuracy: 0.8339 (83.39%)
+============================================================
+
+[92mINFO [0m:      fit progress: (52, 0.4969178179356711, {'accuracy': 0.8338958263021712}, 236.93201063800007)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 52 Eval | MCTA: 78.06% (BMCTA: 78.06% @ R52) | Combined: 83.39% (BTA: 83.43% @ R46)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 53]
+[92mINFO [0m:      [Server] Config for Round 53: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 11 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 53 | 2.9s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 53 Global Evaluation
+  Loss: 0.4997 | Accuracy: 0.8353 (83.53%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 53: new best accuracy = 0.8353
+[92mINFO [0m:      fit progress: (53, 0.4997202673086046, {'accuracy': 0.835302058724266}, 241.22749964500008)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 53 Eval | MCTA: 78.13% (BMCTA: 78.13% @ R53) | Combined: 83.52% (BTA: 83.53% @ R53)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 54]
+[92mINFO [0m:      [Server] Config for Round 54: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 5 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 54 | 3.2s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 54 Global Evaluation
+  Loss: 0.5807 | Accuracy: 0.8058 (80.58%)
+============================================================
+
+[92mINFO [0m:      fit progress: (54, 0.5807322353302312, {'accuracy': 0.8057711778602767}, 245.77170213)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 54 Eval | MCTA: 75.02% (BMCTA: 78.13% @ R53) | Combined: 80.58% (BTA: 83.53% @ R53)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 55]
+[92mINFO [0m:      [Server] Config for Round 55: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 2 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 55 | 3.0s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 55 Global Evaluation
+  Loss: 0.6946 | Accuracy: 0.7729 (77.29%)
+============================================================
+
+[92mINFO [0m:      fit progress: (55, 0.6945767813759374, {'accuracy': 0.7728653391832602}, 250.26923959300007)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 55 Eval | MCTA: 69.82% (BMCTA: 78.13% @ R53) | Combined: 77.29% (BTA: 83.53% @ R53)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 56]
+[92mINFO [0m:      [Server] Config for Round 56: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 0 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 56 | 3.3s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 56 Global Evaluation
+  Loss: 0.4906 | Accuracy: 0.8318 (83.18%)
+============================================================
+
+[92mINFO [0m:      fit progress: (56, 0.4906223611590806, {'accuracy': 0.8317583530205872}, 254.92485800500003)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 56 Eval | MCTA: 78.32% (BMCTA: 78.32% @ R56) | Combined: 83.19% (BTA: 83.53% @ R53)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 57]
+[92mINFO [0m:      [Server] Config for Round 57: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 10 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 57 | 3.0s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 57 Global Evaluation
+  Loss: 0.5701 | Accuracy: 0.8108 (81.08%)
+============================================================
+
+[92mINFO [0m:      fit progress: (57, 0.5701381389664805, {'accuracy': 0.810777365282934}, 259.35140712)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 57 Eval | MCTA: 76.71% (BMCTA: 78.32% @ R56) | Combined: 81.07% (BTA: 83.53% @ R53)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 58]
+[92mINFO [0m:      [Server] Config for Round 58: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 2 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 58 | 3.0s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 58 Global Evaluation
+  Loss: 0.4983 | Accuracy: 0.8349 (83.49%)
+============================================================
+
+[92mINFO [0m:      fit progress: (58, 0.4982630452821139, {'accuracy': 0.8348520643491957}, 263.76647955199996)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 58 Eval | MCTA: 78.31% (BMCTA: 78.32% @ R56) | Combined: 83.49% (BTA: 83.53% @ R53)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 59]
+[92mINFO [0m:      [Server] Config for Round 59: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 8 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 59 | 3.2s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 59 Global Evaluation
+  Loss: 0.4874 | Accuracy: 0.8395 (83.95%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 59: new best accuracy = 0.8395
+[92mINFO [0m:      fit progress: (59, 0.48742835897739, {'accuracy': 0.8395207559905501}, 268.373330315)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 59 Eval | MCTA: 79.10% (BMCTA: 79.10% @ R59) | Combined: 83.96% (BTA: 83.96% @ R59)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 60]
+[92mINFO [0m:      [Server] Config for Round 60: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 3 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 60 | 3.0s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 60 Global Evaluation
+  Loss: 0.4872 | Accuracy: 0.8426 (84.26%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 60: new best accuracy = 0.8426
+[92mINFO [0m:      fit progress: (60, 0.48721197976051106, {'accuracy': 0.8426144673191585}, 272.82681522999997)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 60 Eval | MCTA: 79.35% (BMCTA: 79.35% @ R60) | Combined: 84.27% (BTA: 84.27% @ R60)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 61]
+[92mINFO [0m:      [Server] Config for Round 61: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 9 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 61 | 2.9s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 61 Global Evaluation
+  Loss: 0.4982 | Accuracy: 0.8410 (84.10%)
+============================================================
+
+[92mINFO [0m:      fit progress: (61, 0.49822375216222825, {'accuracy': 0.8409832377095287}, 277.08763329500016)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 61 Eval | MCTA: 78.78% (BMCTA: 79.35% @ R60) | Combined: 84.10% (BTA: 84.27% @ R60)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 62]
+[92mINFO [0m:      [Server] Config for Round 62: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 3 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 62 | 3.1s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 62 Global Evaluation
+  Loss: 0.9604 | Accuracy: 0.6876 (68.76%)
+============================================================
+
+[92mINFO [0m:      fit progress: (62, 0.960354536439855, {'accuracy': 0.6875914051074361}, 281.606671622)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 62 Eval | MCTA: 60.46% (BMCTA: 79.35% @ R60) | Combined: 68.76% (BTA: 84.27% @ R60)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 63]
+[92mINFO [0m:      [Server] Config for Round 63: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 7 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 63 | 2.9s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 63 Global Evaluation
+  Loss: 0.5336 | Accuracy: 0.8201 (82.01%)
+============================================================
+
+[92mINFO [0m:      fit progress: (63, 0.5336288597280953, {'accuracy': 0.8201147485656429}, 285.84691822600007)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 63 Eval | MCTA: 78.39% (BMCTA: 79.35% @ R60) | Combined: 82.01% (BTA: 84.27% @ R60)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 64]
+[92mINFO [0m:      [Server] Config for Round 64: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 6 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 64 | 3.2s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 64 Global Evaluation
+  Loss: 0.5542 | Accuracy: 0.8190 (81.90%)
+============================================================
+
+[92mINFO [0m:      fit progress: (64, 0.5541943038846983, {'accuracy': 0.8189897626279672}, 290.473767686)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 64 Eval | MCTA: 75.93% (BMCTA: 79.35% @ R60) | Combined: 81.90% (BTA: 84.27% @ R60)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 65]
+[92mINFO [0m:      [Server] Config for Round 65: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 3 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 65 | 3.1s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 65 Global Evaluation
+  Loss: 0.4927 | Accuracy: 0.8351 (83.51%)
+============================================================
+
+[92mINFO [0m:      fit progress: (65, 0.4926779938972577, {'accuracy': 0.8351333108336145}, 294.98939000500013)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 65 Eval | MCTA: 78.68% (BMCTA: 79.35% @ R60) | Combined: 83.51% (BTA: 84.27% @ R60)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 66]
+[92mINFO [0m:      [Server] Config for Round 66: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 2 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 66 | 3.0s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 66 Global Evaluation
+  Loss: 0.4914 | Accuracy: 0.8385 (83.85%)
+============================================================
+
+[92mINFO [0m:      fit progress: (66, 0.4913637603760195, {'accuracy': 0.8384520193497581}, 299.40775673999997)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 66 Eval | MCTA: 78.82% (BMCTA: 79.35% @ R60) | Combined: 83.84% (BTA: 84.27% @ R60)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 67]
+[92mINFO [0m:      [Server] Config for Round 67: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 6 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 67 | 3.0s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 67 Global Evaluation
+  Loss: 0.4815 | Accuracy: 0.8433 (84.33%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 67: new best accuracy = 0.8433
+[92mINFO [0m:      fit progress: (67, 0.4814961948978417, {'accuracy': 0.8433457081786477}, 303.90060767)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 67 Eval | MCTA: 79.66% (BMCTA: 79.66% @ R67) | Combined: 84.33% (BTA: 84.33% @ R67)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 68]
+[92mINFO [0m:      [Server] Config for Round 68: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 8 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 68 | 3.2s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 68 Global Evaluation
+  Loss: 0.4788 | Accuracy: 0.8463 (84.63%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 68: new best accuracy = 0.8463
+[92mINFO [0m:      fit progress: (68, 0.47878344883223006, {'accuracy': 0.8463269209134886}, 308.571536659)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 68 Eval | MCTA: 80.15% (BMCTA: 80.15% @ R68) | Combined: 84.63% (BTA: 84.63% @ R68)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 69]
+[92mINFO [0m:      [Server] Config for Round 69: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 6 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 69 | 3.4s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 69 Global Evaluation
+  Loss: 0.4814 | Accuracy: 0.8459 (84.59%)
+============================================================
+
+[92mINFO [0m:      fit progress: (69, 0.48138387259005805, {'accuracy': 0.845933175835302}, 313.398809732)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 69 Eval | MCTA: 79.94% (BMCTA: 80.15% @ R68) | Combined: 84.59% (BTA: 84.63% @ R68)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 70]
+[92mINFO [0m:      [Server] Config for Round 70: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 5 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 70 | 3.2s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 70 Global Evaluation
+  Loss: 0.4833 | Accuracy: 0.8469 (84.69%)
+============================================================
+
+[92mINFO [0m:      [BestModel] Round 70: new best accuracy = 0.8469
+[92mINFO [0m:      fit progress: (70, 0.48331315811928405, {'accuracy': 0.8469456631792103}, 317.992043706)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 70 Eval | MCTA: 80.15% (BMCTA: 80.15% @ R68) | Combined: 84.69% (BTA: 84.69% @ R70)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 71]
+[92mINFO [0m:      [Server] Config for Round 71: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 8 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 71 | 3.1s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 71 Global Evaluation
+  Loss: 1.1963 | Accuracy: 0.7319 (73.19%)
+============================================================
+
+[92mINFO [0m:      fit progress: (71, 1.1962768463976325, {'accuracy': 0.7318596017549781}, 322.524278696)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 71 Eval | MCTA: 63.50% (BMCTA: 80.15% @ R68) | Combined: 73.19% (BTA: 84.69% @ R70)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 72]
+[92mINFO [0m:      [Server] Config for Round 72: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 10 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 72 | 3.2s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 72 Global Evaluation
+  Loss: 0.8357 | Accuracy: 0.7239 (72.39%)
+============================================================
+
+[92mINFO [0m:      fit progress: (72, 0.8357175470860284, {'accuracy': 0.72387220159748}, 327.11563509100006)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 72 Eval | MCTA: 70.10% (BMCTA: 80.15% @ R68) | Combined: 72.39% (BTA: 84.69% @ R70)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 73]
+[92mINFO [0m:      [Server] Config for Round 73: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 8 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 73 | 3.2s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 73 Global Evaluation
+  Loss: 0.5772 | Accuracy: 0.8069 (80.69%)
+============================================================
+
+[92mINFO [0m:      fit progress: (73, 0.5771880838020484, {'accuracy': 0.8068961637979525}, 331.73258128199996)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 73 Eval | MCTA: 74.81% (BMCTA: 80.15% @ R68) | Combined: 80.69% (BTA: 84.69% @ R70)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 74]
+[92mINFO [0m:      [Server] Config for Round 74: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 6 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 74 | 3.0s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 74 Global Evaluation
+  Loss: 0.6228 | Accuracy: 0.7932 (79.32%)
+============================================================
+
+[92mINFO [0m:      fit progress: (74, 0.6228387387051788, {'accuracy': 0.793171335358308}, 336.17738972100005)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 74 Eval | MCTA: 71.11% (BMCTA: 80.15% @ R68) | Combined: 79.32% (BTA: 84.69% @ R70)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 75]
+[92mINFO [0m:      [Server] Config for Round 75: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 3 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 9 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 75 | 3.2s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 75 Global Evaluation
+  Loss: 0.5169 | Accuracy: 0.8274 (82.74%)
+============================================================
+
+[92mINFO [0m:      fit progress: (75, 0.5169431497723732, {'accuracy': 0.8274271571605355}, 340.769485949)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 75 Eval | MCTA: 77.19% (BMCTA: 80.15% @ R68) | Combined: 82.74% (BTA: 84.69% @ R70)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 76]
+[92mINFO [0m:      [Server] Config for Round 76: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 9 (IPv4: 10.20.101.160, pc) | Client 0 (IPv4: 10.20.101.160, pc) | Client 4 (IPv4: 10.20.101.160, pc) | Client 7 (IPv4: 10.20.101.160, pc) | Client 10 (IPv4: 10.20.101.160, pc) | Client 5 (IPv4: 10.20.101.160, pc) | Client 11 (IPv4: 10.20.101.160, pc) | Client 8 (IPv4: 10.20.101.160, pc) | Client 6 (IPv4: 10.20.101.160, pc) | Client 3 (IPv4: 10.20.101.160, pc) | Client 2 (IPv4: 10.20.101.160, pc) | Client 1 (IPv4: 10.20.101.160, pc)
+[92mINFO [0m:      [FedAvg] Round 76 | 3.0s | clients=12 | failures=0
+
+============================================================
+  [Server] Round 76 Global Evaluation
+  Loss: 0.4940 | Accuracy: 0.8404 (84.04%)
+============================================================
+
+[92mINFO [0m:      fit progress: (76, 0.49395391190463744, {'accuracy': 0.840364495443807}, 345.25277013000004)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedAvg] Round 76 Eval | MCTA: 79.27% (BMCTA: 80.15% @ R68) | Combined: 84.03% (BTA: 84.69% @ R70)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 77]
+[92mINFO [0m:      [Server] Config for Round 77: strategy=FEDAVG, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)

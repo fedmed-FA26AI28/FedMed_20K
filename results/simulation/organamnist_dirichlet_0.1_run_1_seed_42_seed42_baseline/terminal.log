@@ -1,0 +1,46 @@
+
+======================================================================
+  FedMedAI Automated Simulation Benchmark
+======================================================================
+  Run Identifier   : RUN_1_SEED_42
+  Master CSV File  : /home/ezycloudx-admin/FedMed_20K/CSV file/master_runs.csv
+  Run Name         : organamnist_dirichlet_0.1_run_1_seed_42_seed42_baseline
+  Output Directory : results/simulation/organamnist_dirichlet_0.1_run_1_seed_42_seed42_baseline
+  Terminal Log     : results/simulation/organamnist_dirichlet_0.1_run_1_seed_42_seed42_baseline/terminal.log
+  Model            : BASELINE
+  Optimizer        : SGD (momentum=0.9)
+  Augmentation     : Disabled (crop=False, flip=False)
+  Seed             : 42
+  Clients          : 12
+  Rounds per Run   : 80
+  Local Epochs     : 5
+  Local Test Eval  : Enabled (BMCTA/BTA tracking)
+  Client Module    : client.client (Parallel Execution)
+  Timeout per Run  : Disabled (Infinite)
+  Datasets         : ['organamnist']
+  Partitions       : ['dirichlet_0.1']
+  Strategies       : ['fedavg', 'fedprox']
+  Total Runs Grid  : 2 combinations
+======================================================================
+
+Verifying data partition files for all dataset and partition combinations...
+
+>>> [Simulation Matrix 1/2] Starting: Dataset=organamnist | Partition=dirichlet_0.1 | Strategy=FEDAVG
+
+-----------------------------------------------------------------
+  Launching FL Server: FEDAVG | Model: BASELINE | Optimizer: SGD | Dataset: organamnist | Partition: dirichlet_0.1 | Port: 45321 | LocalTest: True | Seed: 42
+  Artifact Directory : results/simulation/organamnist_dirichlet_0.1_run_1_seed_42_seed42_baseline/organamnist/dirichlet_0.1/fedavg
+-----------------------------------------------------------------
+  [Server] Listening. Launching 12 client workers (Module: client.client)...
+Traceback (most recent call last):
+  File "/home/ezycloudx-admin/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu/lib/python3.10/runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "/home/ezycloudx-admin/.local/share/uv/python/cpython-3.10-linux-x86_64-gnu/lib/python3.10/runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "/home/ezycloudx-admin/FedMed_20K/experiments/run_simulation.py", line 1393, in <module>
+    main()
+  File "/home/ezycloudx-admin/FedMed_20K/experiments/run_simulation.py", line 1242, in main
+    metrics = run_single_experiment(
+  File "/home/ezycloudx-admin/FedMed_20K/experiments/run_simulation.py", line 570, in run_single_experiment
+    time.sleep(0.5)
+KeyboardInterrupt
