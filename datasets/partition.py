@@ -5,6 +5,8 @@ import json
 import time
 import yaml
 import numpy as np
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 from pathlib import Path
 from torch.utils.data import DataLoader, Subset
