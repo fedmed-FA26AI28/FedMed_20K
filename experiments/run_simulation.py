@@ -1161,7 +1161,9 @@ def main():
         sanitized = sanitize_run_name(raw_name)
         run_name = f"{sanitized}_{run_id}" if run_id not in sanitized else sanitized
     else:
-        run_name = None
+        d_tag = "_".join(datasets)
+        p_tag = "_".join(partitions)
+        run_name = f"{d_tag}_{p_tag}_{run_id}_seed{seed}_{model}"
     timestamp_str = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
 
     if args.output_dir:
