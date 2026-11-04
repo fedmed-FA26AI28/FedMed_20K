@@ -2,13 +2,9 @@
 
 FedMedAI is an enterprise-grade Federated Learning (FL) framework designed for medical imaging classification benchmarks under severe non-IID data distributions (Dirichlet, Pathological, and Practical cross-institution partitions). It provides seamless support for centralized baselines, distributed physical multi-device execution (PC server and NVIDIA Jetson Orin/Nano edge clients over LAN), and automated local multi-client simulation.
 
-The separate [matched research runner](research/README.md) compares
-FedAvg, SCR and other registered research methods on the team's `baseline`
-and `baseline_bn` CNNs with 12 clients and zero weight decay. Its
-[run guide](research/SCR_BASELINE_EXPERIMENT.md)
-contains the pilot and validation-only comparison commands. The Flower
-`--strategies scr` option also runs support-calibrated risk; see the
-[SCR Flower guide](algorithms/SCR.md) for a matched FedAvg/SCR command.
+The Flower `--strategies scr` option runs support-calibrated risk. See the
+[SCR Dirichlet experiment guide](algorithms/SCR.md) for a matched FedAvg/SCR
+run on the `baseline_bn` CNN with 12 clients and zero weight decay.
 
 ---
 

@@ -475,8 +475,9 @@ class FLMetricsRecorder:
             }
             self.client_eval_records.append(entry)
             client_eval_entries.append(entry)
-            client_accuracies.append(acc)
-            client_losses.append(loss)
+            if num_samples > 0:
+                client_accuracies.append(acc)
+                client_losses.append(loss)
 
         mcta = float(np.mean(client_accuracies)) if client_accuracies else 0.0
         wcta = float(metrics_aggregated.get("accuracy", 0.0))

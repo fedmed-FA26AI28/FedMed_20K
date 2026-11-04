@@ -890,6 +890,14 @@ class FedMedAIClient(fl.client.NumPyClient):
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
 
+        if total == 0:
+            # A Dirichlet split can give a training client no local test images.
+            # Report zero examples so sample-weighted evaluation ignores it.
+            if not getattr(self, "_empty_test_warning_issued", False):
+                print(f"[Client {self.client_id}] No local test samples; skipping evaluation")
+                self._empty_test_warning_issued = True
+            return 0.0, 0, {"accuracy": 0.0}
+
         avg_loss = total_loss / total
         accuracy = correct / total
 
