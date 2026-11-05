@@ -41,12 +41,11 @@ def resolve_device_type(client_id: int) -> str:
         hw_cfg = yaml.safe_load(f)
 
     registry = hw_cfg.get("client_registry", {})
-    if client_id not in registry:
-        raise ValueError(
-            f"client_id={client_id} is not present in client_registry of jetson.yaml. "
-            f"Valid IDs: {sorted(registry.keys())}"
-        )
-    return registry[client_id]
+    if client_id in registry:
+        return str(registry[client_id])
+    if str(client_id) in registry:
+        return str(registry[str(client_id)])
+    return "pc"
 
 
 def load_hardware_config(client_id: int = None, device_type: str = None) -> Dict:

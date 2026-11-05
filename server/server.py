@@ -426,6 +426,12 @@ def main():
                         default=yaml_cfg.get("partition_path"),
                         help="Training partition JSON required by SCR and FedSLD")
     parser.add_argument(
+        "--partition_mode",
+        type=str,
+        default=yaml_cfg.get("partition_mode", "practical"),
+        help=f"Partition mode for partition path resolution (default: {yaml_cfg.get('partition_mode', 'practical')})",
+    )
+    parser.add_argument(
         "--strategy",
         type=str,
         default=yaml_cfg.get("strategy", "fedavg"),
@@ -554,6 +560,19 @@ def main():
                         default=yaml_cfg.get("scr_head_lambda", 0.01),
                         help="SCR support-dependent classifier anchor strength")
     parser.add_argument(
+        "--fedsld_epsilon",
+        type=float,
+        default=yaml_cfg.get("fedsld_epsilon", 1e-6),
+        help=f"FedSLD smoothing epsilon (default: {yaml_cfg.get('fedsld_epsilon', 1e-6)})",
+    )
+    parser.add_argument(
+        "--fedsld_reduction",
+        type=str,
+        default=yaml_cfg.get("fedsld_reduction", "mean"),
+        choices=["mean", "sum"],
+        help=f"FedSLD loss reduction mode (default: {yaml_cfg.get('fedsld_reduction', 'mean')})",
+    )
+    parser.add_argument(
         "--early_stop_patience",
         type=int,
         default=yaml_cfg.get("early_stop_patience", 10),
@@ -641,6 +660,18 @@ def main():
     args = parser.parse_args()
 
     set_seed(args.seed)
+
+    if not args.partition_path:
+        from datasets.partition import get_partition_path
+        candidate_p = get_partition_path(
+            dataset_name=args.dataset,
+            partition_mode=args.partition_mode,
+            seed=args.seed,
+            num_clients=args.min_clients,
+            local_test=args.local_test,
+        )
+        if candidate_p.exists():
+            args.partition_path = str(candidate_p)
 
     server_ipv4 = get_device_ipv4()
 
@@ -762,6 +793,8 @@ def main():
             "model": initial_model,
             "partition_path": args.partition_path,
             "num_classes": num_classes,
+            "fedsld_epsilon": args.fedsld_epsilon,
+            "fedsld_reduction": args.fedsld_reduction,
         })
     elif strat_key in ("coverage_la", "cla", "coveragela"):
         strategy_kwargs["coverage_kappa"] = args.coverage_kappa

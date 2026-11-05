@@ -127,15 +127,11 @@ def push_data_to_client(client_info: dict, local_data_root: Path) -> bool:
     remote_dir = client_info["remote_dir"]
 
     local_client_data = local_data_root / f"client_{cid}"
-
-    print("-" * 65)
-    print(f"Client {cid} | Type: {dev_type} | Target: {user}@{ip}")
-    print("-" * 65)
-
-    # Step 1: Check local client partition folder
     if not local_client_data.exists():
-        print(f"ERROR: Local data directory not found: {local_client_data}")
-        print("Please run data partitioning script (datasets/partition.py) first.")
+        local_client_data = local_data_root / "partitions"
+    if not local_client_data.exists():
+        print(f"ERROR: Neither client folder nor partitions directory found in: {local_data_root}")
+        print("Please run data partitioning script (experiments/run_partition.py) first.")
         return False
 
     # Step 2: Test ping reachability

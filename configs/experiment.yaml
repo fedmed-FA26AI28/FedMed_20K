@@ -13,8 +13,8 @@
 # --- Dataset and Architecture ---
 # Supported datasets: 'bloodmnist', 'pathmnist', 'organamnist', 'dermamnist'
 dataset: pathmnist
-# Supported models: 'cnn' (Modern ~20K params with BatchNorm) or 'baseline' (FedSLD ~570K params)
-model: baseline
+# Supported models: 'cnn' (Modern ~20K params with BatchNorm), 'baseline_bn' (FedSLD CNN with BatchNorm), or 'baseline' (Classic CNN without BatchNorm)
+model: baseline_bn
 optimizer: sgd                   # Client optimizer: 'adam', 'sgd', or 'adamw'
 momentum: 0.9                     # SGD momentum (0.0 for pure SGD)
 weight_decay: 1e-4                # L2 regularization penalty (0.0 to disable)
@@ -39,7 +39,7 @@ strategy: fedbns
 rounds: 40                        # Total federated communication rounds
 fl_rounds: 40                     # Alias for rounds
 local_epochs: 5                   # Local training epochs per round on each client
-batch_size: 256                   # Client DataLoader mini-batch size
+batch_size: 256                   # Client DataLoader mini-batch size (set integer or null to inherit per-device hardware profile from configs/jetson.yaml)
 learning_rate: 0.01               # Initial base learning rate
 
 # --- Learning Rate (LR) Scheduling Mode ---
@@ -73,6 +73,8 @@ la_tau: 1.0                       # CLA logit adjustment intensity tau (tau >= 0
 la_epsilon: 1.0                   # CLA logit adjustment label smoothing epsilon (epsilon > 0)
 scr_gamma: 1.0                    # SCR support smoothing, kappa_c = gamma * n_c / K
 scr_head_lambda: 0.01             # SCR classifier-row anchor strength
+fedsld_epsilon: 1.0e-6            # FedSLD label skew smoothing epsilon
+fedsld_reduction: mean            # FedSLD loss reduction mode ('mean' or 'sum')
 
 # --- Hardware & Client Execution ---
 device_type: pc                   # Hardware profile: 'pc', 'jetson_orin', 'jetson_nano'
@@ -101,7 +103,7 @@ active_clients: null
 # ──────────────────────────────────────────────────────────────────────────────
 centralized:
   dataset: pathmnist              # Options: 'bloodmnist', 'pathmnist', 'organamnist', 'dermamnist'
-  model: baseline                 # Options: 'baseline' (FedSLD classic CNN), 'baseline_bn' (Baseline with BN), or 'cnn' (Modern)
+  model: baseline_bn                 # Options: 'baseline' (FedSLD classic CNN), 'baseline_bn' (Baseline with BN), or 'cnn' (Modern)
   optimizer: sgd                  # Options: 'sgd' or 'adam'
   momentum: 0.9
   epochs: 100
