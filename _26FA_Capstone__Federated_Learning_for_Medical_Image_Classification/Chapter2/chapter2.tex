@@ -1,0 +1,36 @@
+%!TEX root = ../thesis.tex
+%*******************************************************************************
+%****************************** Second Chapter *********************************
+%*******************************************************************************
+
+\chapter{RELATED WORK}
+\label{ch:related_work}
+
+\ifpdf
+    \graphicspath{{Chapter2/Figs/Raster/}{Chapter2/Figs/PDF/}{Chapter2/Figs/}}
+\else
+    \graphicspath{{Chapter2/Figs/Vector/}{Chapter2/Figs/}}
+\fi
+
+\section{Federated Learning in Healthcare and Medical Image}
+In recent years, Federated Learning (FL) has emerged as a revolutionary approach in healthcare to solve the data silo problem while preserving patient privacy. Traditional machine learning requires centralizing large amounts of data, which is often legally and ethically impossible in the medical field due to strict privacy regulations such as HIPAA and GDPR. FL addresses this by allowing multiple medical institutions or devices to collaboratively train a shared model while keeping the raw data locally \cite{le2024federated}. To accelerate research in this area, standardized and lightweight datasets, such as MedMNIST v2, have been introduced \cite{yang2023medmnist}. Datasets like BloodMNIST provide a diverse, standardized benchmark that allows researchers to easily evaluate the performance of classification algorithms on 2D medical images without requiring extensive clinical background knowledge \cite{yang2023medmnist}.
+
+\section{Edge Federated Learning and Hardware Heterogeneity}
+While cross-silo FL involves powerful hospital servers, cross-device FL operates on resource-constrained edge devices \cite{kairouz2021advances}. Deploying deep learning models on embedded devices like the NVIDIA Jetson series introduces the challenge of system heterogeneity \cite{beutel2020flower}. These edge devices vary significantly in compute capabilities, memory capacity, and power consumption. In a synchronous FL system, this hardware imbalance often leads to the straggler effect, where fast devices must idle and wait for the slowest devices to complete their local training rounds \cite{kairouz2021advances}. Research has demonstrated that evaluating FL on real heterogeneous hardware is crucial for accurately measuring the trade-offs between model convergence time and overall energy consumption \cite{beutel2020flower}.
+
+\section{Addressing Statistical Heterogeneity (Non-IID Data)}
+A fundamental challenge in real-world FL is that local datasets across clients are rarely independent and identically distributed (Non-IID) \cite{jimenez2024noniid}. The standard algorithm, Federated Averaging (FedAvg), often struggles in these environments due to a phenomenon known as client-drift \cite{karimireddy2020scaffold}. Because each client's data distribution is different, local updates move towards the client's local optimum rather than the global optimum, leading to slow and unstable convergence \cite{karimireddy2020scaffold}.
+
+To tackle this issue, several advanced algorithms have been proposed. The FedProx algorithm mitigates system and statistical heterogeneity by adding a proximal term to the local objective, which restricts local updates from drifting too far from the global model \cite{li2020federated}. Alternatively, the SCAFFOLD algorithm uses variance reduction and control variates to explicitly estimate and correct this client-drift, allowing for faster convergence regardless of data heterogeneity \cite{karimireddy2020scaffold}. In the specific context of medical imaging, data often suffers from feature shift—for example, images of cells or tissues can look different simply because they were captured by different hospital scanners \cite{li2021fedbn}. To solve this, the FedBN algorithm proposes keeping Batch Normalization (BN) parameters strictly local on each client instead of averaging them on the server \cite{li2021fedbn}. This lightweight modification has been proven to significantly harmonize local feature distributions and accelerate convergence in medical domains \cite{li2021fedbn}.
+
+\section{Federated Learning Frameworks and Flower}
+To transition FL from theoretical research to practical deployment on physical edge devices, flexible software frameworks are required. Many early FL frameworks only supported single-machine simulations or were restricted to specific machine learning libraries \cite{beutel2020flower}. To bridge this gap, Flower (flwr) was developed as a scalable, framework-agnostic platform \cite{beutel2020flower}. Flower allows researchers to seamlessly migrate workloads from simulated environments to a large cohort of real, heterogeneous edge devices \cite{beutel2020flower}. By abstracting away the complex networking and communication protocols, Flower enables researchers to easily implement custom FL strategies (such as FedAvg, FedProx, FedBN, or Scaffold) and measure actual system performance metrics like memory usage and communication overhead \cite{beutel2020flower}.
+
+Besides Flower, NVIDIA FLARE (NVFlare) \cite{roth2022nvidia} is another widely used federated learning platform. This study refer to NVFlare's implementation of SCAFFOLD to guide our own setup, particularly in how control variates are managed and exchanged between the server and clients.
+
+\nomenclature[z-FL]{NVFlare}{NVIDIA Federated Learning Application Runtime Environment}
+\nomenclature[z-FL]{FedAvg}{Federated Averaging}
+\nomenclature[z-FL]{FedProx}{Federated Optimization in Heterogeneous Networks}
+\nomenclature[z-FL]{FedBN}{Federated Learning on Non-IID Features via Local Batch Normalization}
+\nomenclature[z-FL]{SCAFFOLD}{Stochastic Controlled Averaging for Federated Learning}
+\nomenclature[z-FL]{Non-IID}{Non-Independent and Identically Distributed}
