@@ -1,0 +1,360 @@
+
+======================================================================
+  FedMedAI Automated Simulation Benchmark
+======================================================================
+  Run Name         : dirichlet01_bn_organamnist_s42
+  Output Directory : /kaggle/working/scr_bn_dirichlet01_parallel/dirichlet01_bn_organamnist_s42
+  Terminal Log     : /kaggle/working/scr_bn_dirichlet01_parallel/dirichlet01_bn_organamnist_s42/terminal.log
+  Model            : BASELINE_BN
+  Optimizer        : SGD (momentum=0.9)
+  Augmentation     : Disabled (crop=False, flip=False)
+  Seed             : 42
+  Clients          : 12
+  Rounds per Run   : 80
+  Local Epochs     : 5
+  Local Test Eval  : Enabled (BMCTA/BTA tracking)
+  Client Module    : client.client (Parallel Execution)
+  Timeout per Run  : Disabled (Infinite)
+  Datasets         : ['organamnist']
+  Partitions       : ['dirichlet_0.1']
+  Strategies       : ['fedavg', 'scr']
+  Total Runs Grid  : 2 combinations
+======================================================================
+
+Verifying data partition files for all dataset and partition combinations...
+
+[Partition] Missing partition: partition_organamnist_dirichlet_0.1_localtest_seed42_clients12.json. Generating automatically (local_test=True)...
+  0%|          | 0.00/38.2M [00:00<?, ?B/s]  0%|          | 32.8k/38.2M [00:00<03:12, 198kB/s]  0%|          | 98.3k/38.2M [00:00<02:01, 314kB/s]  0%|          | 164k/38.2M [00:00<01:48, 350kB/s]   1%|          | 229k/38.2M [00:00<01:43, 367kB/s]  1%|          | 328k/38.2M [00:00<01:24, 448kB/s]  1%|1         | 393k/38.2M [00:00<01:28, 428kB/s]  1%|1         | 459k/38.2M [00:01<01:30, 417kB/s]  2%|1         | 623k/38.2M [00:01<01:03, 597kB/s]  2%|1         | 688k/38.2M [00:01<01:10, 532kB/s]  2%|1         | 754k/38.2M [00:01<01:17, 486kB/s]  2%|2         | 852k/38.2M [00:01<01:12, 517kB/s]  3%|2         | 1.02M/38.2M [00:02<00:56, 658kB/s]  3%|2         | 1.15M/38.2M [00:02<00:53, 696kB/s]  3%|3         | 1.25M/38.2M [00:02<00:55, 664kB/s]  4%|3         | 1.34M/38.2M [00:02<00:57, 642kB/s]  4%|3         | 1.41M/38.2M [00:02<01:06, 558kB/s]  4%|3         | 1.47M/38.2M [00:02<01:12, 508kB/s]  4%|4         | 1.54M/38.2M [00:03<01:17, 474kB/s]  4%|4         | 1.64M/38.2M [00:03<01:12, 503kB/s]  5%|4         | 1.80M/38.2M [00:03<00:56, 643kB/s]  5%|4         | 1.87M/38.2M [00:03<01:03, 569kB/s]  5%|5         | 1.97M/38.2M [00:03<01:03, 575kB/s]  5%|5         | 2.03M/38.2M [00:03<01:09, 521kB/s]  6%|5         | 2.16M/38.2M [00:04<01:00, 600kB/s]  6%|5         | 2.23M/38.2M [00:04<01:06, 538kB/s]  6%|6         | 2.33M/38.2M [00:04<01:04, 554kB/s]  6%|6         | 2.42M/38.2M [00:04<01:03, 564kB/s]  7%|6         | 2.52M/38.2M [00:04<01:02, 571kB/s]  7%|6         | 2.59M/38.2M [00:04<01:08, 518kB/s]  7%|6         | 2.65M/38.2M [00:05<01:14, 481kB/s]  7%|7         | 2.72M/38.2M [00:05<01:18, 454kB/s]  7%|7         | 2.85M/38.2M [00:05<01:04, 552kB/s]  8%|7         | 3.01M/38.2M [00:05<00:51, 678kB/s]  8%|8         | 3.15M/38.2M [00:05<00:49, 710kB/s]  8%|8         | 3.24M/38.2M [00:05<00:51, 675kB/s]  9%|8         | 3.34M/38.2M [00:06<00:53, 649kB/s]  9%|8         | 3.41M/38.2M [00:06<01:00, 573kB/s]  9%|9         | 3.47M/38.2M [00:06<01:07, 519kB/s] 10%|9         | 3.64M/38.2M [00:06<00:52, 658kB/s] 10%|9         | 3.74M/38.2M [00:06<00:54, 636kB/s] 10%|#         | 3.93M/38.2M [00:06<00:43, 790kB/s] 11%|#         | 4.03M/38.2M [00:07<00:46, 728kB/s] 11%|#         | 4.13M/38.2M [00:07<00:49, 686kB/s] 11%|#1        | 4.23M/38.2M [00:07<00:51, 657kB/s] 11%|#1        | 4.33M/38.2M [00:07<00:53, 638kB/s] 12%|#1        | 4.42M/38.2M [00:07<00:54, 623kB/s] 12%|#1        | 4.55M/38.2M [00:07<00:50, 672kB/s] 12%|#2        | 4.69M/38.2M [00:08<00:47, 706kB/s] 13%|#2        | 4.78M/38.2M [00:08<00:49, 671kB/s] 13%|#2        | 4.88M/38.2M [00:08<00:51, 646kB/s] 13%|#3        | 4.98M/38.2M [00:08<00:52, 628kB/s] 13%|#3        | 5.11M/38.2M [00:08<00:49, 676kB/s] 14%|#3        | 5.21M/38.2M [00:08<00:51, 646kB/s] 14%|#3        | 5.31M/38.2M [00:09<00:52, 629kB/s] 14%|#4        | 5.41M/38.2M [00:09<00:53, 617kB/s] 14%|#4        | 5.47M/38.2M [00:09<00:59, 550kB/s] 15%|#4        | 5.60M/38.2M [00:09<00:52, 620kB/s] 15%|#4        | 5.67M/38.2M [00:09<00:58, 553kB/s] 15%|#5        | 5.77M/38.2M [00:09<00:57, 564kB/s] 15%|#5        | 5.87M/38.2M [00:10<00:56, 572kB/s] 16%|#5        | 5.96M/38.2M [00:10<00:55, 577kB/s] 16%|#5        | 6.06M/38.2M [00:10<00:55, 581kB/s] 16%|#6        | 6.16M/38.2M [00:10<00:54, 584kB/s] 16%|#6        | 6.26M/38.2M [00:10<00:54, 585kB/s] 17%|#6        | 6.36M/38.2M [00:10<00:54, 583kB/s] 17%|#6        | 6.49M/38.2M [00:11<00:49, 643kB/s] 18%|#7        | 6.75M/38.2M [00:11<00:34, 920kB/s] 18%|#7        | 6.88M/38.2M [00:11<00:36, 867kB/s] 18%|#8        | 7.05M/38.2M [00:11<00:34, 895kB/s] 19%|#8        | 7.14M/38.2M [00:11<00:38, 802kB/s] 19%|#8        | 7.24M/38.2M [00:11<00:41, 739kB/s] 19%|#9        | 7.34M/38.2M [00:12<00:44, 695kB/s] 19%|#9        | 7.44M/38.2M [00:12<00:46, 664kB/s] 20%|#9        | 7.54M/38.2M [00:12<00:47, 642kB/s] 20%|##        | 7.67M/38.2M [00:12<00:44, 685kB/s] 20%|##        | 7.80M/38.2M [00:12<00:42, 715kB/s] 21%|##        | 7.90M/38.2M [00:12<00:44, 677kB/s] 21%|##        | 8.00M/38.2M [00:13<00:46, 651kB/s] 21%|##1       | 8.09M/38.2M [00:13<00:47, 632kB/s] 21%|##1       | 8.19M/38.2M [00:13<00:48, 616kB/s] 22%|##1       | 8.32M/38.2M [00:13<00:44, 666kB/s] 22%|##2       | 8.49M/38.2M [00:13<00:39, 761kB/s] 22%|##2       | 8.59M/38.2M [00:13<00:41, 710kB/s] 23%|##2       | 8.68M/38.2M [00:14<00:43, 675kB/s] 23%|##2       | 8.78M/38.2M [00:14<00:45, 648kB/s] 23%|##3       | 8.88M/38.2M [00:14<00:46, 631kB/s] 23%|##3       | 8.98M/38.2M [00:14<00:47, 619kB/s] 24%|##3       | 9.08M/38.2M [00:14<00:48, 607kB/s] 24%|##3       | 9.18M/38.2M [00:14<00:48, 602kB/s] 24%|##4       | 9.27M/38.2M [00:15<00:48, 598kB/s] 25%|##4       | 9.37M/38.2M [00:15<00:48, 595kB/s] 25%|##4       | 9.47M/38.2M [00:15<00:48, 594kB/s] 25%|##5       | 9.57M/38.2M [00:15<00:48, 592kB/s] 25%|##5       | 9.70M/38.2M [00:15<00:43, 651kB/s] 26%|##5       | 9.83M/38.2M [00:15<00:41, 692kB/s] 26%|##5       | 9.93M/38.2M [00:16<00:43, 656kB/s] 26%|##6       | 10.0M/38.2M [00:16<00:44, 636kB/s] 26%|##6       | 10.1M/38.2M [00:16<00:49, 564kB/s] 27%|##6       | 10.2M/38.2M [00:16<00:49, 570kB/s] 27%|##6       | 10.3M/38.2M [00:16<00:48, 574kB/s] 27%|##7       | 10.4M/38.2M [00:16<00:48, 578kB/s] 27%|##7       | 10.5M/38.2M [00:17<00:47, 582kB/s] 28%|##7       | 10.6M/38.2M [00:17<00:47, 584kB/s] 28%|##7       | 10.7M/38.2M [00:17<00:47, 586kB/s] 28%|##8       | 10.8M/38.2M [00:17<00:42, 645kB/s] 29%|##8       | 10.9M/38.2M [00:17<00:43, 628kB/s] 29%|##8       | 11.0M/38.2M [00:17<00:44, 617kB/s] 29%|##9       | 11.1M/38.2M [00:18<00:44, 609kB/s] 29%|##9       | 11.2M/38.2M [00:18<00:44, 603kB/s] 30%|##9       | 11.3M/38.2M [00:18<00:45, 597kB/s] 30%|##9       | 11.4M/38.2M [00:18<00:45, 595kB/s] 30%|###       | 11.6M/38.2M [00:18<00:37, 711kB/s] 30%|###       | 11.7M/38.2M [00:18<00:39, 674kB/s] 31%|###1      | 11.9M/38.2M [00:19<00:32, 817kB/s] 31%|###1      | 12.0M/38.2M [00:19<00:35, 747kB/s] 32%|###1      | 12.1M/38.2M [00:19<00:37, 699kB/s] 32%|###1      | 12.2M/38.2M [00:19<00:39, 666kB/s] 32%|###2      | 12.3M/38.2M [00:19<00:34, 761kB/s] 33%|###2      | 12.5M/38.2M [00:19<00:33, 765kB/s] 33%|###2      | 12.6M/38.2M [00:20<00:36, 712kB/s] 33%|###3      | 12.6M/38.2M [00:20<00:37, 675kB/s] 33%|###3      | 12.7M/38.2M [00:20<00:39, 649kB/s] 34%|###3      | 12.8M/38.2M [00:20<00:40, 631kB/s] 34%|###3      | 12.9M/38.2M [00:20<00:41, 609kB/s] 34%|###4      | 13.0M/38.2M [00:20<00:41, 604kB/s] 34%|###4      | 13.1M/38.2M [00:21<00:41, 600kB/s] 35%|###4      | 13.2M/38.2M [00:21<00:41, 596kB/s] 35%|###4      | 13.4M/38.2M [00:21<00:38, 653kB/s] 35%|###5      | 13.5M/38.2M [00:21<00:39, 634kB/s] 36%|###5      | 13.6M/38.2M [00:21<00:36, 677kB/s] 36%|###5      | 13.7M/38.2M [00:21<00:37, 646kB/s] 36%|###5      | 13.8M/38.2M [00:22<00:42, 571kB/s] 36%|###6      | 13.8M/38.2M [00:22<00:47, 515kB/s] 36%|###6      | 13.9M/38.2M [00:22<00:45, 533kB/s] 37%|###6      | 14.0M/38.2M [00:22<00:44, 549kB/s] 37%|###7      | 14.2M/38.2M [00:22<00:38, 620kB/s] 37%|###7      | 14.2M/38.2M [00:22<00:43, 553kB/s] 38%|###7      | 14.4M/38.2M [00:23<00:38, 622kB/s] 38%|###7      | 14.5M/38.2M [00:23<00:35, 672kB/s] 38%|###8      | 14.6M/38.2M [00:23<00:36, 647kB/s] 38%|###8      | 14.6M/38.2M [00:23<00:41, 569kB/s] 39%|###8      | 14.8M/38.2M [00:23<00:37, 634kB/s] 39%|###8      | 14.9M/38.2M [00:23<00:34, 679kB/s] 39%|###9      | 15.0M/38.2M [00:24<00:35, 653kB/s] 39%|###9      | 15.1M/38.2M [00:24<00:36, 633kB/s] 40%|###9      | 15.2M/38.2M [00:24<00:37, 613kB/s] 40%|####      | 15.3M/38.2M [00:24<00:38, 600kB/s] 40%|####      | 15.4M/38.2M [00:24<00:42, 536kB/s] 41%|####      | 15.5M/38.2M [00:24<00:33, 668kB/s] 41%|####      | 15.6M/38.2M [00:25<00:35, 646kB/s] 41%|####1     | 15.7M/38.2M [00:25<00:35, 628kB/s] 41%|####1     | 15.8M/38.2M [00:25<00:36, 617kB/s] 42%|####1     | 15.9M/38.2M [00:25<00:36, 609kB/s] 42%|####1     | 16.1M/38.2M [00:25<00:33, 662kB/s] 42%|####2     | 16.2M/38.2M [00:25<00:31, 700kB/s] 43%|####2     | 16.3M/38.2M [00:26<00:30, 725kB/s] 43%|####2     | 16.4M/38.2M [00:26<00:32, 672kB/s] 43%|####3     | 16.6M/38.2M [00:26<00:28, 760kB/s] 44%|####3     | 16.7M/38.2M [00:26<00:30, 709kB/s] 44%|####4     | 16.9M/38.2M [00:26<00:25, 844kB/s] 44%|####4     | 17.0M/38.2M [00:26<00:27, 767kB/s] 45%|####4     | 17.1M/38.2M [00:27<00:27, 773kB/s] 45%|####4     | 17.2M/38.2M [00:27<00:29, 719kB/s] 45%|####5     | 17.3M/38.2M [00:27<00:30, 680kB/s] 45%|####5     | 17.4M/38.2M [00:27<00:31, 653kB/s] 46%|####6     | 17.6M/38.2M [00:27<00:23, 869kB/s] 47%|####6     | 17.8M/38.2M [00:27<00:22, 902kB/s] 47%|####6     | 17.9M/38.2M [00:28<00:25, 805kB/s] 47%|####7     | 18.1M/38.2M [00:28<00:20, 974kB/s] 48%|####7     | 18.2M/38.2M [00:28<00:23, 859kB/s] 48%|####7     | 18.3M/38.2M [00:28<00:25, 779kB/s] 48%|####8     | 18.4M/38.2M [00:28<00:27, 722kB/s] 48%|####8     | 18.5M/38.2M [00:28<00:28, 683kB/s] 49%|####8     | 18.6M/38.2M [00:29<00:29, 655kB/s] 49%|####8     | 18.7M/38.2M [00:29<00:30, 634kB/s] 49%|####9     | 18.8M/38.2M [00:29<00:31, 621kB/s] 49%|####9     | 18.9M/38.2M [00:29<00:31, 612kB/s] 50%|####9     | 19.0M/38.2M [00:29<00:28, 664kB/s] 50%|#####     | 19.1M/38.2M [00:29<00:29, 642kB/s] 51%|#####1    | 19.7M/38.2M [00:30<00:13, 1.39MB/s] 53%|#####3    | 20.4M/38.2M [00:30<00:06, 2.70MB/s] 54%|#####4    | 20.8M/38.2M [00:30<00:06, 2.52MB/s] 55%|#####5    | 21.1M/38.2M [00:30<00:07, 2.34MB/s] 56%|#####6    | 21.4M/38.2M [00:30<00:07, 2.26MB/s] 57%|#####7    | 21.8M/38.2M [00:30<00:07, 2.29MB/s] 58%|#####8    | 22.2M/38.2M [00:31<00:06, 2.37MB/s] 59%|#####9    | 22.7M/38.2M [00:31<00:06, 2.43MB/s] 60%|######    | 23.0M/38.2M [00:31<00:06, 2.22MB/s] 61%|######1   | 23.4M/38.2M [00:31<00:06, 2.37MB/s] 62%|######2   | 23.8M/38.2M [00:31<00:06, 2.34MB/s] 63%|######3   | 24.2M/38.2M [00:31<00:05, 2.36MB/s] 65%|######4   | 24.7M/38.2M [00:32<00:05, 2.42MB/s] 66%|######5   | 25.2M/38.2M [00:32<00:05, 2.57MB/s] 67%|######6   | 25.6M/38.2M [00:32<00:04, 2.63MB/s] 68%|######8   | 26.1M/38.2M [00:32<00:04, 2.60MB/s] 69%|######9   | 26.5M/38.2M [00:32<00:04, 2.59MB/s] 70%|#######   | 26.9M/38.2M [00:32<00:04, 2.58MB/s] 71%|#######1  | 27.3M/38.2M [00:33<00:04, 2.57MB/s] 73%|#######2  | 27.8M/38.2M [00:33<00:03, 2.67MB/s] 74%|#######3  | 28.2M/38.2M [00:33<00:03, 2.62MB/s] 75%|#######5  | 28.7M/38.2M [00:33<00:03, 2.65MB/s] 76%|#######6  | 29.1M/38.2M [00:33<00:03, 2.62MB/s] 77%|#######7  | 29.6M/38.2M [00:33<00:03, 2.60MB/s] 79%|#######8  | 30.0M/38.2M [00:34<00:03, 2.54MB/s] 80%|#######9  | 30.5M/38.2M [00:34<00:03, 2.55MB/s] 81%|########  | 30.9M/38.2M [00:34<00:02, 2.49MB/s] 82%|########1 | 31.3M/38.2M [00:34<00:02, 2.56MB/s] 83%|########3 | 31.8M/38.2M [00:34<00:02, 2.68MB/s] 84%|########4 | 32.2M/38.2M [00:34<00:02, 2.64MB/s] 85%|########5 | 32.7M/38.2M [00:35<00:02, 2.61MB/s] 87%|########6 | 33.1M/38.2M [00:35<00:01, 2.59MB/s] 88%|########7 | 33.5M/38.2M [00:35<00:01, 2.57MB/s] 89%|########8 | 34.0M/38.2M [00:35<00:01, 2.68MB/s] 90%|######### | 34.4M/38.2M [00:35<00:01, 2.65MB/s] 91%|######### | 34.8M/38.2M [00:35<00:01, 2.50MB/s] 92%|#########2| 35.2M/38.2M [00:36<00:01, 2.52MB/s] 93%|#########3| 35.7M/38.2M [00:36<00:00, 2.58MB/s] 94%|#########4| 36.0M/38.2M [00:36<00:00, 2.40MB/s] 95%|#########5| 36.4M/38.2M [00:36<00:00, 2.45MB/s] 97%|#########6| 37.0M/38.2M [00:36<00:00, 2.65MB/s] 98%|#########7| 37.4M/38.2M [00:36<00:00, 2.62MB/s] 99%|#########8| 37.8M/38.2M [00:37<00:00, 2.59MB/s]100%|##########| 38.2M/38.2M [00:37<00:00, 1.03MB/s]
+Partition saved: data/partitions/partition_organamnist_dirichlet_0.1_localtest_seed42_clients12.json (Local test included: True)
+Plot saved: /kaggle/working/FedMed_20K/data/partitions/plots/dist_organamnist_dirichlet_0.1_localtest_seed42_clients12.png
+[Partition] Generated and verified: data/partitions/partition_organamnist_dirichlet_0.1_localtest_seed42_clients12.json (plot: data/partitions/plots/dist_organamnist_dirichlet_0.1_localtest_seed42_clients12.png)
+
+>>> [Simulation Matrix 1/2] Starting: Dataset=organamnist | Partition=dirichlet_0.1 | Strategy=FEDAVG
+
+-----------------------------------------------------------------
+  Launching FL Server: FEDAVG | Model: BASELINE_BN | Optimizer: SGD | Dataset: organamnist | Partition: dirichlet_0.1 | Port: 37101 | LocalTest: True | Seed: 42
+  Artifact Directory : /kaggle/working/scr_bn_dirichlet01_parallel/dirichlet01_bn_organamnist_s42/organamnist/dirichlet_0.1/fedavg
+-----------------------------------------------------------------
+  [Server] Listening. Launching 12 client workers (Module: client.client)...
+  [Active] Round 1/80 | Running on GPU (12 clients active) | Elapsed: 0.4m
+  [Active] Round 1/80 | Running on GPU (12 clients active) | Elapsed: 0.8m
+  [Fit] [FedAvg] Round 1 | 54.6s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 1 Eval | MCTA: 18.51% (BMCTA: 18.51% @ R1) | Combined: 23.44% (BTA: 23.44% @ R1)
+  [BestModel] Round 1: new best accuracy = 0.2344
+  [Fit] [FedAvg] Round 2 | 20.6s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 2 Eval | MCTA: 30.63% (BMCTA: 30.63% @ R2) | Combined: 37.97% (BTA: 37.97% @ R2)
+  [BestModel] Round 2: new best accuracy = 0.3797
+  [Fit] [FedAvg] Round 3 | 22.2s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 3 Eval | MCTA: 33.02% (BMCTA: 33.02% @ R3) | Combined: 36.97% (BTA: 37.97% @ R2)
+  [Fit] [FedAvg] Round 4 | 20.5s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 4 Eval | MCTA: 44.73% (BMCTA: 44.73% @ R4) | Combined: 52.02% (BTA: 52.02% @ R4)
+  [BestModel] Round 4: new best accuracy = 0.5202
+  [Fit] [FedAvg] Round 5 | 20.5s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 5 Eval | MCTA: 48.59% (BMCTA: 48.59% @ R5) | Combined: 55.77% (BTA: 55.77% @ R5)
+  [BestModel] Round 5: new best accuracy = 0.5577
+  [Fit] [FedAvg] Round 6 | 20.7s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 6 Eval | MCTA: 60.97% (BMCTA: 60.97% @ R6) | Combined: 67.86% (BTA: 67.86% @ R6)
+  [BestModel] Round 6: new best accuracy = 0.6786
+  [Fit] [FedAvg] Round 7 | 20.5s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 7 Eval | MCTA: 43.11% (BMCTA: 60.97% @ R6) | Combined: 48.72% (BTA: 67.86% @ R6)
+  [Fit] [FedAvg] Round 8 | 20.4s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 8 Eval | MCTA: 57.83% (BMCTA: 60.97% @ R6) | Combined: 68.20% (BTA: 68.20% @ R8)
+  [BestModel] Round 8: new best accuracy = 0.6820
+  [Fit] [FedAvg] Round 9 | 21.6s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 9 Eval | MCTA: 60.19% (BMCTA: 60.97% @ R6) | Combined: 67.45% (BTA: 68.20% @ R8)
+  [Fit] [FedAvg] Round 10 | 21.8s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 10 Eval | MCTA: 54.20% (BMCTA: 60.97% @ R6) | Combined: 63.48% (BTA: 68.20% @ R8)
+  [Fit] [FedAvg] Round 11 | 21.3s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 11 Eval | MCTA: 64.67% (BMCTA: 64.67% @ R11) | Combined: 73.55% (BTA: 73.55% @ R11)
+  [BestModel] Round 11: new best accuracy = 0.7355
+  [Fit] [FedAvg] Round 12 | 21.2s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 12 Eval | MCTA: 66.87% (BMCTA: 66.87% @ R12) | Combined: 75.71% (BTA: 75.71% @ R12)
+  [BestModel] Round 12: new best accuracy = 0.7571
+  [Fit] [FedAvg] Round 13 | 21.1s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 13 Eval | MCTA: 67.40% (BMCTA: 67.40% @ R13) | Combined: 76.78% (BTA: 76.78% @ R13)
+  [BestModel] Round 13: new best accuracy = 0.7678
+  [Fit] [FedAvg] Round 14 | 20.8s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 14 Eval | MCTA: 69.45% (BMCTA: 69.45% @ R14) | Combined: 78.10% (BTA: 78.10% @ R14)
+  [BestModel] Round 14: new best accuracy = 0.7810
+  [Fit] [FedAvg] Round 15 | 20.2s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 15 Eval | MCTA: 68.96% (BMCTA: 69.45% @ R14) | Combined: 77.87% (BTA: 78.10% @ R14)
+  [Fit] [FedAvg] Round 16 | 21.8s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 16 Eval | MCTA: 71.38% (BMCTA: 71.38% @ R16) | Combined: 79.28% (BTA: 79.28% @ R16)
+  [BestModel] Round 16: new best accuracy = 0.7928
+  [Fit] [FedAvg] Round 17 | 22.4s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 17 Eval | MCTA: 64.32% (BMCTA: 71.38% @ R16) | Combined: 73.12% (BTA: 79.28% @ R16)
+  [Fit] [FedAvg] Round 18 | 21.3s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 18 Eval | MCTA: 72.71% (BMCTA: 72.71% @ R18) | Combined: 79.06% (BTA: 79.28% @ R16)
+  [Fit] [FedAvg] Round 19 | 22.7s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 19 Eval | MCTA: 71.81% (BMCTA: 72.71% @ R18) | Combined: 79.93% (BTA: 79.93% @ R19)
+  [BestModel] Round 19: new best accuracy = 0.7993
+  [Fit] [FedAvg] Round 20 | 20.5s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 20 Eval | MCTA: 73.40% (BMCTA: 73.40% @ R20) | Combined: 80.66% (BTA: 80.66% @ R20)
+  [BestModel] Round 20: new best accuracy = 0.8066
+  [Fit] [FedAvg] Round 21 | 21.2s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 21 Eval | MCTA: 73.53% (BMCTA: 73.53% @ R21) | Combined: 81.09% (BTA: 81.09% @ R21)
+  [BestModel] Round 21: new best accuracy = 0.8109
+  [Fit] [FedAvg] Round 22 | 20.3s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 22 Eval | MCTA: 75.08% (BMCTA: 75.08% @ R22) | Combined: 81.71% (BTA: 81.71% @ R22)
+  [BestModel] Round 22: new best accuracy = 0.8171
+  [Fit] [FedAvg] Round 23 | 21.6s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 23 Eval | MCTA: 74.11% (BMCTA: 75.08% @ R22) | Combined: 81.39% (BTA: 81.71% @ R22)
+  [Fit] [FedAvg] Round 24 | 21.4s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 24 Eval | MCTA: 75.76% (BMCTA: 75.76% @ R24) | Combined: 82.28% (BTA: 82.28% @ R24)
+  [BestModel] Round 24: new best accuracy = 0.8228
+  [Fit] [FedAvg] Round 25 | 20.9s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 25 Eval | MCTA: 75.28% (BMCTA: 75.76% @ R24) | Combined: 82.10% (BTA: 82.28% @ R24)
+  [Fit] [FedAvg] Round 26 | 23.0s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 26 Eval | MCTA: 76.27% (BMCTA: 76.27% @ R26) | Combined: 82.49% (BTA: 82.49% @ R26)
+  [BestModel] Round 26: new best accuracy = 0.8249
+  [Fit] [FedAvg] Round 27 | 20.8s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 27 Eval | MCTA: 68.24% (BMCTA: 76.27% @ R26) | Combined: 75.81% (BTA: 82.49% @ R26)
+  [Fit] [FedAvg] Round 28 | 21.1s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 28 Eval | MCTA: 61.60% (BMCTA: 76.27% @ R26) | Combined: 66.55% (BTA: 82.49% @ R26)
+  [Fit] [FedAvg] Round 29 | 22.7s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 29 Eval | MCTA: 74.31% (BMCTA: 76.27% @ R26) | Combined: 80.64% (BTA: 82.49% @ R26)
+  [Fit] [FedAvg] Round 30 | 21.0s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 30 Eval | MCTA: 66.95% (BMCTA: 76.27% @ R26) | Combined: 72.90% (BTA: 82.49% @ R26)
+  [Fit] [FedAvg] Round 31 | 21.0s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 31 Eval | MCTA: 67.79% (BMCTA: 76.27% @ R26) | Combined: 76.08% (BTA: 82.49% @ R26)
+  [Fit] [FedAvg] Round 32 | 21.9s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 32 Eval | MCTA: 72.44% (BMCTA: 76.27% @ R26) | Combined: 79.57% (BTA: 82.49% @ R26)
+  [Fit] [FedAvg] Round 33 | 20.3s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 33 Eval | MCTA: 74.00% (BMCTA: 76.27% @ R26) | Combined: 80.52% (BTA: 82.49% @ R26)
+  [Fit] [FedAvg] Round 34 | 21.2s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 34 Eval | MCTA: 47.95% (BMCTA: 76.27% @ R26) | Combined: 51.60% (BTA: 82.49% @ R26)
+  [Fit] [FedAvg] Round 35 | 20.9s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 35 Eval | MCTA: 71.46% (BMCTA: 76.27% @ R26) | Combined: 78.38% (BTA: 82.49% @ R26)
+  [Fit] [FedAvg] Round 36 | 21.0s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 36 Eval | MCTA: 73.70% (BMCTA: 76.27% @ R26) | Combined: 79.91% (BTA: 82.49% @ R26)
+  [Fit] [FedAvg] Round 37 | 20.5s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 37 Eval | MCTA: 75.33% (BMCTA: 76.27% @ R26) | Combined: 81.39% (BTA: 82.49% @ R26)
+  [Fit] [FedAvg] Round 38 | 21.3s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 38 Eval | MCTA: 75.86% (BMCTA: 76.27% @ R26) | Combined: 81.76% (BTA: 82.49% @ R26)
+  [Fit] [FedAvg] Round 39 | 20.9s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 39 Eval | MCTA: 76.54% (BMCTA: 76.54% @ R39) | Combined: 82.30% (BTA: 82.49% @ R26)
+  [Fit] [FedAvg] Round 40 | 21.7s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 40 Eval | MCTA: 76.88% (BMCTA: 76.88% @ R40) | Combined: 82.52% (BTA: 82.52% @ R40)
+  [BestModel] Round 40: new best accuracy = 0.8252
+  [Fit] [FedAvg] Round 41 | 20.6s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 41 Eval | MCTA: 76.98% (BMCTA: 76.98% @ R41) | Combined: 82.69% (BTA: 82.69% @ R41)
+  [BestModel] Round 41: new best accuracy = 0.8269
+  [Fit] [FedAvg] Round 42 | 21.3s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 42 Eval | MCTA: 64.92% (BMCTA: 76.98% @ R41) | Combined: 71.63% (BTA: 82.69% @ R41)
+  [Fit] [FedAvg] Round 43 | 22.3s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 43 Eval | MCTA: 75.38% (BMCTA: 76.98% @ R41) | Combined: 80.88% (BTA: 82.69% @ R41)
+  [Fit] [FedAvg] Round 44 | 20.8s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 44 Eval | MCTA: 77.32% (BMCTA: 77.32% @ R44) | Combined: 83.07% (BTA: 83.07% @ R44)
+  [BestModel] Round 44: new best accuracy = 0.8307
+  [Fit] [FedAvg] Round 45 | 20.6s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 45 Eval | MCTA: 77.52% (BMCTA: 77.52% @ R45) | Combined: 82.97% (BTA: 83.07% @ R44)
+  [Fit] [FedAvg] Round 46 | 21.0s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 46 Eval | MCTA: 77.59% (BMCTA: 77.59% @ R46) | Combined: 83.36% (BTA: 83.36% @ R46)
+  [BestModel] Round 46: new best accuracy = 0.8336
+  [Fit] [FedAvg] Round 47 | 21.2s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 47 Eval | MCTA: 77.05% (BMCTA: 77.59% @ R46) | Combined: 82.98% (BTA: 83.36% @ R46)
+  [Fit] [FedAvg] Round 48 | 20.6s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 48 Eval | MCTA: 70.96% (BMCTA: 77.59% @ R46) | Combined: 79.14% (BTA: 83.36% @ R46)
+  [Fit] [FedAvg] Round 49 | 20.3s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 49 Eval | MCTA: 77.80% (BMCTA: 77.80% @ R49) | Combined: 83.19% (BTA: 83.36% @ R46)
+  [Fit] [FedAvg] Round 50 | 20.7s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 50 Eval | MCTA: 78.48% (BMCTA: 78.48% @ R50) | Combined: 83.88% (BTA: 83.88% @ R50)
+  [BestModel] Round 50: new best accuracy = 0.8388
+  [Fit] [FedAvg] Round 51 | 21.7s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 51 Eval | MCTA: 78.94% (BMCTA: 78.94% @ R51) | Combined: 83.91% (BTA: 83.91% @ R51)
+  [BestModel] Round 51: new best accuracy = 0.8391
+  [Fit] [FedAvg] Round 52 | 21.2s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 52 Eval | MCTA: 78.99% (BMCTA: 78.99% @ R52) | Combined: 84.03% (BTA: 84.03% @ R52)
+  [BestModel] Round 52: new best accuracy = 0.8403
+  [Fit] [FedAvg] Round 53 | 20.8s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 53 Eval | MCTA: 78.74% (BMCTA: 78.99% @ R52) | Combined: 83.95% (BTA: 84.03% @ R52)
+  [Fit] [FedAvg] Round 54 | 22.2s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 54 Eval | MCTA: 78.11% (BMCTA: 78.99% @ R52) | Combined: 82.94% (BTA: 84.03% @ R52)
+  [Fit] [FedAvg] Round 55 | 21.3s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 55 Eval | MCTA: 79.41% (BMCTA: 79.41% @ R55) | Combined: 83.96% (BTA: 84.03% @ R52)
+  [Fit] [FedAvg] Round 56 | 21.2s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 56 Eval | MCTA: 79.19% (BMCTA: 79.41% @ R55) | Combined: 84.13% (BTA: 84.13% @ R56)
+  [BestModel] Round 56: new best accuracy = 0.8413
+  [Fit] [FedAvg] Round 57 | 20.8s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 57 Eval | MCTA: 78.38% (BMCTA: 79.41% @ R55) | Combined: 83.20% (BTA: 84.13% @ R56)
+  [Fit] [FedAvg] Round 58 | 21.1s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 58 Eval | MCTA: 79.38% (BMCTA: 79.41% @ R55) | Combined: 84.04% (BTA: 84.13% @ R56)
+  [Fit] [FedAvg] Round 59 | 21.5s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 59 Eval | MCTA: 79.64% (BMCTA: 79.64% @ R59) | Combined: 84.32% (BTA: 84.32% @ R59)
+  [BestModel] Round 59: new best accuracy = 0.8432
+  [Fit] [FedAvg] Round 60 | 21.1s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 60 Eval | MCTA: 80.10% (BMCTA: 80.10% @ R60) | Combined: 84.64% (BTA: 84.64% @ R60)
+  [BestModel] Round 60: new best accuracy = 0.8464
+  [Fit] [FedAvg] Round 61 | 22.1s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 61 Eval | MCTA: 79.41% (BMCTA: 80.10% @ R60) | Combined: 84.18% (BTA: 84.64% @ R60)
+  [Fit] [FedAvg] Round 62 | 21.0s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 62 Eval | MCTA: 64.74% (BMCTA: 80.10% @ R60) | Combined: 71.23% (BTA: 84.64% @ R60)
+  [Fit] [FedAvg] Round 63 | 20.3s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 63 Eval | MCTA: 77.97% (BMCTA: 80.10% @ R60) | Combined: 82.74% (BTA: 84.64% @ R60)
+  [Fit] [FedAvg] Round 64 | 21.8s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 64 Eval | MCTA: 73.98% (BMCTA: 80.10% @ R60) | Combined: 79.79% (BTA: 84.64% @ R60)
+  [Fit] [FedAvg] Round 65 | 21.6s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 65 Eval | MCTA: 78.93% (BMCTA: 80.10% @ R60) | Combined: 83.95% (BTA: 84.64% @ R60)
+  [Fit] [FedAvg] Round 66 | 21.0s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 66 Eval | MCTA: 79.04% (BMCTA: 80.10% @ R60) | Combined: 84.05% (BTA: 84.64% @ R60)
+  [Fit] [FedAvg] Round 67 | 22.5s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 67 Eval | MCTA: 79.46% (BMCTA: 80.10% @ R60) | Combined: 84.35% (BTA: 84.64% @ R60)
+  [Fit] [FedAvg] Round 68 | 21.7s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 68 Eval | MCTA: 80.02% (BMCTA: 80.10% @ R60) | Combined: 84.63% (BTA: 84.64% @ R60)
+  [Fit] [FedAvg] Round 69 | 21.0s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 69 Eval | MCTA: 80.23% (BMCTA: 80.23% @ R69) | Combined: 84.72% (BTA: 84.72% @ R69)
+  [BestModel] Round 69: new best accuracy = 0.8472
+  [Fit] [FedAvg] Round 70 | 22.5s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 70 Eval | MCTA: 80.31% (BMCTA: 80.31% @ R70) | Combined: 84.72% (BTA: 84.72% @ R70)
+  [BestModel] Round 70: new best accuracy = 0.8472
+  [Fit] [FedAvg] Round 71 | 20.8s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 71 Eval | MCTA: 64.23% (BMCTA: 80.31% @ R70) | Combined: 74.04% (BTA: 84.72% @ R70)
+  [Fit] [FedAvg] Round 72 | 21.1s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 72 Eval | MCTA: 75.97% (BMCTA: 80.31% @ R70) | Combined: 78.08% (BTA: 84.72% @ R70)
+  [Fit] [FedAvg] Round 73 | 22.9s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 73 Eval | MCTA: 77.45% (BMCTA: 80.31% @ R70) | Combined: 83.08% (BTA: 84.72% @ R70)
+  [Fit] [FedAvg] Round 74 | 21.9s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 74 Eval | MCTA: 78.52% (BMCTA: 80.31% @ R70) | Combined: 83.51% (BTA: 84.72% @ R70)
+  [Fit] [FedAvg] Round 75 | 20.7s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 75 Eval | MCTA: 78.98% (BMCTA: 80.31% @ R70) | Combined: 83.98% (BTA: 84.72% @ R70)
+  [Fit] [FedAvg] Round 76 | 20.3s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 76 Eval | MCTA: 80.21% (BMCTA: 80.31% @ R70) | Combined: 84.62% (BTA: 84.72% @ R70)
+  [Fit] [FedAvg] Round 77 | 20.9s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 77 Eval | MCTA: 79.34% (BMCTA: 80.31% @ R70) | Combined: 83.38% (BTA: 84.72% @ R70)
+  [Fit] [FedAvg] Round 78 | 22.2s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 78 Eval | MCTA: 80.86% (BMCTA: 80.86% @ R78) | Combined: 84.89% (BTA: 84.89% @ R78)
+  [BestModel] Round 78: new best accuracy = 0.8489
+  [Fit] [FedAvg] Round 79 | 21.9s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 79 Eval | MCTA: 66.14% (BMCTA: 80.86% @ R78) | Combined: 74.97% (BTA: 84.89% @ R78)
+  [Fit] [FedAvg] Round 80 | 20.2s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 80 Eval | MCTA: 76.88% (BMCTA: 80.86% @ R78) | Combined: 80.44% (BTA: 84.89% @ R78)
+  [Success] Finished FEDAVG (dirichlet_0.1) [Local Test]: BMCTA: 80.86% (R78) | BMCTA Loss: 0.6138 | BTA: 84.89% (R78) | Time: 1901.6s
+
+>>> [Simulation Matrix 2/2] Starting: Dataset=organamnist | Partition=dirichlet_0.1 | Strategy=SCR
+
+-----------------------------------------------------------------
+  Launching FL Server: SCR | Model: BASELINE_BN | Optimizer: SGD | Dataset: organamnist | Partition: dirichlet_0.1 | Port: 33301 | LocalTest: True | Seed: 42
+  Artifact Directory : /kaggle/working/scr_bn_dirichlet01_parallel/dirichlet01_bn_organamnist_s42/organamnist/dirichlet_0.1/scr
+-----------------------------------------------------------------
+  [Server] Listening. Launching 12 client workers (Module: client.client)...
+  [Active] Round 1/80 | Running on GPU (12 clients active) | Elapsed: 0.4m
+  [Active] Round 1/80 | Running on GPU (12 clients active) | Elapsed: 0.8m
+  [Progress] [SCR] Round 1 Eval | MCTA: 31.36% (BMCTA: 31.36% @ R1) | Combined: 31.91% (BTA: 31.91% @ R1)
+  [BestModel] Round 1: new best accuracy = 0.3191
+  [Progress] [SCR] Round 2 Eval | MCTA: 48.74% (BMCTA: 48.74% @ R2) | Combined: 55.23% (BTA: 55.23% @ R2)
+  [BestModel] Round 2: new best accuracy = 0.5523
+  [Progress] [SCR] Round 3 Eval | MCTA: 48.12% (BMCTA: 48.74% @ R2) | Combined: 50.67% (BTA: 55.23% @ R2)
+  [Progress] [SCR] Round 4 Eval | MCTA: 58.87% (BMCTA: 58.87% @ R4) | Combined: 66.78% (BTA: 66.78% @ R4)
+  [BestModel] Round 4: new best accuracy = 0.6678
+  [Progress] [SCR] Round 5 Eval | MCTA: 60.38% (BMCTA: 60.38% @ R5) | Combined: 65.70% (BTA: 66.78% @ R4)
+  [Progress] [SCR] Round 6 Eval | MCTA: 67.02% (BMCTA: 67.02% @ R6) | Combined: 73.86% (BTA: 73.86% @ R6)
+  [BestModel] Round 6: new best accuracy = 0.7386
+  [Progress] [SCR] Round 7 Eval | MCTA: 53.96% (BMCTA: 67.02% @ R6) | Combined: 61.75% (BTA: 73.86% @ R6)
+  [Active] Round 8/80 | Running on GPU (12 clients active) | Elapsed: 3.8m
+  [Progress] [SCR] Round 8 Eval | MCTA: 70.31% (BMCTA: 70.31% @ R8) | Combined: 75.05% (BTA: 75.05% @ R8)
+  [BestModel] Round 8: new best accuracy = 0.7505
+  [Progress] [SCR] Round 9 Eval | MCTA: 68.54% (BMCTA: 70.31% @ R8) | Combined: 76.52% (BTA: 76.52% @ R9)
+  [BestModel] Round 9: new best accuracy = 0.7652
+  [Progress] [SCR] Round 10 Eval | MCTA: 7.30% (BMCTA: 70.31% @ R8) | Combined: 5.61% (BTA: 76.52% @ R9)
+  [Progress] [SCR] Round 11 Eval | MCTA: 47.31% (BMCTA: 70.31% @ R8) | Combined: 51.86% (BTA: 76.52% @ R9)
+  [Progress] [SCR] Round 12 Eval | MCTA: 59.24% (BMCTA: 70.31% @ R8) | Combined: 67.57% (BTA: 76.52% @ R9)
+  [Progress] [SCR] Round 13 Eval | MCTA: 65.09% (BMCTA: 70.31% @ R8) | Combined: 72.74% (BTA: 76.52% @ R9)
+  [Progress] [SCR] Round 14 Eval | MCTA: 65.73% (BMCTA: 70.31% @ R8) | Combined: 73.24% (BTA: 76.52% @ R9)
+  [Active] Round 15/80 | Running on GPU (12 clients active) | Elapsed: 6.7m
+  [Progress] [SCR] Round 15 Eval | MCTA: 64.05% (BMCTA: 70.31% @ R8) | Combined: 72.08% (BTA: 76.52% @ R9)
+  [Progress] [SCR] Round 16 Eval | MCTA: 69.46% (BMCTA: 70.31% @ R8) | Combined: 76.29% (BTA: 76.52% @ R9)
+  [Progress] [SCR] Round 17 Eval | MCTA: 69.05% (BMCTA: 70.31% @ R8) | Combined: 76.36% (BTA: 76.52% @ R9)
+  [Progress] [SCR] Round 18 Eval | MCTA: 71.50% (BMCTA: 71.50% @ R18) | Combined: 78.20% (BTA: 78.20% @ R18)
+  [BestModel] Round 18: new best accuracy = 0.7820
+  [Progress] [SCR] Round 19 Eval | MCTA: 72.12% (BMCTA: 72.12% @ R19) | Combined: 78.92% (BTA: 78.92% @ R19)
+  [BestModel] Round 19: new best accuracy = 0.7892
+  [Active] Round 20/80 | Running on GPU (12 clients active) | Elapsed: 8.7m
+  [Progress] [SCR] Round 20 Eval | MCTA: 73.15% (BMCTA: 73.15% @ R20) | Combined: 79.54% (BTA: 79.54% @ R20)
+  [BestModel] Round 20: new best accuracy = 0.7954
+  [Progress] [SCR] Round 21 Eval | MCTA: 74.70% (BMCTA: 74.70% @ R21) | Combined: 80.91% (BTA: 80.91% @ R21)
+  [BestModel] Round 21: new best accuracy = 0.8091
+  [Progress] [SCR] Round 22 Eval | MCTA: 74.73% (BMCTA: 74.73% @ R22) | Combined: 80.46% (BTA: 80.91% @ R21)
+  [Progress] [SCR] Round 23 Eval | MCTA: 74.81% (BMCTA: 74.81% @ R23) | Combined: 80.96% (BTA: 80.96% @ R23)
+  [BestModel] Round 23: new best accuracy = 0.8096
+  [Progress] [SCR] Round 24 Eval | MCTA: 76.32% (BMCTA: 76.32% @ R24) | Combined: 81.94% (BTA: 81.94% @ R24)
+  [BestModel] Round 24: new best accuracy = 0.8194
+  [Progress] [SCR] Round 25 Eval | MCTA: 76.93% (BMCTA: 76.93% @ R25) | Combined: 82.35% (BTA: 82.35% @ R25)
+  [BestModel] Round 25: new best accuracy = 0.8235
+  [Progress] [SCR] Round 26 Eval | MCTA: 77.19% (BMCTA: 77.19% @ R26) | Combined: 82.12% (BTA: 82.35% @ R25)
+  [Progress] [SCR] Round 27 Eval | MCTA: 77.09% (BMCTA: 77.19% @ R26) | Combined: 82.52% (BTA: 82.52% @ R27)
+  [BestModel] Round 27: new best accuracy = 0.8252
+  [Progress] [SCR] Round 28 Eval | MCTA: 72.51% (BMCTA: 77.19% @ R26) | Combined: 78.88% (BTA: 82.52% @ R27)
+  [Progress] [SCR] Round 29 Eval | MCTA: 77.25% (BMCTA: 77.25% @ R29) | Combined: 82.33% (BTA: 82.52% @ R27)
+  [Progress] [SCR] Round 30 Eval | MCTA: 51.32% (BMCTA: 77.25% @ R29) | Combined: 56.25% (BTA: 82.52% @ R27)
+  [Active] Round 31/80 | Running on GPU (12 clients active) | Elapsed: 13.1m
+  [Progress] [SCR] Round 31 Eval | MCTA: 63.21% (BMCTA: 77.25% @ R29) | Combined: 69.81% (BTA: 82.52% @ R27)
+  [Progress] [SCR] Round 32 Eval | MCTA: 70.58% (BMCTA: 77.25% @ R29) | Combined: 77.43% (BTA: 82.52% @ R27)
+  [Progress] [SCR] Round 33 Eval | MCTA: 73.31% (BMCTA: 77.25% @ R29) | Combined: 79.88% (BTA: 82.52% @ R27)
+  [Progress] [SCR] Round 34 Eval | MCTA: 72.43% (BMCTA: 77.25% @ R29) | Combined: 78.95% (BTA: 82.52% @ R27)
+  [Progress] [SCR] Round 35 Eval | MCTA: 75.72% (BMCTA: 77.25% @ R29) | Combined: 81.21% (BTA: 82.52% @ R27)
+  [Progress] [SCR] Round 36 Eval | MCTA: 76.40% (BMCTA: 77.25% @ R29) | Combined: 82.06% (BTA: 82.52% @ R27)
+  [Progress] [SCR] Round 37 Eval | MCTA: 77.03% (BMCTA: 77.25% @ R29) | Combined: 82.32% (BTA: 82.52% @ R27)
+  [Progress] [SCR] Round 38 Eval | MCTA: 76.28% (BMCTA: 77.25% @ R29) | Combined: 81.72% (BTA: 82.52% @ R27)
+  [Progress] [SCR] Round 39 Eval | MCTA: 77.79% (BMCTA: 77.79% @ R39) | Combined: 82.87% (BTA: 82.87% @ R39)
+  [BestModel] Round 39: new best accuracy = 0.8287
+  [Progress] [SCR] Round 40 Eval | MCTA: 78.32% (BMCTA: 78.32% @ R40) | Combined: 82.92% (BTA: 82.92% @ R40)
+  [BestModel] Round 40: new best accuracy = 0.8292
+  [Progress] [SCR] Round 41 Eval | MCTA: 78.27% (BMCTA: 78.32% @ R40) | Combined: 83.00% (BTA: 83.00% @ R41)
+  [BestModel] Round 41: new best accuracy = 0.8300
+  [Progress] [SCR] Round 42 Eval | MCTA: 75.60% (BMCTA: 78.32% @ R40) | Combined: 81.45% (BTA: 83.00% @ R41)
+  [Progress] [SCR] Round 43 Eval | MCTA: 78.62% (BMCTA: 78.62% @ R43) | Combined: 83.06% (BTA: 83.06% @ R43)
+  [BestModel] Round 43: new best accuracy = 0.8306
+  [Progress] [SCR] Round 44 Eval | MCTA: 79.20% (BMCTA: 79.20% @ R44) | Combined: 83.60% (BTA: 83.60% @ R44)
+  [BestModel] Round 44: new best accuracy = 0.8360
+  [Progress] [SCR] Round 45 Eval | MCTA: 79.49% (BMCTA: 79.49% @ R45) | Combined: 83.78% (BTA: 83.78% @ R45)
+  [BestModel] Round 45: new best accuracy = 0.8378
+  [Progress] [SCR] Round 46 Eval | MCTA: 78.17% (BMCTA: 79.49% @ R45) | Combined: 82.12% (BTA: 83.78% @ R45)
+  [Progress] [SCR] Round 47 Eval | MCTA: 71.27% (BMCTA: 79.49% @ R45) | Combined: 75.59% (BTA: 83.78% @ R45)
+  [Progress] [SCR] Round 48 Eval | MCTA: 72.80% (BMCTA: 79.49% @ R45) | Combined: 76.94% (BTA: 83.78% @ R45)
+  [Progress] [SCR] Round 49 Eval | MCTA: 76.97% (BMCTA: 79.49% @ R45) | Combined: 82.02% (BTA: 83.78% @ R45)
+  [Progress] [SCR] Round 50 Eval | MCTA: 78.41% (BMCTA: 79.49% @ R45) | Combined: 83.19% (BTA: 83.78% @ R45)
+  [Progress] [SCR] Round 51 Eval | MCTA: 79.17% (BMCTA: 79.49% @ R45) | Combined: 83.75% (BTA: 83.78% @ R45)
+  [Progress] [SCR] Round 52 Eval | MCTA: 79.51% (BMCTA: 79.51% @ R52) | Combined: 84.07% (BTA: 84.07% @ R52)
+  [BestModel] Round 52: new best accuracy = 0.8407
+  [Progress] [SCR] Round 53 Eval | MCTA: 79.58% (BMCTA: 79.58% @ R53) | Combined: 84.31% (BTA: 84.31% @ R53)
+  [BestModel] Round 53: new best accuracy = 0.8431
+  [Progress] [SCR] Round 54 Eval | MCTA: 77.92% (BMCTA: 79.58% @ R53) | Combined: 83.07% (BTA: 84.31% @ R53)
+  [Progress] [SCR] Round 55 Eval | MCTA: 78.86% (BMCTA: 79.58% @ R53) | Combined: 83.72% (BTA: 84.31% @ R53)
+  [Progress] [SCR] Round 56 Eval | MCTA: 79.98% (BMCTA: 79.98% @ R56) | Combined: 84.16% (BTA: 84.31% @ R53)
+  [Progress] [SCR] Round 57 Eval | MCTA: 79.68% (BMCTA: 79.98% @ R56) | Combined: 83.93% (BTA: 84.31% @ R53)
+  [Progress] [SCR] Round 58 Eval | MCTA: 80.16% (BMCTA: 80.16% @ R58) | Combined: 84.21% (BTA: 84.31% @ R53)
+  [Progress] [SCR] Round 59 Eval | MCTA: 80.93% (BMCTA: 80.93% @ R59) | Combined: 84.68% (BTA: 84.68% @ R59)
+  [BestModel] Round 59: new best accuracy = 0.8468
+  [Progress] [SCR] Round 60 Eval | MCTA: 80.60% (BMCTA: 80.93% @ R59) | Combined: 84.53% (BTA: 84.68% @ R59)
+  [Progress] [SCR] Round 61 Eval | MCTA: 76.76% (BMCTA: 80.93% @ R59) | Combined: 82.74% (BTA: 84.68% @ R59)
+  [Progress] [SCR] Round 62 Eval | MCTA: 75.87% (BMCTA: 80.93% @ R59) | Combined: 81.22% (BTA: 84.68% @ R59)
+  [Progress] [SCR] Round 63 Eval | MCTA: 80.16% (BMCTA: 80.93% @ R59) | Combined: 84.11% (BTA: 84.68% @ R59)
+  [Progress] [SCR] Round 64 Eval | MCTA: 22.46% (BMCTA: 80.93% @ R59) | Combined: 26.82% (BTA: 84.68% @ R59)
+  [Progress] [SCR] Round 65 Eval | MCTA: 66.46% (BMCTA: 80.93% @ R59) | Combined: 69.86% (BTA: 84.68% @ R59)
+  [Progress] [SCR] Round 66 Eval | MCTA: 69.31% (BMCTA: 80.93% @ R59) | Combined: 76.75% (BTA: 84.68% @ R59)
+  [Progress] [SCR] Round 67 Eval | MCTA: 74.66% (BMCTA: 80.93% @ R59) | Combined: 80.18% (BTA: 84.68% @ R59)
+  [Progress] [SCR] Round 68 Eval | MCTA: 75.06% (BMCTA: 80.93% @ R59) | Combined: 80.97% (BTA: 84.68% @ R59)
+  [Progress] [SCR] Round 69 Eval | MCTA: 76.68% (BMCTA: 80.93% @ R59) | Combined: 81.87% (BTA: 84.68% @ R59)
+  [Progress] [SCR] Round 70 Eval | MCTA: 77.40% (BMCTA: 80.93% @ R59) | Combined: 82.51% (BTA: 84.68% @ R59)
+  [Progress] [SCR] Round 71 Eval | MCTA: 21.38% (BMCTA: 80.93% @ R59) | Combined: 19.60% (BTA: 84.68% @ R59)
+  [Progress] [SCR] Round 72 Eval | MCTA: 25.41% (BMCTA: 80.93% @ R59) | Combined: 24.62% (BTA: 84.68% @ R59)
+  [Progress] [SCR] Round 73 Eval | MCTA: 60.55% (BMCTA: 80.93% @ R59) | Combined: 64.95% (BTA: 84.68% @ R59)
+  [Progress] [SCR] Round 74 Eval | MCTA: 67.25% (BMCTA: 80.93% @ R59) | Combined: 74.66% (BTA: 84.68% @ R59)
+  [Progress] [SCR] Round 75 Eval | MCTA: 61.59% (BMCTA: 80.93% @ R59) | Combined: 69.05% (BTA: 84.68% @ R59)
+  [Progress] [SCR] Round 76 Eval | MCTA: 72.81% (BMCTA: 80.93% @ R59) | Combined: 78.10% (BTA: 84.68% @ R59)
+  [Progress] [SCR] Round 77 Eval | MCTA: 72.19% (BMCTA: 80.93% @ R59) | Combined: 78.28% (BTA: 84.68% @ R59)
+  [Progress] [SCR] Round 78 Eval | MCTA: 74.40% (BMCTA: 80.93% @ R59) | Combined: 79.78% (BTA: 84.68% @ R59)
+  [Progress] [SCR] Round 79 Eval | MCTA: 70.74% (BMCTA: 80.93% @ R59) | Combined: 77.67% (BTA: 84.68% @ R59)
+  [Progress] [SCR] Round 80 Eval | MCTA: 73.78% (BMCTA: 80.93% @ R59) | Combined: 79.49% (BTA: 84.68% @ R59)
+  [Success] Finished SCR (dirichlet_0.1) [Local Test]: BMCTA: 80.93% (R59) | BMCTA Loss: 0.6365 | BTA: 84.68% (R59) | Time: 1960.6s
+
+Generating multi-strategy comparison plots grouped by dataset...
+
+===========================================================================
+  FedMedAI Simulation Finished: 2 completed, 0 failed. Total Wall-Clock Time: 65.0 minutes
+===========================================================================
+  Artifacts Saved in Directory: /kaggle/working/scr_bn_dirichlet01_parallel/dirichlet01_bn_organamnist_s42
+  - Executive Report     : simulation_report.md
+  - Terminal Log         : terminal.log
+===========================================================================
+

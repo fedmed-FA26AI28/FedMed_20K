@@ -1,0 +1,357 @@
+
+======================================================================
+  FedMedAI Automated Simulation Benchmark
+======================================================================
+  Run Name         : dirichlet01_bn_organamnist_s44
+  Output Directory : /kaggle/working/scr_bn_dirichlet01_parallel/dirichlet01_bn_organamnist_s44
+  Terminal Log     : /kaggle/working/scr_bn_dirichlet01_parallel/dirichlet01_bn_organamnist_s44/terminal.log
+  Model            : BASELINE_BN
+  Optimizer        : SGD (momentum=0.9)
+  Augmentation     : Disabled (crop=False, flip=False)
+  Seed             : 44
+  Clients          : 12
+  Rounds per Run   : 80
+  Local Epochs     : 5
+  Local Test Eval  : Enabled (BMCTA/BTA tracking)
+  Client Module    : client.client (Parallel Execution)
+  Timeout per Run  : Disabled (Infinite)
+  Datasets         : ['organamnist']
+  Partitions       : ['dirichlet_0.1']
+  Strategies       : ['fedavg', 'scr']
+  Total Runs Grid  : 2 combinations
+======================================================================
+
+Verifying data partition files for all dataset and partition combinations...
+
+[Partition] Missing partition: partition_organamnist_dirichlet_0.1_localtest_seed44_clients12.json. Generating automatically (local_test=True)...
+Partition saved: data/partitions/partition_organamnist_dirichlet_0.1_localtest_seed44_clients12.json (Local test included: True)
+Plot saved: /kaggle/working/FedMed_20K/data/partitions/plots/dist_organamnist_dirichlet_0.1_localtest_seed44_clients12.png
+[Partition] Generated and verified: data/partitions/partition_organamnist_dirichlet_0.1_localtest_seed44_clients12.json (plot: data/partitions/plots/dist_organamnist_dirichlet_0.1_localtest_seed44_clients12.png)
+
+>>> [Simulation Matrix 1/2] Starting: Dataset=organamnist | Partition=dirichlet_0.1 | Strategy=FEDAVG
+
+-----------------------------------------------------------------
+  Launching FL Server: FEDAVG | Model: BASELINE_BN | Optimizer: SGD | Dataset: organamnist | Partition: dirichlet_0.1 | Port: 37011 | LocalTest: True | Seed: 44
+  Artifact Directory : /kaggle/working/scr_bn_dirichlet01_parallel/dirichlet01_bn_organamnist_s44/organamnist/dirichlet_0.1/fedavg
+-----------------------------------------------------------------
+  [Server] Listening. Launching 12 client workers (Module: client.client)...
+  [Active] Round 1/80 | Running on GPU (12 clients active) | Elapsed: 0.4m
+  [Active] Round 1/80 | Running on GPU (12 clients active) | Elapsed: 0.8m
+  [Fit] [FedAvg] Round 1 | 55.7s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 1 Eval | MCTA: 28.14% (BMCTA: 28.14% @ R1) | Combined: 35.44% (BTA: 35.44% @ R1)
+  [BestModel] Round 1: new best accuracy = 0.3544
+  [Fit] [FedAvg] Round 2 | 20.2s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 2 Eval | MCTA: 48.07% (BMCTA: 48.07% @ R2) | Combined: 49.35% (BTA: 49.35% @ R2)
+  [BestModel] Round 2: new best accuracy = 0.4935
+  [Fit] [FedAvg] Round 3 | 19.7s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 3 Eval | MCTA: 34.67% (BMCTA: 48.07% @ R2) | Combined: 42.78% (BTA: 49.35% @ R2)
+  [Fit] [FedAvg] Round 4 | 20.3s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 4 Eval | MCTA: 45.85% (BMCTA: 48.07% @ R2) | Combined: 44.07% (BTA: 49.35% @ R2)
+  [Fit] [FedAvg] Round 5 | 20.0s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 5 Eval | MCTA: 42.60% (BMCTA: 48.07% @ R2) | Combined: 50.03% (BTA: 50.03% @ R5)
+  [BestModel] Round 5: new best accuracy = 0.5003
+  [Fit] [FedAvg] Round 6 | 20.6s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 6 Eval | MCTA: 51.95% (BMCTA: 51.95% @ R6) | Combined: 49.27% (BTA: 50.03% @ R5)
+  [Fit] [FedAvg] Round 7 | 20.6s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 7 Eval | MCTA: 54.22% (BMCTA: 54.22% @ R7) | Combined: 58.14% (BTA: 58.14% @ R7)
+  [BestModel] Round 7: new best accuracy = 0.5814
+  [Fit] [FedAvg] Round 8 | 20.2s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 8 Eval | MCTA: 58.25% (BMCTA: 58.25% @ R8) | Combined: 54.14% (BTA: 58.14% @ R7)
+  [Fit] [FedAvg] Round 9 | 19.7s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 9 Eval | MCTA: 59.58% (BMCTA: 59.58% @ R9) | Combined: 62.03% (BTA: 62.03% @ R9)
+  [BestModel] Round 9: new best accuracy = 0.6203
+  [Fit] [FedAvg] Round 10 | 21.4s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 10 Eval | MCTA: 64.25% (BMCTA: 64.25% @ R10) | Combined: 61.56% (BTA: 62.03% @ R9)
+  [Fit] [FedAvg] Round 11 | 19.8s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 11 Eval | MCTA: 67.56% (BMCTA: 67.56% @ R11) | Combined: 68.89% (BTA: 68.89% @ R11)
+  [BestModel] Round 11: new best accuracy = 0.6889
+  [Fit] [FedAvg] Round 12 | 20.3s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 12 Eval | MCTA: 72.66% (BMCTA: 72.66% @ R12) | Combined: 71.67% (BTA: 71.67% @ R12)
+  [BestModel] Round 12: new best accuracy = 0.7167
+  [Fit] [FedAvg] Round 13 | 20.3s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 13 Eval | MCTA: 73.64% (BMCTA: 73.64% @ R13) | Combined: 74.75% (BTA: 74.75% @ R13)
+  [BestModel] Round 13: new best accuracy = 0.7475
+  [Fit] [FedAvg] Round 14 | 19.8s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 14 Eval | MCTA: 76.56% (BMCTA: 76.56% @ R14) | Combined: 76.52% (BTA: 76.52% @ R14)
+  [BestModel] Round 14: new best accuracy = 0.7652
+  [Fit] [FedAvg] Round 15 | 20.5s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 15 Eval | MCTA: 75.57% (BMCTA: 76.56% @ R14) | Combined: 76.84% (BTA: 76.84% @ R15)
+  [BestModel] Round 15: new best accuracy = 0.7684
+  [Fit] [FedAvg] Round 16 | 20.1s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 16 Eval | MCTA: 77.83% (BMCTA: 77.83% @ R16) | Combined: 77.75% (BTA: 77.75% @ R16)
+  [BestModel] Round 16: new best accuracy = 0.7775
+  [Fit] [FedAvg] Round 17 | 19.9s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 17 Eval | MCTA: 78.43% (BMCTA: 78.43% @ R17) | Combined: 79.34% (BTA: 79.34% @ R17)
+  [BestModel] Round 17: new best accuracy = 0.7934
+  [Fit] [FedAvg] Round 18 | 21.6s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 18 Eval | MCTA: 79.33% (BMCTA: 79.33% @ R18) | Combined: 79.28% (BTA: 79.34% @ R17)
+  [Fit] [FedAvg] Round 19 | 20.0s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 19 Eval | MCTA: 80.00% (BMCTA: 80.00% @ R19) | Combined: 80.58% (BTA: 80.58% @ R19)
+  [BestModel] Round 19: new best accuracy = 0.8058
+  [Fit] [FedAvg] Round 20 | 20.1s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 20 Eval | MCTA: 80.94% (BMCTA: 80.94% @ R20) | Combined: 81.30% (BTA: 81.30% @ R20)
+  [BestModel] Round 20: new best accuracy = 0.8130
+  [Fit] [FedAvg] Round 21 | 19.9s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 21 Eval | MCTA: 81.36% (BMCTA: 81.36% @ R21) | Combined: 81.82% (BTA: 81.82% @ R21)
+  [BestModel] Round 21: new best accuracy = 0.8182
+  [Fit] [FedAvg] Round 22 | 20.2s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 22 Eval | MCTA: 81.18% (BMCTA: 81.36% @ R21) | Combined: 81.57% (BTA: 81.82% @ R21)
+  [Fit] [FedAvg] Round 23 | 21.5s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 23 Eval | MCTA: 81.69% (BMCTA: 81.69% @ R23) | Combined: 82.02% (BTA: 82.02% @ R23)
+  [BestModel] Round 23: new best accuracy = 0.8202
+  [Fit] [FedAvg] Round 24 | 20.0s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 24 Eval | MCTA: 82.21% (BMCTA: 82.21% @ R24) | Combined: 82.38% (BTA: 82.38% @ R24)
+  [BestModel] Round 24: new best accuracy = 0.8238
+  [Fit] [FedAvg] Round 25 | 20.1s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 25 Eval | MCTA: 81.76% (BMCTA: 82.21% @ R24) | Combined: 82.15% (BTA: 82.38% @ R24)
+  [Fit] [FedAvg] Round 26 | 20.5s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 26 Eval | MCTA: 83.00% (BMCTA: 83.00% @ R26) | Combined: 82.99% (BTA: 82.99% @ R26)
+  [BestModel] Round 26: new best accuracy = 0.8299
+  [Fit] [FedAvg] Round 27 | 19.7s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 27 Eval | MCTA: 81.38% (BMCTA: 83.00% @ R26) | Combined: 81.95% (BTA: 82.99% @ R26)
+  [Fit] [FedAvg] Round 28 | 20.4s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 28 Eval | MCTA: 82.81% (BMCTA: 83.00% @ R26) | Combined: 82.77% (BTA: 82.99% @ R26)
+  [Fit] [FedAvg] Round 29 | 21.4s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 29 Eval | MCTA: 80.82% (BMCTA: 83.00% @ R26) | Combined: 81.27% (BTA: 82.99% @ R26)
+  [Fit] [FedAvg] Round 30 | 19.9s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 30 Eval | MCTA: 83.17% (BMCTA: 83.17% @ R30) | Combined: 83.00% (BTA: 83.00% @ R30)
+  [BestModel] Round 30: new best accuracy = 0.8300
+  [Fit] [FedAvg] Round 31 | 20.1s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 31 Eval | MCTA: 81.32% (BMCTA: 83.17% @ R30) | Combined: 82.00% (BTA: 83.00% @ R30)
+  [Fit] [FedAvg] Round 32 | 19.8s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 32 Eval | MCTA: 83.00% (BMCTA: 83.17% @ R30) | Combined: 82.52% (BTA: 83.00% @ R30)
+  [Fit] [FedAvg] Round 33 | 21.2s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 33 Eval | MCTA: 80.73% (BMCTA: 83.17% @ R30) | Combined: 81.45% (BTA: 83.00% @ R30)
+  [Fit] [FedAvg] Round 34 | 20.1s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 34 Eval | MCTA: 83.08% (BMCTA: 83.17% @ R30) | Combined: 82.50% (BTA: 83.00% @ R30)
+  [Fit] [FedAvg] Round 35 | 20.8s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 35 Eval | MCTA: 80.24% (BMCTA: 83.17% @ R30) | Combined: 80.97% (BTA: 83.00% @ R30)
+  [Fit] [FedAvg] Round 36 | 21.0s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 36 Eval | MCTA: 83.14% (BMCTA: 83.17% @ R30) | Combined: 82.75% (BTA: 83.00% @ R30)
+  [Fit] [FedAvg] Round 37 | 20.4s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 37 Eval | MCTA: 80.71% (BMCTA: 83.17% @ R30) | Combined: 81.50% (BTA: 83.00% @ R30)
+  [Fit] [FedAvg] Round 38 | 21.0s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 38 Eval | MCTA: 83.60% (BMCTA: 83.60% @ R38) | Combined: 83.15% (BTA: 83.15% @ R38)
+  [BestModel] Round 38: new best accuracy = 0.8315
+  [Fit] [FedAvg] Round 39 | 20.7s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 39 Eval | MCTA: 82.08% (BMCTA: 83.60% @ R38) | Combined: 82.72% (BTA: 83.15% @ R38)
+  [Fit] [FedAvg] Round 40 | 21.2s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 40 Eval | MCTA: 83.79% (BMCTA: 83.79% @ R40) | Combined: 83.50% (BTA: 83.50% @ R40)
+  [BestModel] Round 40: new best accuracy = 0.8350
+  [Fit] [FedAvg] Round 41 | 21.0s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 41 Eval | MCTA: 82.36% (BMCTA: 83.79% @ R40) | Combined: 82.84% (BTA: 83.50% @ R40)
+  [Fit] [FedAvg] Round 42 | 20.8s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 42 Eval | MCTA: 83.83% (BMCTA: 83.83% @ R42) | Combined: 83.48% (BTA: 83.50% @ R40)
+  [Fit] [FedAvg] Round 43 | 20.9s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 43 Eval | MCTA: 82.72% (BMCTA: 83.83% @ R42) | Combined: 83.31% (BTA: 83.50% @ R40)
+  [Fit] [FedAvg] Round 44 | 20.3s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 44 Eval | MCTA: 83.92% (BMCTA: 83.92% @ R44) | Combined: 83.79% (BTA: 83.79% @ R44)
+  [BestModel] Round 44: new best accuracy = 0.8379
+  [Fit] [FedAvg] Round 45 | 19.9s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 45 Eval | MCTA: 83.16% (BMCTA: 83.92% @ R44) | Combined: 83.68% (BTA: 83.79% @ R44)
+  [Fit] [FedAvg] Round 46 | 20.6s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 46 Eval | MCTA: 83.93% (BMCTA: 83.93% @ R46) | Combined: 83.73% (BTA: 83.79% @ R44)
+  [Fit] [FedAvg] Round 47 | 21.7s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 47 Eval | MCTA: 83.28% (BMCTA: 83.93% @ R46) | Combined: 83.70% (BTA: 83.79% @ R44)
+  [Fit] [FedAvg] Round 48 | 20.0s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 48 Eval | MCTA: 84.25% (BMCTA: 84.25% @ R48) | Combined: 83.99% (BTA: 83.99% @ R48)
+  [BestModel] Round 48: new best accuracy = 0.8399
+  [Fit] [FedAvg] Round 49 | 21.4s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 49 Eval | MCTA: 83.33% (BMCTA: 84.25% @ R48) | Combined: 83.78% (BTA: 83.99% @ R48)
+  [Fit] [FedAvg] Round 50 | 20.1s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 50 Eval | MCTA: 84.45% (BMCTA: 84.45% @ R50) | Combined: 84.28% (BTA: 84.28% @ R50)
+  [BestModel] Round 50: new best accuracy = 0.8428
+  [Fit] [FedAvg] Round 51 | 19.3s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 51 Eval | MCTA: 83.92% (BMCTA: 84.45% @ R50) | Combined: 84.11% (BTA: 84.28% @ R50)
+  [Fit] [FedAvg] Round 52 | 20.3s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 52 Eval | MCTA: 84.42% (BMCTA: 84.45% @ R50) | Combined: 84.25% (BTA: 84.28% @ R50)
+  [Fit] [FedAvg] Round 53 | 22.0s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 53 Eval | MCTA: 83.96% (BMCTA: 84.45% @ R50) | Combined: 84.24% (BTA: 84.28% @ R50)
+  [Fit] [FedAvg] Round 54 | 22.1s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 54 Eval | MCTA: 84.69% (BMCTA: 84.69% @ R54) | Combined: 84.40% (BTA: 84.40% @ R54)
+  [BestModel] Round 54: new best accuracy = 0.8440
+  [Fit] [FedAvg] Round 55 | 20.4s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 55 Eval | MCTA: 83.97% (BMCTA: 84.69% @ R54) | Combined: 84.30% (BTA: 84.40% @ R54)
+  [Fit] [FedAvg] Round 56 | 20.2s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 56 Eval | MCTA: 84.29% (BMCTA: 84.69% @ R54) | Combined: 84.35% (BTA: 84.40% @ R54)
+  [Fit] [FedAvg] Round 57 | 22.1s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 57 Eval | MCTA: 84.32% (BMCTA: 84.69% @ R54) | Combined: 84.54% (BTA: 84.54% @ R57)
+  [BestModel] Round 57: new best accuracy = 0.8454
+  [Fit] [FedAvg] Round 58 | 20.6s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 58 Eval | MCTA: 84.33% (BMCTA: 84.69% @ R54) | Combined: 84.38% (BTA: 84.54% @ R57)
+  [Fit] [FedAvg] Round 59 | 20.7s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 59 Eval | MCTA: 84.63% (BMCTA: 84.69% @ R54) | Combined: 84.62% (BTA: 84.62% @ R59)
+  [BestModel] Round 59: new best accuracy = 0.8462
+  [Fit] [FedAvg] Round 60 | 22.1s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 60 Eval | MCTA: 84.52% (BMCTA: 84.69% @ R54) | Combined: 84.54% (BTA: 84.62% @ R59)
+  [Fit] [FedAvg] Round 61 | 20.3s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 61 Eval | MCTA: 84.55% (BMCTA: 84.69% @ R54) | Combined: 84.52% (BTA: 84.62% @ R59)
+  [Fit] [FedAvg] Round 62 | 20.4s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 62 Eval | MCTA: 84.41% (BMCTA: 84.69% @ R54) | Combined: 84.49% (BTA: 84.62% @ R59)
+  [Fit] [FedAvg] Round 63 | 20.7s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 63 Eval | MCTA: 84.60% (BMCTA: 84.69% @ R54) | Combined: 84.61% (BTA: 84.62% @ R59)
+  [Fit] [FedAvg] Round 64 | 21.7s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 64 Eval | MCTA: 84.56% (BMCTA: 84.69% @ R54) | Combined: 84.62% (BTA: 84.62% @ R59)
+  [Fit] [FedAvg] Round 65 | 20.3s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 65 Eval | MCTA: 84.63% (BMCTA: 84.69% @ R54) | Combined: 84.60% (BTA: 84.62% @ R59)
+  [Fit] [FedAvg] Round 66 | 21.4s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 66 Eval | MCTA: 84.74% (BMCTA: 84.74% @ R66) | Combined: 84.78% (BTA: 84.78% @ R66)
+  [BestModel] Round 66: new best accuracy = 0.8478
+  [Fit] [FedAvg] Round 67 | 20.3s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 67 Eval | MCTA: 84.65% (BMCTA: 84.74% @ R66) | Combined: 84.66% (BTA: 84.78% @ R66)
+  [Fit] [FedAvg] Round 68 | 21.0s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 68 Eval | MCTA: 84.41% (BMCTA: 84.74% @ R66) | Combined: 84.54% (BTA: 84.78% @ R66)
+  [Fit] [FedAvg] Round 69 | 20.3s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 69 Eval | MCTA: 84.81% (BMCTA: 84.81% @ R69) | Combined: 84.69% (BTA: 84.78% @ R66)
+  [Fit] [FedAvg] Round 70 | 20.8s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 70 Eval | MCTA: 84.67% (BMCTA: 84.81% @ R69) | Combined: 84.73% (BTA: 84.78% @ R66)
+  [Fit] [FedAvg] Round 71 | 20.5s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 71 Eval | MCTA: 84.65% (BMCTA: 84.81% @ R69) | Combined: 84.78% (BTA: 84.78% @ R66)
+  [Fit] [FedAvg] Round 72 | 20.5s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 72 Eval | MCTA: 84.75% (BMCTA: 84.81% @ R69) | Combined: 84.78% (BTA: 84.78% @ R66)
+  [Fit] [FedAvg] Round 73 | 21.0s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 73 Eval | MCTA: 84.83% (BMCTA: 84.83% @ R73) | Combined: 84.84% (BTA: 84.84% @ R73)
+  [BestModel] Round 73: new best accuracy = 0.8484
+  [Fit] [FedAvg] Round 74 | 20.0s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 74 Eval | MCTA: 84.52% (BMCTA: 84.83% @ R73) | Combined: 84.66% (BTA: 84.84% @ R73)
+  [Fit] [FedAvg] Round 75 | 21.0s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 75 Eval | MCTA: 84.81% (BMCTA: 84.83% @ R73) | Combined: 84.96% (BTA: 84.96% @ R75)
+  [BestModel] Round 75: new best accuracy = 0.8496
+  [Fit] [FedAvg] Round 76 | 20.1s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 76 Eval | MCTA: 84.60% (BMCTA: 84.83% @ R73) | Combined: 84.72% (BTA: 84.96% @ R75)
+  [Fit] [FedAvg] Round 77 | 22.1s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 77 Eval | MCTA: 84.58% (BMCTA: 84.83% @ R73) | Combined: 84.85% (BTA: 84.96% @ R75)
+  [Fit] [FedAvg] Round 78 | 20.0s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 78 Eval | MCTA: 84.89% (BMCTA: 84.89% @ R78) | Combined: 84.89% (BTA: 84.96% @ R75)
+  [Fit] [FedAvg] Round 79 | 20.7s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 79 Eval | MCTA: 84.66% (BMCTA: 84.89% @ R78) | Combined: 84.93% (BTA: 84.96% @ R75)
+  [Fit] [FedAvg] Round 80 | 20.2s | clients=12 | failures=0
+  [Progress] [FedAvg] Round 80 Eval | MCTA: 84.69% (BMCTA: 84.89% @ R78) | Combined: 84.88% (BTA: 84.96% @ R75)
+  [Success] Finished FEDAVG (dirichlet_0.1) [Local Test]: BMCTA: 84.89% (R78) | BMCTA Loss: 0.4875 | BTA: 84.96% (R75) | Time: 1844.4s
+
+>>> [Simulation Matrix 2/2] Starting: Dataset=organamnist | Partition=dirichlet_0.1 | Strategy=SCR
+
+-----------------------------------------------------------------
+  Launching FL Server: SCR | Model: BASELINE_BN | Optimizer: SGD | Dataset: organamnist | Partition: dirichlet_0.1 | Port: 33363 | LocalTest: True | Seed: 44
+  Artifact Directory : /kaggle/working/scr_bn_dirichlet01_parallel/dirichlet01_bn_organamnist_s44/organamnist/dirichlet_0.1/scr
+-----------------------------------------------------------------
+  [Server] Listening. Launching 12 client workers (Module: client.client)...
+  [Active] Round 1/80 | Running on GPU (12 clients active) | Elapsed: 0.4m
+  [Active] Round 1/80 | Running on GPU (12 clients active) | Elapsed: 0.8m
+  [Progress] [SCR] Round 1 Eval | MCTA: 30.61% (BMCTA: 30.61% @ R1) | Combined: 36.02% (BTA: 36.02% @ R1)
+  [BestModel] Round 1: new best accuracy = 0.3602
+  [Progress] [SCR] Round 2 Eval | MCTA: 59.96% (BMCTA: 59.96% @ R2) | Combined: 59.88% (BTA: 59.88% @ R2)
+  [BestModel] Round 2: new best accuracy = 0.5988
+  [Progress] [SCR] Round 3 Eval | MCTA: 58.00% (BMCTA: 59.96% @ R2) | Combined: 60.05% (BTA: 60.05% @ R3)
+  [BestModel] Round 3: new best accuracy = 0.6005
+  [Progress] [SCR] Round 4 Eval | MCTA: 67.26% (BMCTA: 67.26% @ R4) | Combined: 67.07% (BTA: 67.07% @ R4)
+  [BestModel] Round 4: new best accuracy = 0.6707
+  [Progress] [SCR] Round 5 Eval | MCTA: 58.84% (BMCTA: 67.26% @ R4) | Combined: 57.01% (BTA: 67.07% @ R4)
+  [Progress] [SCR] Round 6 Eval | MCTA: 65.16% (BMCTA: 67.26% @ R4) | Combined: 63.72% (BTA: 67.07% @ R4)
+  [Progress] [SCR] Round 7 Eval | MCTA: 64.40% (BMCTA: 67.26% @ R4) | Combined: 63.26% (BTA: 67.07% @ R4)
+  [Progress] [SCR] Round 8 Eval | MCTA: 74.49% (BMCTA: 74.49% @ R8) | Combined: 73.53% (BTA: 73.53% @ R8)
+  [BestModel] Round 8: new best accuracy = 0.7353
+  [Progress] [SCR] Round 9 Eval | MCTA: 71.41% (BMCTA: 74.49% @ R8) | Combined: 70.74% (BTA: 73.53% @ R8)
+  [Progress] [SCR] Round 10 Eval | MCTA: 75.19% (BMCTA: 75.19% @ R10) | Combined: 73.84% (BTA: 73.84% @ R10)
+  [BestModel] Round 10: new best accuracy = 0.7384
+  [Progress] [SCR] Round 11 Eval | MCTA: 74.50% (BMCTA: 75.19% @ R10) | Combined: 74.43% (BTA: 74.43% @ R11)
+  [BestModel] Round 11: new best accuracy = 0.7443
+  [Progress] [SCR] Round 12 Eval | MCTA: 78.43% (BMCTA: 78.43% @ R12) | Combined: 77.45% (BTA: 77.45% @ R12)
+  [BestModel] Round 12: new best accuracy = 0.7745
+  [Progress] [SCR] Round 13 Eval | MCTA: 76.10% (BMCTA: 78.43% @ R12) | Combined: 76.42% (BTA: 77.45% @ R12)
+  [Progress] [SCR] Round 14 Eval | MCTA: 80.15% (BMCTA: 80.15% @ R14) | Combined: 79.00% (BTA: 79.00% @ R14)
+  [BestModel] Round 14: new best accuracy = 0.7900
+  [Progress] [SCR] Round 15 Eval | MCTA: 77.44% (BMCTA: 80.15% @ R14) | Combined: 77.87% (BTA: 79.00% @ R14)
+  [Progress] [SCR] Round 16 Eval | MCTA: 79.78% (BMCTA: 80.15% @ R14) | Combined: 78.43% (BTA: 79.00% @ R14)
+  [Progress] [SCR] Round 17 Eval | MCTA: 77.86% (BMCTA: 80.15% @ R14) | Combined: 78.47% (BTA: 79.00% @ R14)
+  [Progress] [SCR] Round 18 Eval | MCTA: 78.85% (BMCTA: 80.15% @ R14) | Combined: 76.89% (BTA: 79.00% @ R14)
+  [Progress] [SCR] Round 19 Eval | MCTA: 80.01% (BMCTA: 80.15% @ R14) | Combined: 80.53% (BTA: 80.53% @ R19)
+  [BestModel] Round 19: new best accuracy = 0.8053
+  [Progress] [SCR] Round 20 Eval | MCTA: 79.86% (BMCTA: 80.15% @ R14) | Combined: 78.65% (BTA: 80.53% @ R19)
+  [Progress] [SCR] Round 21 Eval | MCTA: 80.84% (BMCTA: 80.84% @ R21) | Combined: 81.07% (BTA: 81.07% @ R21)
+  [BestModel] Round 21: new best accuracy = 0.8107
+  [Progress] [SCR] Round 22 Eval | MCTA: 79.73% (BMCTA: 80.84% @ R21) | Combined: 78.51% (BTA: 81.07% @ R21)
+  [Progress] [SCR] Round 23 Eval | MCTA: 81.35% (BMCTA: 81.35% @ R23) | Combined: 81.67% (BTA: 81.67% @ R23)
+  [BestModel] Round 23: new best accuracy = 0.8167
+  [Progress] [SCR] Round 24 Eval | MCTA: 82.86% (BMCTA: 82.86% @ R24) | Combined: 82.28% (BTA: 82.28% @ R24)
+  [BestModel] Round 24: new best accuracy = 0.8228
+  [Progress] [SCR] Round 25 Eval | MCTA: 82.41% (BMCTA: 82.86% @ R24) | Combined: 82.48% (BTA: 82.48% @ R25)
+  [BestModel] Round 25: new best accuracy = 0.8248
+  [Progress] [SCR] Round 26 Eval | MCTA: 82.32% (BMCTA: 82.86% @ R24) | Combined: 82.01% (BTA: 82.48% @ R25)
+  [Progress] [SCR] Round 27 Eval | MCTA: 84.03% (BMCTA: 84.03% @ R27) | Combined: 83.85% (BTA: 83.85% @ R27)
+  [BestModel] Round 27: new best accuracy = 0.8385
+  [Progress] [SCR] Round 28 Eval | MCTA: 82.81% (BMCTA: 84.03% @ R27) | Combined: 82.88% (BTA: 83.85% @ R27)
+  [Progress] [SCR] Round 29 Eval | MCTA: 83.94% (BMCTA: 84.03% @ R27) | Combined: 83.85% (BTA: 83.85% @ R27)
+  [Progress] [SCR] Round 30 Eval | MCTA: 83.82% (BMCTA: 84.03% @ R27) | Combined: 83.67% (BTA: 83.85% @ R27)
+  [Progress] [SCR] Round 31 Eval | MCTA: 84.10% (BMCTA: 84.10% @ R31) | Combined: 84.17% (BTA: 84.17% @ R31)
+  [BestModel] Round 31: new best accuracy = 0.8417
+  [Progress] [SCR] Round 32 Eval | MCTA: 84.11% (BMCTA: 84.11% @ R32) | Combined: 83.97% (BTA: 84.17% @ R31)
+  [Progress] [SCR] Round 33 Eval | MCTA: 84.19% (BMCTA: 84.19% @ R33) | Combined: 84.21% (BTA: 84.21% @ R33)
+  [BestModel] Round 33: new best accuracy = 0.8421
+  [Progress] [SCR] Round 34 Eval | MCTA: 84.34% (BMCTA: 84.34% @ R34) | Combined: 84.03% (BTA: 84.21% @ R33)
+  [Progress] [SCR] Round 35 Eval | MCTA: 83.84% (BMCTA: 84.34% @ R34) | Combined: 84.09% (BTA: 84.21% @ R33)
+  [Progress] [SCR] Round 36 Eval | MCTA: 84.36% (BMCTA: 84.36% @ R36) | Combined: 84.16% (BTA: 84.21% @ R33)
+  [Progress] [SCR] Round 37 Eval | MCTA: 83.73% (BMCTA: 84.36% @ R36) | Combined: 83.82% (BTA: 84.21% @ R33)
+  [Progress] [SCR] Round 38 Eval | MCTA: 84.49% (BMCTA: 84.49% @ R38) | Combined: 84.50% (BTA: 84.50% @ R38)
+  [BestModel] Round 38: new best accuracy = 0.8450
+  [Progress] [SCR] Round 39 Eval | MCTA: 84.27% (BMCTA: 84.49% @ R38) | Combined: 84.24% (BTA: 84.50% @ R38)
+  [Progress] [SCR] Round 40 Eval | MCTA: 84.84% (BMCTA: 84.84% @ R40) | Combined: 84.57% (BTA: 84.57% @ R40)
+  [BestModel] Round 40: new best accuracy = 0.8457
+  [Progress] [SCR] Round 41 Eval | MCTA: 84.36% (BMCTA: 84.84% @ R40) | Combined: 84.35% (BTA: 84.57% @ R40)
+  [Progress] [SCR] Round 42 Eval | MCTA: 85.05% (BMCTA: 85.05% @ R42) | Combined: 84.84% (BTA: 84.84% @ R42)
+  [BestModel] Round 42: new best accuracy = 0.8484
+  [Progress] [SCR] Round 43 Eval | MCTA: 84.51% (BMCTA: 85.05% @ R42) | Combined: 84.51% (BTA: 84.84% @ R42)
+  [Progress] [SCR] Round 44 Eval | MCTA: 84.90% (BMCTA: 85.05% @ R42) | Combined: 84.81% (BTA: 84.84% @ R42)
+  [Progress] [SCR] Round 45 Eval | MCTA: 84.39% (BMCTA: 85.05% @ R42) | Combined: 84.46% (BTA: 84.84% @ R42)
+  [Progress] [SCR] Round 46 Eval | MCTA: 84.69% (BMCTA: 85.05% @ R42) | Combined: 84.51% (BTA: 84.84% @ R42)
+  [Progress] [SCR] Round 47 Eval | MCTA: 84.87% (BMCTA: 85.05% @ R42) | Combined: 84.63% (BTA: 84.84% @ R42)
+  [Progress] [SCR] Round 48 Eval | MCTA: 84.74% (BMCTA: 85.05% @ R42) | Combined: 84.60% (BTA: 84.84% @ R42)
+  [Progress] [SCR] Round 49 Eval | MCTA: 84.95% (BMCTA: 85.05% @ R42) | Combined: 84.84% (BTA: 84.84% @ R49)
+  [BestModel] Round 49: new best accuracy = 0.8484
+  [Progress] [SCR] Round 50 Eval | MCTA: 84.87% (BMCTA: 85.05% @ R42) | Combined: 84.69% (BTA: 84.84% @ R49)
+  [Progress] [SCR] Round 51 Eval | MCTA: 85.08% (BMCTA: 85.08% @ R51) | Combined: 84.84% (BTA: 84.84% @ R49)
+  [Progress] [SCR] Round 52 Eval | MCTA: 84.90% (BMCTA: 85.08% @ R51) | Combined: 84.89% (BTA: 84.89% @ R52)
+  [BestModel] Round 52: new best accuracy = 0.8489
+  [Progress] [SCR] Round 53 Eval | MCTA: 85.07% (BMCTA: 85.08% @ R51) | Combined: 84.86% (BTA: 84.89% @ R52)
+  [Progress] [SCR] Round 54 Eval | MCTA: 84.94% (BMCTA: 85.08% @ R51) | Combined: 84.73% (BTA: 84.89% @ R52)
+  [Progress] [SCR] Round 55 Eval | MCTA: 85.13% (BMCTA: 85.13% @ R55) | Combined: 84.96% (BTA: 84.96% @ R55)
+  [BestModel] Round 55: new best accuracy = 0.8496
+  [Progress] [SCR] Round 56 Eval | MCTA: 84.62% (BMCTA: 85.13% @ R55) | Combined: 84.69% (BTA: 84.96% @ R55)
+  [Progress] [SCR] Round 57 Eval | MCTA: 85.19% (BMCTA: 85.19% @ R57) | Combined: 84.85% (BTA: 84.96% @ R55)
+  [Progress] [SCR] Round 58 Eval | MCTA: 84.53% (BMCTA: 85.19% @ R57) | Combined: 84.67% (BTA: 84.96% @ R55)
+  [Progress] [SCR] Round 59 Eval | MCTA: 85.22% (BMCTA: 85.22% @ R59) | Combined: 84.94% (BTA: 84.96% @ R55)
+  [Progress] [SCR] Round 60 Eval | MCTA: 84.62% (BMCTA: 85.22% @ R59) | Combined: 84.66% (BTA: 84.96% @ R55)
+  [Progress] [SCR] Round 61 Eval | MCTA: 85.31% (BMCTA: 85.31% @ R61) | Combined: 84.90% (BTA: 84.96% @ R55)
+  [Progress] [SCR] Round 62 Eval | MCTA: 84.67% (BMCTA: 85.31% @ R61) | Combined: 84.68% (BTA: 84.96% @ R55)
+  [Progress] [SCR] Round 63 Eval | MCTA: 85.14% (BMCTA: 85.31% @ R61) | Combined: 84.80% (BTA: 84.96% @ R55)
+  [Progress] [SCR] Round 64 Eval | MCTA: 85.05% (BMCTA: 85.31% @ R61) | Combined: 84.94% (BTA: 84.96% @ R55)
+  [Progress] [SCR] Round 65 Eval | MCTA: 85.16% (BMCTA: 85.31% @ R61) | Combined: 84.84% (BTA: 84.96% @ R55)
+  [Progress] [SCR] Round 66 Eval | MCTA: 84.72% (BMCTA: 85.31% @ R61) | Combined: 84.79% (BTA: 84.96% @ R55)
+  [Progress] [SCR] Round 67 Eval | MCTA: 85.19% (BMCTA: 85.31% @ R61) | Combined: 84.95% (BTA: 84.96% @ R55)
+  [Progress] [SCR] Round 68 Eval | MCTA: 84.73% (BMCTA: 85.31% @ R61) | Combined: 84.80% (BTA: 84.96% @ R55)
+  [Progress] [SCR] Round 69 Eval | MCTA: 85.09% (BMCTA: 85.31% @ R61) | Combined: 84.84% (BTA: 84.96% @ R55)
+  [Progress] [SCR] Round 70 Eval | MCTA: 84.91% (BMCTA: 85.31% @ R61) | Combined: 84.93% (BTA: 84.96% @ R55)
+  [Progress] [SCR] Round 71 Eval | MCTA: 85.39% (BMCTA: 85.39% @ R71) | Combined: 85.14% (BTA: 85.14% @ R71)
+  [BestModel] Round 71: new best accuracy = 0.8514
+  [Progress] [SCR] Round 72 Eval | MCTA: 84.97% (BMCTA: 85.39% @ R71) | Combined: 84.75% (BTA: 85.14% @ R71)
+  [Progress] [SCR] Round 73 Eval | MCTA: 85.39% (BMCTA: 85.39% @ R71) | Combined: 85.04% (BTA: 85.14% @ R71)
+  [Progress] [SCR] Round 74 Eval | MCTA: 85.09% (BMCTA: 85.39% @ R71) | Combined: 84.84% (BTA: 85.14% @ R71)
+  [Progress] [SCR] Round 75 Eval | MCTA: 84.99% (BMCTA: 85.39% @ R71) | Combined: 84.91% (BTA: 85.14% @ R71)
+  [Progress] [SCR] Round 76 Eval | MCTA: 85.08% (BMCTA: 85.39% @ R71) | Combined: 85.02% (BTA: 85.14% @ R71)
+  [Progress] [SCR] Round 77 Eval | MCTA: 85.16% (BMCTA: 85.39% @ R71) | Combined: 84.94% (BTA: 85.14% @ R71)
+  [Progress] [SCR] Round 78 Eval | MCTA: 85.00% (BMCTA: 85.39% @ R71) | Combined: 84.98% (BTA: 85.14% @ R71)
+  [Progress] [SCR] Round 79 Eval | MCTA: 85.03% (BMCTA: 85.39% @ R71) | Combined: 84.75% (BTA: 85.14% @ R71)
+  [Progress] [SCR] Round 80 Eval | MCTA: 85.46% (BMCTA: 85.46% @ R80) | Combined: 85.18% (BTA: 85.18% @ R80)
+  [BestModel] Round 80: new best accuracy = 0.8518
+  [Success] Finished SCR (dirichlet_0.1) [Local Test]: BMCTA: 85.46% (R80) | BMCTA Loss: 0.5331 | BTA: 85.18% (R80) | Time: 1854.6s
+
+Generating multi-strategy comparison plots grouped by dataset...
+
+===========================================================================
+  FedMedAI Simulation Finished: 2 completed, 0 failed. Total Wall-Clock Time: 62.3 minutes
+===========================================================================
+  Artifacts Saved in Directory: /kaggle/working/scr_bn_dirichlet01_parallel/dirichlet01_bn_organamnist_s44
+  - Executive Report     : simulation_report.md
+  - Terminal Log         : terminal.log
+===========================================================================
+
