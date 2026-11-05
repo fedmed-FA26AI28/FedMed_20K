@@ -941,7 +941,7 @@ def main():
     if server_host == "0.0.0.0":
         server_host = "127.0.0.1"
     server_port = yaml_cfg.get("server_port", 8080)
-    default_server_address = f"{server_host}:{server_port}"
+    default_server_address = yaml_cfg.get("server_address") or f"{server_host}:{server_port}"
 
     active_clients = yaml_cfg.get("active_clients")
     default_num_clients = len(active_clients) if isinstance(active_clients, list) and active_clients else yaml_cfg.get("num_clients", yaml_cfg.get("min_clients", 12))
@@ -951,7 +951,7 @@ def main():
         parents=[pre_parser],
     )
     parser.add_argument(
-        "--client_id", type=int, required=True, help="Client ID (0-9)"
+        "--client_id", type=int, required=True, help="Client ID integer (0, 1, 2, ...)"
     )
     parser.add_argument(
         "--server_address",
@@ -1186,6 +1186,7 @@ def main():
         augment=args.augment,
         random_crop=args.random_crop,
         random_flip=args.random_flip,
+        load_val=False,
     )
     print(f"[Client {args.client_id}] Augmentation: augment={args.augment}, crop={args.random_crop}, flip={args.random_flip}")
     client_indices = load_partition(partition_path, split="train")
@@ -1198,6 +1199,7 @@ def main():
         sys.exit(1)
 
     my_indices = client_indices[args.client_id]
+    resolved_device_type = str(args.device_type).strip() if args.device_type else get_device_type(args.client_id)
     print(f"[Client {args.client_id}] Assigned {len(my_indices)} training samples")
 
     # Create data loaders
@@ -1205,7 +1207,7 @@ def main():
         train_dataset,
         my_indices,
         client_id=args.client_id,
-        device_type=args.device_type,
+        device_type=resolved_device_type,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
         pin_memory=args.pin_memory,
@@ -1223,7 +1225,7 @@ def main():
                 test_dataset,
                 my_test_indices,
                 client_id=args.client_id,
-                device_type=args.device_type,
+                device_type=resolved_device_type,
                 batch_size=args.batch_size or 32,
                 shuffle=False,
                 num_workers=0,
@@ -1250,7 +1252,7 @@ def main():
         lr_patience=args.lr_patience,
         lr_factor=args.lr_factor,
         lr_min=args.lr_min,
-        device_type=args.device_type,
+        device_type=resolved_device_type,
         save_local_metrics=args.save_metrics,
         server_address=args.server_address,
         strategy=args.strategy,
