@@ -313,6 +313,8 @@ def run_centralized(
     model = get_model(model_name, num_classes=num_classes).to(device)
     if opt_name == "sgd":
         optimizer = optim.SGD(model.parameters(), lr=learning_rate, momentum=momentum)
+    elif opt_name == "adamw":
+        optimizer = optim.AdamW(model.parameters(), lr=learning_rate)
     else:
         optimizer = optim.Adam(model.parameters(), lr=learning_rate)
 
@@ -462,8 +464,8 @@ def parse_args():
                         help=f"Dataset name (e.g. 'bloodmnist', 'pathmnist', 'organamnist', 'dermamnist') (default: {default_dataset}).")
     parser.add_argument("--model", type=str, default=default_model, choices=["cnn", "baseline", "paper", "classic_cnn", "baseline_bn", "baselinecnn_bn", "classic_bn"],
                         help=f"Model architecture (default: {default_model}).")
-    parser.add_argument("--optimizer", type=str, default=default_optimizer, choices=["adam", "sgd"],
-                        help=f"Optimizer type: 'adam' or 'sgd' (default: {default_optimizer}).")
+    parser.add_argument("--optimizer", type=str, default=default_optimizer, choices=["adam", "sgd", "adamw"],
+                        help=f"Optimizer type: 'adam', 'sgd', or 'adamw' (default: {default_optimizer}).")
     parser.add_argument("--momentum", type=float, default=default_momentum,
                         help=f"Momentum for SGD (default: {default_momentum}).")
     parser.add_argument("--seed", type=int, default=default_seed,

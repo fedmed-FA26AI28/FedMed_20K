@@ -32,6 +32,8 @@ from algorithms.fedbns import (
 from algorithms.cla import CLAStrategy, CoverageLA_Strategy
 from algorithms.scr import SCRStrategy
 from algorithms.fedsld import FedSLDStrategy
+from algorithms.fedsol import FedSOLStrategy
+from algorithms.fedswitch import FedSwitchStrategy
 
 
 STRATEGY_REGISTRY = {
@@ -56,6 +58,10 @@ STRATEGY_REGISTRY = {
     # FedSLD (Shared Label Distribution)
     "fedsld": FedSLDStrategy,
     "fed_sld": FedSLDStrategy,
+    # FedSOL (Stabilized Orthogonal Learning - CVPR 2024)
+    "fedsol": FedSOLStrategy,
+    # FedSwitch (Balanced Aggregation via Private DP Histogram - MICCAI 2026)
+    "fedswitch": FedSwitchStrategy,
 }
 
 
@@ -97,6 +103,8 @@ __all__ = [
     "CoverageLA_Strategy",
     "SCRStrategy",
     "FedSLDStrategy",
+    "FedSOLStrategy",
+    "FedSwitchStrategy",
     "STRATEGY_REGISTRY",
     "get_strategy",
 ]

@@ -293,6 +293,12 @@ def _make_on_fit_config_fn(
     coverage_mu_head: float = 0.1,
     la_tau: float = 1.0,
     la_epsilon: float = 1.0,
+    fedsol_rho: float = 0.05,
+    fedsol_loss_type: str = "kl",
+    fedsol_temperature: float = 3.0,
+    fedsol_adaptive: bool = False,
+    clip_grad_norm: Optional[float] = None,
+    switch_round: Optional[int] = None,
 ):
     """Create a function that calculates and sends training config to clients each round."""
     mode = str(lr_mode).lower().strip()
@@ -317,6 +323,18 @@ def _make_on_fit_config_fn(
             config["coverage_mu_head"] = float(coverage_mu_head)
             config["la_tau"] = float(la_tau)
             config["la_epsilon"] = float(la_epsilon)
+
+        if strategy_name.lower() in ("fedsol", "fed_sol"):
+            config["fedsol_rho"] = float(fedsol_rho)
+            config["fedsol_loss_type"] = str(fedsol_loss_type).lower()
+            config["fedsol_temperature"] = float(fedsol_temperature)
+            config["fedsol_adaptive"] = bool(fedsol_adaptive)
+
+        if clip_grad_norm is not None and clip_grad_norm > 0:
+            config["clip_grad_norm"] = float(clip_grad_norm)
+
+        if strategy_name.lower() in ("fedswitch", "fed_switch") and switch_round is not None:
+            config["switch_round"] = int(switch_round)
 
         if mode == "fixed":
             config["learning_rate"] = float(learning_rate)
@@ -450,6 +468,10 @@ def main():
             "coveragela",
             "fedsld",
             "fed_sld",
+            "fedsol",
+            "fed_sol",
+            "fedswitch",
+            "fed_switch",
         ],
         help=f"FL aggregation strategy (default: {yaml_cfg.get('strategy', 'fedavg')})",
     )
@@ -571,6 +593,61 @@ def main():
         default=yaml_cfg.get("fedsld_reduction", "mean"),
         choices=["mean", "sum"],
         help=f"FedSLD loss reduction mode (default: {yaml_cfg.get('fedsld_reduction', 'mean')})",
+    )
+    parser.add_argument(
+        "--fedsol_rho",
+        type=float,
+        default=yaml_cfg.get("fedsol_rho", 0.05),
+        help=f"FedSOL perturbation radius rho (default: {yaml_cfg.get('fedsol_rho', 0.05)})",
+    )
+    parser.add_argument(
+        "--fedsol_loss_type",
+        type=str,
+        default=yaml_cfg.get("fedsol_loss_type", "kl"),
+        choices=["kl", "l2"],
+        help=f"FedSOL proximal discrepancy loss type ('kl' or 'l2') (default: {yaml_cfg.get('fedsol_loss_type', 'kl')})",
+    )
+    parser.add_argument(
+        "--fedsol_temperature",
+        type=float,
+        default=yaml_cfg.get("fedsol_temperature", 3.0),
+        help=f"FedSOL softmax temperature T for KL divergence (default: {yaml_cfg.get('fedsol_temperature', 3.0)})",
+    )
+    parser.add_argument(
+        "--fedsol_adaptive",
+        action=argparse.BooleanOptionalAction,
+        default=yaml_cfg.get("fedsol_adaptive", False),
+        help=f"Enable adaptive perturbation radius for FedSOL (default: {yaml_cfg.get('fedsol_adaptive', False)})",
+    )
+    parser.add_argument(
+        "--switch_round",
+        type=int,
+        default=yaml_cfg.get("switch_round", None),
+        help="FedSwitch switching round R* (default: auto-computed via closed-form)",
+    )
+    parser.add_argument(
+        "--fedswitch_coverage",
+        type=float,
+        default=yaml_cfg.get("fedswitch_coverage", 0.9),
+        help=f"FedSwitch target client coverage prob rho (default: {yaml_cfg.get('fedswitch_coverage', 0.9)})",
+    )
+    parser.add_argument(
+        "--fedswitch_epsilon",
+        type=float,
+        default=yaml_cfg.get("fedswitch_epsilon", 1.0),
+        help=f"FedSwitch DP privacy budget epsilon (default: {yaml_cfg.get('fedswitch_epsilon', 1.0)})",
+    )
+    parser.add_argument(
+        "--fedswitch_c_bound",
+        type=int,
+        default=yaml_cfg.get("fedswitch_c_bound", 50),
+        help=f"FedSwitch DP clipping sensitivity bound C (default: {yaml_cfg.get('fedswitch_c_bound', 50)})",
+    )
+    parser.add_argument(
+        "--clip_grad_norm",
+        type=float,
+        default=yaml_cfg.get("clip_grad_norm", None),
+        help=f"Max gradient L2 norm for clipping (default: {yaml_cfg.get('clip_grad_norm', None)})",
     )
     parser.add_argument(
         "--early_stop_patience",
@@ -710,6 +787,12 @@ def main():
         print(f"  SCR          : gamma={args.scr_gamma}, head_lambda={args.scr_head_lambda}, partition={args.partition_path}")
     if args.strategy.lower() in ("fedsld", "fed_sld"):
         print(f"  FedSLD       : partition={args.partition_path}")
+    if args.strategy.lower() in ("fedsol", "fed_sol"):
+        print(f"  FedSOL       : rho={args.fedsol_rho}, loss_type={args.fedsol_loss_type}, T={args.fedsol_temperature}, adaptive={args.fedsol_adaptive}")
+    if args.strategy.lower() in ("fedswitch", "fed_switch"):
+        print(f"  FedSwitch    : switch_round={args.switch_round}, coverage={args.fedswitch_coverage}, epsilon={args.fedswitch_epsilon}, c_bound={args.fedswitch_c_bound}")
+    if args.clip_grad_norm is not None:
+        print(f"  Grad Clip    : max_norm={args.clip_grad_norm}")
     print(f"  Early Stop   : Patience={args.early_stop_patience} (metric: {args.early_stop_metric})")
     print(f"  Server Eval  : {args.server_eval}")
     print(f"  Local Test   : {args.local_test}")
@@ -751,6 +834,12 @@ def main():
             coverage_mu_head=args.coverage_mu_head,
             la_tau=args.la_tau,
             la_epsilon=args.la_epsilon,
+            fedsol_rho=args.fedsol_rho,
+            fedsol_loss_type=args.fedsol_loss_type,
+            fedsol_temperature=args.fedsol_temperature,
+            fedsol_adaptive=args.fedsol_adaptive,
+            clip_grad_norm=args.clip_grad_norm,
+            switch_round=args.switch_round,
         ),
         "evaluate_metrics_aggregation_fn": _evaluate_metrics_aggregation_fn,
         "early_stop_patience": args.early_stop_patience,
@@ -795,6 +884,25 @@ def main():
             "num_classes": num_classes,
             "fedsld_epsilon": args.fedsld_epsilon,
             "fedsld_reduction": args.fedsld_reduction,
+        })
+    elif strat_key in ("fedsol", "fed_sol"):
+        strategy_kwargs.update({
+            "model": initial_model,
+            "fedsol_rho": args.fedsol_rho,
+            "fedsol_loss_type": args.fedsol_loss_type,
+            "fedsol_temperature": args.fedsol_temperature,
+            "fedsol_adaptive": args.fedsol_adaptive,
+        })
+    elif strat_key in ("fedswitch", "fed_switch"):
+        strategy_kwargs.update({
+            "model": initial_model,
+            "partition_path": args.partition_path,
+            "num_classes": num_classes,
+            "num_total_clients": args.min_clients,
+            "switch_round": args.switch_round,
+            "switch_coverage": args.fedswitch_coverage,
+            "switch_epsilon": args.fedswitch_epsilon,
+            "switch_c_bound": args.fedswitch_c_bound,
         })
     elif strat_key in ("coverage_la", "cla", "coveragela"):
         strategy_kwargs["coverage_kappa"] = args.coverage_kappa
