@@ -366,6 +366,15 @@ def run_single_experiment(
     la_epsilon: float = 1.0,
     scr_gamma: float = 1.0,
     scr_head_lambda: float = 0.01,
+    fedsol_rho: float = 0.05,
+    fedsol_loss_type: str = "kl",
+    fedsol_temperature: float = 3.0,
+    fedsol_adaptive: bool = False,
+    switch_round: Optional[int] = None,
+    fedswitch_coverage: float = 0.9,
+    fedswitch_epsilon: float = 1.0,
+    fedswitch_c_bound: int = 50,
+    clip_grad_norm: Optional[float] = None,
 ) -> Dict[str, Any]:
     """Execute a single FL training run (1 Server + N Clients) as isolated subprocesses."""
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -411,12 +420,26 @@ def run_single_experiment(
         "--la_epsilon", str(la_epsilon),
         "--scr_gamma", str(scr_gamma),
         "--scr_head_lambda", str(scr_head_lambda),
+        "--fedsol_rho", str(fedsol_rho),
+        "--fedsol_loss_type", str(fedsol_loss_type),
+        "--fedsol_temperature", str(fedsol_temperature),
+        "--fedswitch_coverage", str(fedswitch_coverage),
+        "--fedswitch_epsilon", str(fedswitch_epsilon),
+        "--fedswitch_c_bound", str(fedswitch_c_bound),
         "--early_stop_patience", str(early_stop_patience),
         "--early_stop_metric", early_stop_metric,
         "--host", host,
         "--port", str(port),
         "--save_dir", str(run_dir),
     ]
+    if fedsol_adaptive:
+        server_cmd.append("--fedsol_adaptive")
+    else:
+        server_cmd.append("--no-fedsol_adaptive")
+    if switch_round is not None:
+        server_cmd.extend(["--switch_round", str(switch_round)])
+    if clip_grad_norm is not None and clip_grad_norm > 0:
+        server_cmd.extend(["--clip_grad_norm", str(clip_grad_norm)])
     if server_eval:
         server_cmd.append("--server_eval")
     else:
@@ -530,7 +553,16 @@ def run_single_experiment(
                 "--coverage_mu_head", str(coverage_mu_head),
                 "--la_tau", str(la_tau),
                 "--la_epsilon", str(la_epsilon),
+                "--fedsol_rho", str(fedsol_rho),
+                "--fedsol_loss_type", str(fedsol_loss_type),
+                "--fedsol_temperature", str(fedsol_temperature),
             ]
+            if fedsol_adaptive:
+                client_cmd.append("--fedsol_adaptive")
+            else:
+                client_cmd.append("--no-fedsol_adaptive")
+            if clip_grad_norm is not None and clip_grad_norm > 0:
+                client_cmd.extend(["--clip_grad_norm", str(clip_grad_norm)])
             if local_test:
                 client_cmd.append("--local_test")
             else:
@@ -1206,6 +1238,15 @@ def main():
     parser.add_argument("--scr_head_lambda", type=float, default=None, help="SCR head anchor strength")
     parser.add_argument("--la_tau", type=float, default=None, help="Logit adjustment intensity tau")
     parser.add_argument("--la_epsilon", type=float, default=None, help="Logit adjustment label count smoothing epsilon")
+    parser.add_argument("--fedsol_rho", type=float, default=None, help="FedSOL perturbation radius rho")
+    parser.add_argument("--fedsol_loss_type", type=str, choices=["kl", "l2"], default=None, help="FedSOL discrepancy loss ('kl' or 'l2')")
+    parser.add_argument("--fedsol_temperature", type=float, default=None, help="FedSOL softmax temperature T")
+    parser.add_argument("--fedsol_adaptive", dest="fedsol_adaptive", action=argparse.BooleanOptionalAction, default=None, help="FedSOL adaptive perturbation radius")
+    parser.add_argument("--switch_round", type=int, default=None, help="FedSwitch switching round R*")
+    parser.add_argument("--fedswitch_coverage", type=float, default=None, help="FedSwitch target coverage probability rho")
+    parser.add_argument("--fedswitch_epsilon", type=float, default=None, help="FedSwitch DP privacy budget epsilon")
+    parser.add_argument("--fedswitch_c_bound", type=int, default=None, help="FedSwitch DP sensitivity clipping bound C")
+    parser.add_argument("--clip_grad_norm", type=float, default=None, help="Max gradient L2 norm for clipping")
 
     args = parser.parse_args()
     cfg = load_yaml_config(args.config)
@@ -1251,6 +1292,15 @@ def main():
     scr_head_lambda = args.scr_head_lambda if args.scr_head_lambda is not None else cfg.get("scr_head_lambda", 0.01)
     la_tau = args.la_tau if args.la_tau is not None else cfg.get("la_tau", 1.0)
     la_epsilon = args.la_epsilon if args.la_epsilon is not None else cfg.get("la_epsilon", 1.0)
+    fedsol_rho = args.fedsol_rho if args.fedsol_rho is not None else cfg.get("fedsol_rho", 0.05)
+    fedsol_loss_type = args.fedsol_loss_type if args.fedsol_loss_type is not None else cfg.get("fedsol_loss_type", "kl")
+    fedsol_temperature = args.fedsol_temperature if args.fedsol_temperature is not None else cfg.get("fedsol_temperature", 3.0)
+    fedsol_adaptive = args.fedsol_adaptive if args.fedsol_adaptive is not None else cfg.get("fedsol_adaptive", False)
+    switch_round = args.switch_round if args.switch_round is not None else cfg.get("switch_round", None)
+    fedswitch_coverage = args.fedswitch_coverage if args.fedswitch_coverage is not None else cfg.get("fedswitch_coverage", 0.9)
+    fedswitch_epsilon = args.fedswitch_epsilon if args.fedswitch_epsilon is not None else cfg.get("fedswitch_epsilon", 1.0)
+    fedswitch_c_bound = args.fedswitch_c_bound if args.fedswitch_c_bound is not None else cfg.get("fedswitch_c_bound", 50)
+    clip_grad_norm = args.clip_grad_norm if args.clip_grad_norm is not None else cfg.get("clip_grad_norm", None)
     early_stop_patience = args.early_stop_patience if args.early_stop_patience is not None else cfg.get("early_stop_patience", 0)
     early_stop_metric = args.early_stop_metric if args.early_stop_metric is not None else cfg.get("early_stop_metric", "accuracy")
     server_eval = args.server_eval if args.server_eval is not None else cfg.get("server_eval", True)
@@ -1378,6 +1428,15 @@ def main():
                     scr_head_lambda=scr_head_lambda,
                     la_tau=la_tau,
                     la_epsilon=la_epsilon,
+                    fedsol_rho=fedsol_rho,
+                    fedsol_loss_type=fedsol_loss_type,
+                    fedsol_temperature=fedsol_temperature,
+                    fedsol_adaptive=fedsol_adaptive,
+                    switch_round=switch_round,
+                    fedswitch_coverage=fedswitch_coverage,
+                    fedswitch_epsilon=fedswitch_epsilon,
+                    fedswitch_c_bound=fedswitch_c_bound,
+                    clip_grad_norm=clip_grad_norm,
                     early_stop_patience=early_stop_patience,
                     early_stop_metric=early_stop_metric,
                     server_eval=server_eval,

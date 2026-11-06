@@ -29,6 +29,10 @@ Verify neural network architectures:
   ```bash
   python -m models.baseline
   ```
+- **BaselineBN** (~570K parameters, classic 4-layer CNN with BatchNorm for FedBN / FedBNS experiments):
+  ```bash
+  python -m models.baseline_bn
+  ```
 
 ---
 
@@ -42,9 +46,9 @@ Centralized training optimizes the model on the full training set without partit
   ```bash
   python -m experiments.train_centralized --config configs/experiment.yaml
   ```
-- **Custom Hyperparameters** (e.g. 50 epochs on PathMNIST with Adam optimizer):
+- **Custom Hyperparameters** (e.g. 50 epochs on PathMNIST with AdamW optimizer):
   ```bash
-  python -m experiments.train_centralized --dataset pathmnist --model cnn --optimizer adam --epochs 50 --batch_size 64 --lr 0.001
+  python -m experiments.train_centralized --dataset pathmnist --model cnn --optimizer adamw --epochs 50 --batch_size 64 --lr 0.001
   ```
 - **Linux Background Execution (`nohup`)**:
   ```bash
@@ -71,7 +75,7 @@ Artifacts are automatically saved to `results/centralized/<timestamp>/` (or `res
 | `--output_dir`, `--save_dir` | `str` | `None` | Custom output directory to store centralized training artifacts. |
 | `--dataset` | `str` | `pathmnist` | Dataset name: `bloodmnist`, `pathmnist`, `organamnist`, `dermamnist`. |
 | `--model` | `str` | `cnn` | Architecture: `cnn` (Modern CNN with BatchNorm) or `baseline` (FedSLD classic CNN). |
-| `--optimizer` | `str` | `adam` | Optimizer type: `adam` or `sgd`. |
+| `--optimizer` | `str` | `adam` | Optimizer type: `adam`, `sgd`, or `adamw`. |
 | `--momentum` | `float` | `0.0` | Momentum factor when using `--optimizer sgd`. |
 | `--epochs` | `int` | `100` | Maximum training epochs (early stopping automatically halts when validation loss plateaus). |
 | `--batch_size` | `int` | `256` | DataLoader mini-batch size. |
@@ -145,6 +149,12 @@ Partition artifacts are saved to `data/partitions/`:
    ```bash
    # Launch Proposed Strategy (FedBN + SCAFFOLD) for 12 clients over 40 rounds:
    python -m server.server --strategy proposed --model cnn --rounds 40 --min_clients 12 --local_test --host 0.0.0.0 --port 8080
+
+   # Launch FedSOL Server (Self-Centered Optimization, rho=0.05, loss_type=kl):
+   python -m server.server --strategy fedsol --model baseline_bn --fedsol_rho 0.05 --fedsol_loss_type kl --fedsol_temperature 3.0 --rounds 40 --min_clients 12 --local_test
+
+   # Launch FedSwitch Server (Private Histogram Estimation, coverage=0.9, epsilon=1.0):
+   python -m server.server --strategy fedswitch --model baseline_bn --fedswitch_coverage 0.9 --fedswitch_epsilon 1.0 --rounds 40 --min_clients 12 --local_test
    ```
 
 ### 2.3. Client Execution (`client/client.py`)
@@ -170,21 +180,36 @@ Run client instances on each physical machine pointing to the server address:
 | Option | Type | Default | Description |
 | :--- | :---: | :---: | :--- |
 | `--config` | `str` | `configs/experiment.yaml` | Path to YAML experiment configuration file. |
-| `--strategy` | `str` | `proposed` | Aggregation strategy: `fedavg`, `fedprox`, `fednova`, `fedbn`, `scaffold`, `fedbns`, `proposed`, `cla`, `scr`. |
-| `--coverage_kappa` | `float` | `512.0` | CLA coverage anchoring parameter kappa (controls weight decay curve). |
-| `--coverage_mu_head` | `float` | `0.1` | CLA classifier head penalty intensity mu_head (anchors to global head). |
-| `--la_tau` | `float` | `1.0` | CLA Logit Adjustment intensity tau (shifts logits by class frequency). |
-| `--la_epsilon` | `float` | `1.0` | CLA Logit Adjustment smoothing epsilon for log counts. |
+| `--strategy` | `str` | `fedbns` | Aggregation strategy: `fedavg`, `fedprox`, `fednova`, `fedbn`, `scaffold`, `fedbns`, `proposed`, `cla`, `scr`, `fedsld`, `fedsol`, `fedswitch`. |
 | `--dataset` | `str` | `pathmnist` | Dataset name: `bloodmnist`, `pathmnist`, `organamnist`, `dermamnist`. |
-| `--model` | `str` | `cnn` | Model architecture: `cnn` or `baseline`. |
+| `--model` | `str` | `baseline_bn` | Model architecture: `baseline_bn` (with BN), `baseline` (without BN), or `cnn`. |
+| `--partition_mode` | `str` | `practical` | Partition mode (`practical`, `pathological`, `dirichlet_0.3`, etc.). |
+| `--partition_path` | `str` | `None` | Path to training partition JSON. If omitted, auto-resolved from dataset and partition mode. |
 | `--rounds` | `int` | `40` | Total communication rounds. |
 | `--min_clients` | `int` | `12` | Minimum connected clients required before each round starts. |
 | `--local_epochs` | `int` | `5` | Local training epochs per client per round. |
 | `--lr_mode` | `str` | `fixed` | Learning rate mode: `fixed`, `client_loss`, or `server_decay`. |
 | `--learning_rate` | `float` | `0.01` | Initial base learning rate. |
-| `--local_test` | `bool` | `True` | Track BMCTA and BTA on client-specific local test sets (required for FedBN and Proposed). |
+| `--local_test` | `bool` | `True` | Track BMCTA and BTA on client-specific local test sets (required for FedBN and FedBNS). |
 | `--server_eval` | `bool` | `True` | Evaluate aggregated model on server global test set each round. |
 | `--proximal_mu` | `float` | `0.01` | FedProx proximal penalty coefficient. |
+| `--coverage_kappa` | `float` | `512.0` | CLA coverage anchoring parameter kappa (controls weight decay curve). |
+| `--coverage_mu_head` | `float` | `0.1` | CLA classifier head penalty intensity mu_head (anchors to global head). |
+| `--la_tau` | `float` | `1.0` | CLA Logit Adjustment intensity tau (shifts logits by class frequency). |
+| `--la_epsilon` | `float` | `1.0` | CLA Logit Adjustment smoothing epsilon for log counts. |
+| `--scr_gamma` | `float` | `1.0` | SCR class-client support smoothing parameter gamma. |
+| `--scr_head_lambda` | `float` | `0.01` | SCR support-dependent classifier head anchor strength. |
+| `--fedsld_epsilon` | `float` | `1e-6` | FedSLD smoothing epsilon for batch loss reweighting. |
+| `--fedsld_reduction` | `str` | `mean` | FedSLD batch loss reduction mode (`mean` or `sum`). |
+| `--fedsol_rho` | `float` | `0.05` | FedSOL SAM perturbation radius $\rho$. |
+| `--fedsol_loss_type` | `str` | `kl` | FedSOL proximal discrepancy loss metric (`kl` or `l2`). |
+| `--fedsol_temperature` | `float` | `3.0` | FedSOL softmax temperature $T$ for KL divergence. |
+| `--fedsol_adaptive` / `--no-fedsol_adaptive` | `bool` | `False` | FedSOL adaptive perturbation radius. |
+| `--switch_round` | `int` | `None` | FedSwitch fixed switching round $R^*$ (`None` to auto-compute via closed-form). |
+| `--fedswitch_coverage` | `float` | `0.9` | FedSwitch target client coverage probability $\rho$ for closed-form $R^*$. |
+| `--fedswitch_epsilon` | `float` | `1.0` | FedSwitch DP privacy budget $\epsilon$ for label histogram. |
+| `--fedswitch_c_bound` | `int` | `50` | FedSwitch sensitivity clipping bound $C$ for DP Laplace noise. |
+| `--clip_grad_norm` | `float` | `None` | Max gradient L2 norm for clipping (`None` disables clipping). |
 | `--early_stop_patience`| `int` | `0` | Rounds without metric improvement before stopping (0 = disabled). |
 | `--host` | `str` | `0.0.0.0` | Socket bind address. |
 | `--port` | `int` | `8080` | Socket TCP port. |
@@ -193,20 +218,27 @@ Run client instances on each physical machine pointing to the server address:
 | Option | Type | Default | Description |
 | :--- | :---: | :---: | :--- |
 | `--client_id` | `int` | *(Required)* | Unique client identifier integer (0, 1, 2, ...). |
-| `--server_address` | `str` | `127.0.0.1:8080` | Server LAN address in `<IP>:<PORT>` format. |
+| `--server_address` | `str` | `127.0.0.1:8080` | Server LAN address in `<IP>:<PORT>` format (inherited from `server_address` in YAML). |
 | `--config` | `str` | `configs/experiment.yaml` | Path to YAML experiment configuration file. |
 | `--dataset` | `str` | `pathmnist` | Dataset name: `bloodmnist`, `pathmnist`, `organamnist`, `dermamnist`. |
+| `--model` | `str` | `baseline_bn` | Model architecture: `baseline_bn`, `baseline`, or `cnn`. |
 | `--partition_mode` | `str` | `practical` | Partition mode (`practical`, `pathological`, `dirichlet_0.3`, etc.). |
+| `--partition_path` | `str` | `None` | Path to partition JSON. If omitted, auto-detected from `data/partitions/`. |
 | `--num_clients` | `int` | `12` | Total number of clients in partition split. |
-| `--strategy` | `str` | `fedbns` | Client FL strategy (`fedavg`, `fedprox`, `fednova`, `fedbn`, `scaffold`, `fedbns`, `cla`, etc.). |
+| `--strategy` | `str` | `fedbns` | Client FL strategy (`fedavg`, `fedprox`, `fednova`, `fedbn`, `scaffold`, `fedbns`, `cla`, `scr`, `fedsld`, `fedsol`, `fedswitch`). |
 | `--optimizer` | `str` | `sgd` | Client local optimizer: `adam`, `sgd`, or `adamw`. |
 | `--coverage_kappa` | `float` | `512.0` | CLA coverage anchoring parameter kappa. |
 | `--coverage_mu_head` | `float` | `0.1` | CLA classifier head penalty intensity mu_head. |
 | `--la_tau` | `float` | `1.0` | CLA Logit Adjustment intensity tau. |
 | `--la_epsilon` | `float` | `1.0` | CLA Logit Adjustment smoothing epsilon. |
-| `--device_type` | `str` | `pc` | Hardware profile identifier: `pc`, `jetson_orin`, `jetson_nano`. |
+| `--fedsol_rho` | `float` | `0.05` | FedSOL SAM perturbation radius $\rho$. |
+| `--fedsol_loss_type` | `str` | `kl` | FedSOL proximal discrepancy loss metric (`kl` or `l2`). |
+| `--fedsol_temperature` | `float` | `3.0` | FedSOL softmax temperature $T$ for KL divergence. |
+| `--fedsol_adaptive` / `--no-fedsol_adaptive` | `bool` | `False` | FedSOL adaptive perturbation radius. |
+| `--clip_grad_norm` | `float` | `None` | Max gradient L2 norm for clipping (`None` disables clipping). |
+| `--device_type` | `str` | `pc` | Hardware profile identifier: `pc`, `jetson_orin`, `jetson_nano`. Auto-detected from `configs/jetson.yaml`. |
 | `--local_test` | `bool` | `True` | Load paired local test split for client evaluation. |
-| `--batch_size` | `int` | `256` | DataLoader mini-batch size. |
+| `--batch_size` | `int` | `256` | DataLoader mini-batch size (set integer or null to inherit per-device profile). |
 | `--num_workers` | `int` | `0` | DataLoader worker threads (0 is recommended for network clients). |
 | `--save_metrics` | `bool` | `True` | Save local CSV metrics and latency logs. |
 
@@ -284,6 +316,10 @@ The simulation harness ([`experiments/run_simulation.py`](file:///D:/FPT/KLTN/FE
 | `scaffold` | No | Yes | Control variates correct client drift from label non-IID. |
 | `fedbns` (`proposed`) | Yes | Yes | **Proposed Strategy**: Synergistic integration of FedBN and SCAFFOLD. |
 | `cla` | No | No | **Coverage + Logit Adjustment (CoverageLA)**: Local classifier head anchoring penalty to global reference + class-frequency logit offset. |
+| `scr` | No | No | **Support-Calibrated Risk (SCR)**: Support statistics client risk weighting + support-dependent classifier head anchoring. |
+| `fedsld` | No | No | **Shared Label Distribution (FedSLD)**: Global marginal prior P~(y) estimation + dynamic mini-batch cross-entropy reweighting. |
+| `fedsol` | No | No | **Self-Centered Optimization (FedSOL)**: ExpSAM adversarial proximal perturbation against frozen round-start global reference model. |
+| `fedswitch` | No | No | **Stage-Switching FL (FedSwitch)**: Two-phase framework switching from balanced aggregation with DP Laplace noise to standard aggregation at round $R^*$. |
 
 ### 4.2. Running Simulations
 
@@ -302,6 +338,18 @@ The simulation harness ([`experiments/run_simulation.py`](file:///D:/FPT/KLTN/FE
 - **CLA (Coverage + Logit Adjustment) Benchmark Run** (80 rounds, PathMNIST, baseline architecture):
   ```bash
   python -m experiments.run_simulation --datasets pathmnist --partitions practical --strategies cla --model baseline --optimizer sgd --rounds 80 --local_test
+  ```
+- **FedSOL Benchmark Run with AdamW** (40 rounds, PathMNIST, baseline_bn, ExpSAM rho=0.05, loss_type=kl):
+  ```bash
+  python -m experiments.run_simulation --datasets pathmnist --partitions practical --strategies fedsol --model baseline_bn --optimizer adamw --learning_rate 0.001 --fedsol_rho 0.05 --fedsol_loss_type kl --fedsol_temperature 3.0 --rounds 40 --num_clients 12 --local_test
+  ```
+- **FedSwitch Benchmark Run with DP Histogram** (40 rounds, PathMNIST, coverage=0.9, epsilon=1.0, C=50):
+  ```bash
+  python -m experiments.run_simulation --datasets pathmnist --partitions practical --strategies fedswitch --model baseline_bn --optimizer sgd --learning_rate 0.01 --fedswitch_coverage 0.9 --fedswitch_epsilon 1.0 --fedswitch_c_bound 50 --rounds 40 --num_clients 12 --local_test
+  ```
+- **Benchmark Run with Optional Gradient Clipping** (e.g. clipping L2 norm to 1.0):
+  ```bash
+  python -m experiments.run_simulation --datasets pathmnist --partitions practical --strategies fedsol --model baseline_bn --optimizer adamw --clip_grad_norm 1.0 --rounds 40 --local_test
   ```
 - **Full Benchmark Suite on DermaMNIST**:
   ```bash
@@ -345,6 +393,15 @@ Simulation outputs are compiled in `results/simulation/<name_or_timestamp>/`:
 | `--coverage_mu_head` | `coverage_mu_head` | `0.1` | CLA classifier head penalty intensity $\mu_{\text{head}} \ge 0$. |
 | `--la_tau` | `la_tau` | `1.0` | CLA Logit Adjustment intensity $\tau \ge 0$. |
 | `--la_epsilon` | `la_epsilon` | `1.0` | CLA Logit Adjustment smoothing $\epsilon > 0$. |
+| `--fedsol_rho` | `fedsol_rho` | `0.05` | FedSOL SAM perturbation radius $\rho$. |
+| `--fedsol_loss_type` | `fedsol_loss_type` | `kl` | FedSOL proximal discrepancy loss metric (`kl` or `l2`). |
+| `--fedsol_temperature` | `fedsol_temperature` | `3.0` | FedSOL softmax temperature $T$. |
+| `--fedsol_adaptive` / `--no-fedsol_adaptive` | `fedsol_adaptive` | `False` | FedSOL adaptive perturbation radius. |
+| `--switch_round` | `switch_round` | `None` | FedSwitch fixed switching round $R^*$ (`None` to auto-compute). |
+| `--fedswitch_coverage` | `fedswitch_coverage` | `0.9` | FedSwitch target client coverage probability $\rho$. |
+| `--fedswitch_epsilon` | `fedswitch_epsilon` | `1.0` | FedSwitch DP privacy budget $\epsilon$ for label histogram. |
+| `--fedswitch_c_bound` | `fedswitch_c_bound` | `50` | FedSwitch DP sensitivity clipping bound $C$. |
+| `--clip_grad_norm` | `clip_grad_norm` | `None` | Max gradient L2 norm for clipping (`None` disables clipping). |
 | `--client_module` | `client_module` | `client.client` | Subprocess client engine (`client.client` for parallel; `experiments.simulation_client` for GPU lock). |
 | `--client_cpu_threads` | `client_cpu_threads` | `1` | PyTorch CPU threads per subprocess (prevents CPU thread thrashing). |
 | `--timeout_per_run` | `timeout_per_run` | `0` | Maximum timeout seconds per run (<=0 disables timeout). |

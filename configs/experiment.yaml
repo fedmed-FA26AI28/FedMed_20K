@@ -34,7 +34,7 @@ num_clients: 12                   # Total number of physical clients participati
 min_clients: 12                   # Minimum connected clients before server starts the round
 
 # --- Server & FL Training Hyperparameters ---
-# Supported strategies: 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold', 'fedbns', 'proposed', 'cla', 'coverage_la', 'scr', 'fedsld'
+# Supported strategies: 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold', 'fedbns', 'proposed', 'cla', 'coverage_la', 'scr', 'fedsld', 'fedsol', 'fedswitch'
 strategy: fedbns
 rounds: 40                        # Total federated communication rounds
 fl_rounds: 40                     # Alias for rounds
@@ -76,6 +76,21 @@ scr_head_lambda: 0.01             # SCR classifier-row anchor strength
 fedsld_epsilon: 1.0e-6            # FedSLD label skew smoothing epsilon
 fedsld_reduction: mean            # FedSLD loss reduction mode ('mean' or 'sum')
 
+# FedSOL (Self-Centered Optimization via Sharpness-Aware Minimization)
+fedsol_rho: 0.05                  # SAM perturbation radius rho
+fedsol_loss_type: kl              # Proximal discrepancy loss metric: 'kl' or 'l2'
+fedsol_temperature: 3.0           # Softmax temperature T for KL divergence
+fedsol_adaptive: false            # Adaptive perturbation radius
+
+# FedSwitch (Stage-Switching Federated Learning with DP Histogram Estimation)
+switch_round: null                # Fixed switching round R* (null = auto-computed via closed form)
+fedswitch_coverage: 0.9           # Target client coverage probability rho for closed-form R*
+fedswitch_epsilon: 1.0            # Differential Privacy budget epsilon for label histogram
+fedswitch_c_bound: 50             # Sensitivity clipping bound C for DP Laplace noise
+
+# Gradient Clipping (disabled by default = null so prior runs are never modified)
+clip_grad_norm: null              # Maximum L2 norm for gradient clipping (null = disabled)
+
 # --- Hardware & Client Execution ---
 device_type: pc                   # Hardware profile: 'pc', 'jetson_orin', 'jetson_nano'
 num_workers: 0                    # DataLoader workers (0 is safest for socket clients)
@@ -104,7 +119,7 @@ active_clients: null
 centralized:
   dataset: pathmnist              # Options: 'bloodmnist', 'pathmnist', 'organamnist', 'dermamnist'
   model: baseline_bn                 # Options: 'baseline' (FedSLD classic CNN), 'baseline_bn' (Baseline with BN), or 'cnn' (Modern)
-  optimizer: sgd                  # Options: 'sgd' or 'adam'
+  optimizer: sgd                  # Options: 'sgd', 'adam', or 'adamw'
   momentum: 0.9
   epochs: 100
   batch_size: 256

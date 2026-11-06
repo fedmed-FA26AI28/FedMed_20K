@@ -169,6 +169,7 @@ class SCRStrategy(FedStrategyBase):
         model: nn.Module,
         partition_path: str | Path,
         num_total_clients: int,
+        num_classes: Optional[int] = None,
         scr_gamma: float = 1.0,
         scr_head_lambda: float = 0.01,
         early_stop_patience: int = 0,
@@ -183,7 +184,9 @@ class SCRStrategy(FedStrategyBase):
                 or not np.isfinite(scr_head_lambda) or scr_gamma <= 0
                 or not np.isfinite(scr_gamma)):
             raise ValueError("SCR requires at least two clients, finite positive gamma and nonnegative head lambda")
-        num_classes = classifier_head(model).out_features
+        detected_classes = classifier_head(model).out_features
+        if num_classes is None:
+            num_classes = detected_classes
         counts = training_counts_from_partition(partition_path, num_classes, num_total_clients)
         support = support_statistics(counts, scr_gamma)
         self.scr_gamma = float(scr_gamma)
