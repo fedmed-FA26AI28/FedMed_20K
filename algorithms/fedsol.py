@@ -33,10 +33,11 @@ class FedSOLStrategy(FedStrategyBase):
     """Federated Stabilized Orthogonal Learning (FedSOL) Strategy (CVPR 2024).
 
     Args:
-        fedsol_rho: Perturbation radius strength rho (default: 0.05 for fixed, 1.0 for adaptive).
+        fedsol_rho: Perturbation radius strength rho (default: 2.0 per CVPR 2024 paper, searched: 0.5 - 2.0).
+        fedsol_target: Perturbation target layer: 'head' (classifier head only, Sec 3.4) or 'all' (full network).
         fedsol_loss_type: Discrepancy metric for proximal loss: 'kl' (KL-Divergence) or 'l2' (L2 weight distance).
         fedsol_temperature: Softmax temperature for KL divergence discrepancy (default: 3.0).
-        fedsol_adaptive: Whether to use adaptive perturbation radius scaling based on parameter magnitude.
+        fedsol_adaptive: Whether to use adaptive perturbation radius scaling based on parameter discrepancy (Eq. 7).
         model: Global model instance for inspection.
         **kwargs: Forwarded to FedStrategyBase.
     """
@@ -44,7 +45,8 @@ class FedSOLStrategy(FedStrategyBase):
     def __init__(
         self,
         *,
-        fedsol_rho: float = 0.05,
+        fedsol_rho: float = 2.0,
+        fedsol_target: str = "head",
         fedsol_loss_type: str = "kl",
         fedsol_temperature: float = 3.0,
         fedsol_adaptive: bool = False,
@@ -58,6 +60,9 @@ class FedSOLStrategy(FedStrategyBase):
             **kwargs,
         )
         self.fedsol_rho = float(fedsol_rho)
+        self.fedsol_target = str(fedsol_target).lower().strip()
+        if self.fedsol_target not in ("head", "all"):
+            raise ValueError(f"Unknown fedsol_target: '{fedsol_target}'. Must be 'head' or 'all'.")
         self.fedsol_loss_type = str(fedsol_loss_type).lower().strip()
         if self.fedsol_loss_type not in ("kl", "l2"):
             raise ValueError(f"Unknown fedsol_loss_type: '{fedsol_loss_type}'. Must be 'kl' or 'l2'.")
@@ -66,8 +71,9 @@ class FedSOLStrategy(FedStrategyBase):
 
         log(
             INFO,
-            "[FedSOL] Initialized strategy with rho=%g, loss_type=%s, temp=%g, adaptive=%s",
+            "[FedSOL] Initialized strategy with rho=%g, target=%s, loss_type=%s, temp=%g, adaptive=%s",
             self.fedsol_rho,
+            self.fedsol_target,
             self.fedsol_loss_type,
             self.fedsol_temperature,
             self.fedsol_adaptive,
@@ -85,6 +91,7 @@ class FedSOLStrategy(FedStrategyBase):
         for _, fit_ins in client_instructions:
             fit_ins.config["strategy"] = "fedsol"
             fit_ins.config["fedsol_rho"] = self.fedsol_rho
+            fit_ins.config["fedsol_target"] = self.fedsol_target
             fit_ins.config["fedsol_loss_type"] = self.fedsol_loss_type
             fit_ins.config["fedsol_temperature"] = self.fedsol_temperature
             fit_ins.config["fedsol_adaptive"] = self.fedsol_adaptive

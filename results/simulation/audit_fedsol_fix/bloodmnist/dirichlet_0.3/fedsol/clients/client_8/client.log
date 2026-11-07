@@ -1,0 +1,67 @@
+[Client 8] Loading partition from data\partitions\partition_bloodmnist_dirichlet_0.3_localtest_seed42_clients12.json
+[Client 8] Augmentation: augment=False, crop=False, flip=False
+[Client 8] Assigned 1342 training samples
+[Client 8] Using local test partition: 381 samples
+[Client 8] [Ping] Init (init) -> 127.0.0.1:50849 | Latency: 1.00 ms | Status: SUCCESS
+[Client 8] Initialized on cuda (pc) | IPv4: 192.168.0.113 | train_samples=1342 | Optimizer: SGD | LR Mode: fixed (Initial LR: 0.01)
+[Client 8] Connecting to 127.0.0.1:50849...
+[93mWARNING [0m:   DEPRECATED FEATURE: flwr.client.start_numpy_client() is deprecated. 
+	Instead, use `flwr.client.start_client()` by ensuring you first call the `.to_client()` method as shown below: 
+	flwr.client.start_client(
+		server_address='<IP>:<PORT>',
+		client=FlowerClient().to_client(), # <-- where FlowerClient is of type flwr.client.NumPyClient object
+	)
+	Using `start_numpy_client()` is deprecated.
+
+            This is a deprecated feature. It will be removed
+            entirely in future versions of Flower.
+        
+[93mWARNING [0m:   DEPRECATED FEATURE: flwr.client.start_client() is deprecated.
+	Instead, use the `flower-supernode` CLI command to start a SuperNode as shown below:
+
+		$ flower-supernode --insecure --superlink='<IP>:<PORT>'
+
+	To view all available options, run:
+
+		$ flower-supernode --help
+
+	Using `start_client()` is deprecated.
+
+            This is a deprecated feature. It will be removed
+            entirely in future versions of Flower.
+        
+[92mINFO [0m:      
+[92mINFO [0m:      Received: train message 0ae05317-402f-4572-b8f2-8b97dacb8370
+[Client 8] Round 1: Fixed LR = 0.010000
+[Client 8] [Ping] Round 1 (fit) -> 127.0.0.1:50849 | Latency: 1.00 ms | Status: SUCCESS
+[Client 8] FedSOL: rho=2.0 target=head loss_type=kl T=3.0 adaptive=False
+  [Client] Epoch [1/5] LR=0.010000 | Loss=2.0404 Acc=0.2496 | 3.85s
+  [Client] Epoch [2/5] LR=0.010000 | Loss=1.3370 Acc=0.5618 | 1.17s
+  [Client] Epoch [3/5] LR=0.010000 | Loss=1.2468 Acc=0.5618 | 0.89s
+  [Client] Epoch [4/5] LR=0.010000 | Loss=1.1763 Acc=0.5618 | 0.74s
+  [Client] Epoch [5/5] LR=0.010000 | Loss=1.1303 Acc=0.5618 | 0.47s
+[Client 8] fit done | Round 1 | IPv4: 192.168.0.113 | loss=1.1303 acc=0.5618 | round_time=7.12s | avg_epoch=1.42s | weights=2227.4KB
+[92mINFO [0m:      Sent reply
+[92mINFO [0m:      
+[92mINFO [0m:      Received: evaluate message a7f6820c-ec24-48f5-be87-7f85a7fad9ef
+[Client 8] evaluate | loss=2.0069 acc=0.3045
+[92mINFO [0m:      Sent reply
+[92mINFO [0m:      
+[92mINFO [0m:      Received: train message 226485ec-e5f9-4b64-aeae-6c687f41b033
+[Client 8] Round 2: Fixed LR = 0.010000
+[Client 8] [Ping] Round 2 (fit) -> 127.0.0.1:50849 | Latency: 1.00 ms | Status: SUCCESS
+[Client 8] FedSOL: rho=2.0 target=head loss_type=kl T=3.0 adaptive=False
+  [Client] Epoch [1/5] LR=0.010000 | Loss=1.4262 Acc=0.4732 | 1.25s
+  [Client] Epoch [2/5] LR=0.010000 | Loss=1.0941 Acc=0.5618 | 1.13s
+  [Client] Epoch [3/5] LR=0.010000 | Loss=0.9379 Acc=0.6863 | 1.00s
+  [Client] Epoch [4/5] LR=0.010000 | Loss=0.8183 Acc=0.6885 | 0.69s
+  [Client] Epoch [5/5] LR=0.010000 | Loss=0.7688 Acc=0.6885 | 0.55s
+[Client 8] fit done | Round 2 | IPv4: 192.168.0.113 | loss=0.7688 acc=0.6885 | round_time=4.62s | avg_epoch=0.92s | weights=2227.4KB
+[92mINFO [0m:      Sent reply
+[92mINFO [0m:      
+[92mINFO [0m:      Received: evaluate message 092db75e-62c3-4cef-b2d8-443353e06298
+[Client 8] evaluate | loss=1.8745 acc=0.1732
+[92mINFO [0m:      Sent reply
+[92mINFO [0m:      
+[92mINFO [0m:      Received: reconnect message 5afc0d83-db54-4975-b158-2ffe73b1bb45
+[92mINFO [0m:      Disconnect and shut down

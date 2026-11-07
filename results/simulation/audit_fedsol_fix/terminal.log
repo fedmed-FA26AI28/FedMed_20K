@@ -1,0 +1,99 @@
+
+======================================================================
+  FedMedAI Automated Simulation Benchmark
+======================================================================
+  Run Name         : audit_fedsol_fix
+  Output Directory : results\simulation\audit_fedsol_fix
+  Terminal Log     : results\simulation\audit_fedsol_fix\terminal.log
+  Model            : BASELINE
+  Optimizer        : SGD (momentum=0.9)
+  Augmentation     : Disabled (crop=False, flip=False)
+  Seed             : 42
+  Clients          : 12
+  Rounds per Run   : 2
+  Local Epochs     : 5
+  Local Test Eval  : Enabled (BMCTA/BTA tracking)
+  Client Module    : client.client (Parallel Execution)
+  Timeout per Run  : Disabled (Infinite)
+  Datasets         : ['bloodmnist']
+  Partitions       : ['dirichlet_0.3']
+  Strategies       : ['fedsol']
+  Total Runs Grid  : 1 combinations
+======================================================================
+
+Verifying data partition files for all dataset and partition combinations...
+
+[Partition] Missing partition: partition_bloodmnist_dirichlet_0.3_localtest_seed42_clients12.json. Generating automatically (local_test=True)...
+Partition saved: data\partitions\partition_bloodmnist_dirichlet_0.3_localtest_seed42_clients12.json (Local test included: True)
+Plot saved: D:\FPT\KLTN\FED\FedMedAI_Study\data\partitions\plots\dist_bloodmnist_dirichlet_0.3_localtest_seed42_clients12.png
+[Partition] Generated and verified: data\partitions\partition_bloodmnist_dirichlet_0.3_localtest_seed42_clients12.json (plot: data\partitions\plots\dist_bloodmnist_dirichlet_0.3_localtest_seed42_clients12.png)
+
+>>> [Simulation Matrix 1/1] Starting: Dataset=bloodmnist | Partition=dirichlet_0.3 | Strategy=FEDSOL
+
+-----------------------------------------------------------------
+  Launching FL Server: FEDSOL | Model: BASELINE | Optimizer: SGD | Dataset: bloodmnist | Partition: dirichlet_0.3 | Port: 51921 | LocalTest: True | Seed: 42
+  Artifact Directory : results\simulation\audit_fedsol_fix\bloodmnist\dirichlet_0.3\fedsol
+-----------------------------------------------------------------
+  [Server] Listening. Launching 12 client workers (Module: client.client)...
+  [Error] Client 1 exited with error code 1!
+  [Failed] bloodmnist/dirichlet_0.3/fedsol: client_error(1) (0 partial rounds)
+
+Generating multi-strategy comparison plots grouped by dataset...
+  [Notice] No rounds history available to plot (runs may have timed out or failed before completing).
+
+===========================================================================
+  FedMedAI Simulation Finished: 0 completed, 1 failed. Total Wall-Clock Time: 0.5 minutes
+===========================================================================
+  Artifacts Saved in Directory: results\simulation\audit_fedsol_fix
+  - Executive Report     : simulation_report.md
+  - Terminal Log         : terminal.log
+===========================================================================
+
+
+======================================================================
+  FedMedAI Automated Simulation Benchmark
+======================================================================
+  Run Name         : audit_fedsol_fix
+  Output Directory : results\simulation\audit_fedsol_fix
+  Terminal Log     : results\simulation\audit_fedsol_fix\terminal.log
+  Model            : BASELINE
+  Optimizer        : SGD (momentum=0.9)
+  Augmentation     : Disabled (crop=False, flip=False)
+  Seed             : 42
+  Clients          : 12
+  Rounds per Run   : 2
+  Local Epochs     : 5
+  Local Test Eval  : Enabled (BMCTA/BTA tracking)
+  Client Module    : client.client (Parallel Execution)
+  Timeout per Run  : Disabled (Infinite)
+  Datasets         : ['bloodmnist']
+  Partitions       : ['dirichlet_0.3']
+  Strategies       : ['fedsol']
+  Total Runs Grid  : 1 combinations
+======================================================================
+
+Verifying data partition files for all dataset and partition combinations...
+
+>>> [Simulation Matrix 1/1] Starting: Dataset=bloodmnist | Partition=dirichlet_0.3 | Strategy=FEDSOL
+
+-----------------------------------------------------------------
+  Launching FL Server: FEDSOL | Model: BASELINE | Optimizer: SGD | Dataset: bloodmnist | Partition: dirichlet_0.3 | Port: 50849 | LocalTest: True | Seed: 42
+  Artifact Directory : results\simulation\audit_fedsol_fix\bloodmnist\dirichlet_0.3\fedsol
+-----------------------------------------------------------------
+  [Server] Listening. Launching 12 client workers (Module: client.client)...
+  [Progress] [FedSOL] Round 1 Eval | MCTA: 38.70% (BMCTA: 38.70% @ R1) | Combined: 37.33% (BTA: 37.33% @ R1)
+  [BestModel] Round 1: new best accuracy = 0.3733
+  [Progress] [FedSOL] Round 2 Eval | MCTA: 39.05% (BMCTA: 39.05% @ R2) | Combined: 38.82% (BTA: 38.82% @ R2)
+  [BestModel] Round 2: new best accuracy = 0.3882
+  [Success] Finished FEDSOL (dirichlet_0.3) [Local Test]: BMCTA: 39.05% (R2) | BMCTA Loss: 1.8489 | BTA: 38.82% (R2) | Time: 31.2s
+
+Generating multi-strategy comparison plots grouped by dataset...
+
+===========================================================================
+  FedMedAI Simulation Finished: 1 completed, 0 failed. Total Wall-Clock Time: 0.8 minutes
+===========================================================================
+  Artifacts Saved in Directory: results\simulation\audit_fedsol_fix
+  - Executive Report     : simulation_report.md
+  - Terminal Log         : terminal.log
+===========================================================================
+

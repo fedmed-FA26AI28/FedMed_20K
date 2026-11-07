@@ -1,0 +1,137 @@
+
+======================================================================
+  FedMedAI Automated Simulation Benchmark
+======================================================================
+  Run Name         : audit_fedswitch_fix
+  Output Directory : results\simulation\audit_fedswitch_fix
+  Terminal Log     : results\simulation\audit_fedswitch_fix\terminal.log
+  Model            : BASELINE
+  Optimizer        : SGD (momentum=0.9)
+  Augmentation     : Disabled (crop=False, flip=False)
+  Seed             : 42
+  Clients          : 12
+  Rounds per Run   : 3
+  Local Epochs     : 5
+  Local Test Eval  : Enabled (BMCTA/BTA tracking)
+  Client Module    : client.client (Parallel Execution)
+  Timeout per Run  : Disabled (Infinite)
+  Datasets         : ['bloodmnist']
+  Partitions       : ['dirichlet_0.3']
+  Strategies       : ['fedswitch']
+  Total Runs Grid  : 1 combinations
+======================================================================
+
+Verifying data partition files for all dataset and partition combinations...
+
+>>> [Simulation Matrix 1/1] Starting: Dataset=bloodmnist | Partition=dirichlet_0.3 | Strategy=FEDSWITCH
+
+-----------------------------------------------------------------
+  Launching FL Server: FEDSWITCH | Model: BASELINE | Optimizer: SGD | Dataset: bloodmnist | Partition: dirichlet_0.3 | Port: 50958 | LocalTest: True | Seed: 42
+  Artifact Directory : results\simulation\audit_fedswitch_fix\bloodmnist\dirichlet_0.3\fedswitch
+-----------------------------------------------------------------
+
+  [Run Error] FEDSWITCH (dirichlet_0.3) failed:
+Server process terminated unexpectedly on startup (exit code 1).
+  =======================================================
+  Tail of results\simulation\audit_fedswitch_fix\bloodmnist\dirichlet_0.3\fedswitch\server.log:
+  =======================================================
+Model        : BASELINE
+  Optimizer    : SGD (momentum=0.9)
+  Seed         : 42
+  Strategy     : FEDSWITCH
+  Server IPv4  : 192.168.0.113
+  Client Target: 192.168.0.113:50958
+  Rounds       : 3
+  Min Clients  : 12
+  Local Epochs : 5
+  LR Mode      : FIXED
+  Base LR      : 0.01
+  LR Policy    : Fixed constant learning rate across all rounds
+  FedSwitch    : switch_round=2, weighting_mode=bounded_sum, coverage=0.9, epsilon=1.0, c_bound=50
+  Early Stop   : Patience=0 (metric: accuracy)
+  Server Eval  : False
+  Local Test   : True
+  Listen       : 127.0.0.1:50958
+============================================================
+
+Traceback (most recent call last):
+  File "C:\Users\huyho\AppData\Roaming\uv\python\cpython-3.10-windows-x86_64-none\lib\runpy.py", line 196, in _run_module_as_main
+    return _run_code(code, main_globals, None,
+  File "C:\Users\huyho\AppData\Roaming\uv\python\cpython-3.10-windows-x86_64-none\lib\runpy.py", line 86, in _run_code
+    exec(code, run_globals)
+  File "D:\FPT\KLTN\FED\FedMedAI_Study\server\server.py", line 1090, in <module>
+    main()
+  File "D:\FPT\KLTN\FED\FedMedAI_Study\server\server.py", line 941, in main
+    strategy = get_strategy(args.strategy, **strategy_kwargs)
+  File "D:\FPT\KLTN\FED\FedMedAI_Study\algorithms\__init__.py", line 87, in get_strategy
+    return STRATEGY_REGISTRY[key](**kwargs)
+  File "D:\FPT\KLTN\FED\FedMedAI_Study\algorithms\fedswitch.py", line 114, in __init__
+    super().__init__(
+  File "D:\FPT\KLTN\FED\FedMedAI_Study\algorithms\base.py", line 129, in __init__
+    super().__init__(**kwargs)
+TypeError: FedAvg.__init__() got an unexpected keyword argument 'total_rounds'
+  =======================================================
+
+  [Failed] bloodmnist/dirichlet_0.3/fedswitch: error: RuntimeError (0 partial rounds)
+
+Generating multi-strategy comparison plots grouped by dataset...
+  [Notice] No rounds history available to plot (runs may have timed out or failed before completing).
+
+===========================================================================
+  FedMedAI Simulation Finished: 0 completed, 1 failed. Total Wall-Clock Time: 0.2 minutes
+===========================================================================
+  Artifacts Saved in Directory: results\simulation\audit_fedswitch_fix
+  - Executive Report     : simulation_report.md
+  - Terminal Log         : terminal.log
+===========================================================================
+
+
+======================================================================
+  FedMedAI Automated Simulation Benchmark
+======================================================================
+  Run Name         : audit_fedswitch_fix
+  Output Directory : results\simulation\audit_fedswitch_fix
+  Terminal Log     : results\simulation\audit_fedswitch_fix\terminal.log
+  Model            : BASELINE
+  Optimizer        : SGD (momentum=0.9)
+  Augmentation     : Disabled (crop=False, flip=False)
+  Seed             : 42
+  Clients          : 12
+  Rounds per Run   : 3
+  Local Epochs     : 5
+  Local Test Eval  : Enabled (BMCTA/BTA tracking)
+  Client Module    : client.client (Parallel Execution)
+  Timeout per Run  : Disabled (Infinite)
+  Datasets         : ['bloodmnist']
+  Partitions       : ['dirichlet_0.3']
+  Strategies       : ['fedswitch']
+  Total Runs Grid  : 1 combinations
+======================================================================
+
+Verifying data partition files for all dataset and partition combinations...
+
+>>> [Simulation Matrix 1/1] Starting: Dataset=bloodmnist | Partition=dirichlet_0.3 | Strategy=FEDSWITCH
+
+-----------------------------------------------------------------
+  Launching FL Server: FEDSWITCH | Model: BASELINE | Optimizer: SGD | Dataset: bloodmnist | Partition: dirichlet_0.3 | Port: 50117 | LocalTest: True | Seed: 42
+  Artifact Directory : results\simulation\audit_fedswitch_fix\bloodmnist\dirichlet_0.3\fedswitch
+-----------------------------------------------------------------
+  [Server] Listening. Launching 12 client workers (Module: client.client)...
+  [Progress] [FedSwitch] Round 1 Eval | MCTA: 34.00% (BMCTA: 34.00% @ R1) | Combined: 33.15% (BTA: 33.15% @ R1)
+  [BestModel] Round 1: new best accuracy = 0.3315
+  [Progress] [FedSwitch] Round 2 Eval | MCTA: 44.60% (BMCTA: 44.60% @ R2) | Combined: 45.28% (BTA: 45.28% @ R2)
+  [BestModel] Round 2: new best accuracy = 0.4528
+  [Progress] [FedSwitch] Round 3 Eval | MCTA: 49.17% (BMCTA: 49.17% @ R3) | Combined: 49.14% (BTA: 49.14% @ R3)
+  [BestModel] Round 3: new best accuracy = 0.4914
+  [Success] Finished FEDSWITCH (dirichlet_0.3) [Local Test]: BMCTA: 49.17% (R3) | BMCTA Loss: 1.2150 | BTA: 49.14% (R3) | Time: 26.5s
+
+Generating multi-strategy comparison plots grouped by dataset...
+
+===========================================================================
+  FedMedAI Simulation Finished: 1 completed, 0 failed. Total Wall-Clock Time: 0.7 minutes
+===========================================================================
+  Artifacts Saved in Directory: results\simulation\audit_fedswitch_fix
+  - Executive Report     : simulation_report.md
+  - Terminal Log         : terminal.log
+===========================================================================
+
