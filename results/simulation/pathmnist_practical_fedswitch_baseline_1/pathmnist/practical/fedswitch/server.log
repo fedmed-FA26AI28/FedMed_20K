@@ -1,0 +1,869 @@
+
+============================================================
+  FedMedAI FL Server
+  Config Source: configs/simulation.yaml
+  Dataset      : pathmnist (Classes: 9)
+  Model        : BASELINE
+  Optimizer    : SGD (momentum=0.9)
+  Seed         : 42
+  Strategy     : FEDSWITCH
+  Server IPv4  : 10.20.101.162
+  Client Target: 10.20.101.162:40957
+  Rounds       : 80
+  Min Clients  : 12
+  Local Epochs : 5
+  LR Mode      : FIXED
+  Base LR      : 0.01
+  LR Policy    : Fixed constant learning rate across all rounds
+  FedSwitch    : switch_round=None, coverage=0.9, epsilon=1.0, c_bound=50
+  Early Stop   : Patience=0 (metric: accuracy)
+  Server Eval  : False
+  Local Test   : True
+  Listen       : 127.0.0.1:40957
+============================================================
+
+[92mINFO [0m:      [FedSwitch] Auto-computed switch_round: R*=1 (N=12, m=12, coverage=0.90)
+[92mINFO [0m:      [FedSwitch] Loaded ground truth distributions for 12 clients (num_classes=9) from partition
+[Server] Strategy created: FedSwitchStrategy
+[Server] Waiting for 12 clients on 127.0.0.1:40957 (Connect target: 10.20.101.162:40957)...
+
+[93mWARNING [0m:   DEPRECATED FEATURE: flwr.server.start_server() is deprecated.
+	Instead, use the `flower-superlink` CLI command to start a SuperLink as shown below:
+
+		$ flower-superlink --insecure
+
+	To view usage and all available options, run:
+
+		$ flower-superlink --help
+
+	Using `start_server()` is deprecated.
+
+            This is a deprecated feature. It will be removed
+            entirely in future versions of Flower.
+        
+[92mINFO [0m:      Starting Flower server, config: num_rounds=80, no round_timeout
+[92mINFO [0m:      Flower ECE: gRPC server running (80 rounds), SSL is disabled
+[92mINFO [0m:      [INIT]
+[92mINFO [0m:      Using initial global parameters provided by strategy
+[92mINFO [0m:      Starting evaluation of initial global parameters
+[92mINFO [0m:      Evaluation returned no results (`None`)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 1]
+[92mINFO [0m:      [Server] Config for Round 1: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Reconstructed DP Global Histogram (eps=1.00, C=50): [9328.0, 9658.0, 10250.0, 10357.0, 8003.0, 12180.0, 7878.0, 9483.0, 12893.0] (noise=[-38, 149, -110, -44, -3, -2, -8, 82, 8])
+[92mINFO [0m:      [FedSwitch] Triggered switch at Round 1 -> Switched from FedAvg to Balanced Aggregation!
+[92mINFO [0m:      [FedSwitch] Round 1: Warm-up phase (standard FedAvg weighting)
+[92mINFO [0m:      [Reporting Devices] Client 10 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 1 Eval | MCTA: 23.93% (BMCTA: 23.93% @ R1) | Combined: 27.91% (BTA: 27.91% @ R1)
+[92mINFO [0m:      [BestModel] Round 1: new best accuracy = 0.2791
+
+============================================================
+  [Server] Round 1 Distributed Client Evaluation
+  Loss: 2.0389 | Accuracy: 0.2791 (27.91%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 2]
+[92mINFO [0m:      [Server] Config for Round 2: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 2: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 1 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 2 Eval | MCTA: 42.73% (BMCTA: 42.73% @ R2) | Combined: 48.16% (BTA: 48.16% @ R2)
+[92mINFO [0m:      [BestModel] Round 2: new best accuracy = 0.4816
+
+============================================================
+  [Server] Round 2 Distributed Client Evaluation
+  Loss: 1.4609 | Accuracy: 0.4816 (48.16%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 3]
+[92mINFO [0m:      [Server] Config for Round 3: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 3: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 10 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 3 Eval | MCTA: 48.15% (BMCTA: 48.15% @ R3) | Combined: 52.86% (BTA: 52.86% @ R3)
+[92mINFO [0m:      [BestModel] Round 3: new best accuracy = 0.5286
+
+============================================================
+  [Server] Round 3 Distributed Client Evaluation
+  Loss: 1.4371 | Accuracy: 0.5286 (52.86%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 4]
+[92mINFO [0m:      [Server] Config for Round 4: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 4: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 10 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 4 Eval | MCTA: 57.63% (BMCTA: 57.63% @ R4) | Combined: 64.05% (BTA: 64.05% @ R4)
+[92mINFO [0m:      [BestModel] Round 4: new best accuracy = 0.6405
+
+============================================================
+  [Server] Round 4 Distributed Client Evaluation
+  Loss: 1.2559 | Accuracy: 0.6405 (64.05%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 5]
+[92mINFO [0m:      [Server] Config for Round 5: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 5: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 3 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 5 Eval | MCTA: 64.38% (BMCTA: 64.38% @ R5) | Combined: 69.68% (BTA: 69.68% @ R5)
+[92mINFO [0m:      [BestModel] Round 5: new best accuracy = 0.6968
+
+============================================================
+  [Server] Round 5 Distributed Client Evaluation
+  Loss: 1.0176 | Accuracy: 0.6968 (69.68%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 6]
+[92mINFO [0m:      [Server] Config for Round 6: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 6: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 0 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 6 Eval | MCTA: 68.41% (BMCTA: 68.41% @ R6) | Combined: 73.58% (BTA: 73.58% @ R6)
+[92mINFO [0m:      [BestModel] Round 6: new best accuracy = 0.7358
+
+============================================================
+  [Server] Round 6 Distributed Client Evaluation
+  Loss: 1.0028 | Accuracy: 0.7358 (73.58%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 7]
+[92mINFO [0m:      [Server] Config for Round 7: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 7: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 3 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 7 Eval | MCTA: 68.59% (BMCTA: 68.59% @ R7) | Combined: 72.58% (BTA: 73.58% @ R6)
+
+============================================================
+  [Server] Round 7 Distributed Client Evaluation
+  Loss: 0.9607 | Accuracy: 0.7258 (72.58%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 8]
+[92mINFO [0m:      [Server] Config for Round 8: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 8: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 7 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 8 Eval | MCTA: 68.96% (BMCTA: 68.96% @ R8) | Combined: 73.86% (BTA: 73.86% @ R8)
+[92mINFO [0m:      [BestModel] Round 8: new best accuracy = 0.7386
+
+============================================================
+  [Server] Round 8 Distributed Client Evaluation
+  Loss: 0.9241 | Accuracy: 0.7386 (73.86%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 9]
+[92mINFO [0m:      [Server] Config for Round 9: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 9: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 0 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 9 Eval | MCTA: 59.09% (BMCTA: 68.96% @ R8) | Combined: 65.25% (BTA: 73.86% @ R8)
+
+============================================================
+  [Server] Round 9 Distributed Client Evaluation
+  Loss: 1.0644 | Accuracy: 0.6525 (65.25%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 10]
+[92mINFO [0m:      [Server] Config for Round 10: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 10: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 9 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 10 Eval | MCTA: 70.64% (BMCTA: 70.64% @ R10) | Combined: 74.86% (BTA: 74.86% @ R10)
+[92mINFO [0m:      [BestModel] Round 10: new best accuracy = 0.7486
+
+============================================================
+  [Server] Round 10 Distributed Client Evaluation
+  Loss: 0.8536 | Accuracy: 0.7486 (74.86%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 11]
+[92mINFO [0m:      [Server] Config for Round 11: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 11: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 11 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 11 Eval | MCTA: 69.23% (BMCTA: 70.64% @ R10) | Combined: 73.54% (BTA: 74.86% @ R10)
+
+============================================================
+  [Server] Round 11 Distributed Client Evaluation
+  Loss: 0.8248 | Accuracy: 0.7354 (73.54%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 12]
+[92mINFO [0m:      [Server] Config for Round 12: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 12: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 0 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 12 Eval | MCTA: 76.00% (BMCTA: 76.00% @ R12) | Combined: 77.30% (BTA: 77.30% @ R12)
+[92mINFO [0m:      [BestModel] Round 12: new best accuracy = 0.7730
+
+============================================================
+  [Server] Round 12 Distributed Client Evaluation
+  Loss: 0.7586 | Accuracy: 0.7730 (77.30%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 13]
+[92mINFO [0m:      [Server] Config for Round 13: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 13: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 10 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 13 Eval | MCTA: 70.65% (BMCTA: 76.00% @ R12) | Combined: 74.14% (BTA: 77.30% @ R12)
+
+============================================================
+  [Server] Round 13 Distributed Client Evaluation
+  Loss: 0.7976 | Accuracy: 0.7414 (74.14%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 14]
+[92mINFO [0m:      [Server] Config for Round 14: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 14: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 9 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 14 Eval | MCTA: 77.36% (BMCTA: 77.36% @ R14) | Combined: 76.77% (BTA: 77.30% @ R12)
+
+============================================================
+  [Server] Round 14 Distributed Client Evaluation
+  Loss: 0.7732 | Accuracy: 0.7677 (76.77%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 15]
+[92mINFO [0m:      [Server] Config for Round 15: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 15: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 1 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 15 Eval | MCTA: 76.41% (BMCTA: 77.36% @ R14) | Combined: 78.04% (BTA: 78.04% @ R15)
+[92mINFO [0m:      [BestModel] Round 15: new best accuracy = 0.7804
+
+============================================================
+  [Server] Round 15 Distributed Client Evaluation
+  Loss: 0.7296 | Accuracy: 0.7804 (78.04%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 16]
+[92mINFO [0m:      [Server] Config for Round 16: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 16: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 10 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 16 Eval | MCTA: 77.50% (BMCTA: 77.50% @ R16) | Combined: 77.58% (BTA: 78.04% @ R15)
+
+============================================================
+  [Server] Round 16 Distributed Client Evaluation
+  Loss: 0.7112 | Accuracy: 0.7758 (77.58%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 17]
+[92mINFO [0m:      [Server] Config for Round 17: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 17: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 11 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 17 Eval | MCTA: 78.22% (BMCTA: 78.22% @ R17) | Combined: 78.57% (BTA: 78.57% @ R17)
+[92mINFO [0m:      [BestModel] Round 17: new best accuracy = 0.7857
+
+============================================================
+  [Server] Round 17 Distributed Client Evaluation
+  Loss: 0.6918 | Accuracy: 0.7857 (78.57%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 18]
+[92mINFO [0m:      [Server] Config for Round 18: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 18: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 3 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 18 Eval | MCTA: 76.34% (BMCTA: 78.22% @ R17) | Combined: 78.23% (BTA: 78.57% @ R17)
+
+============================================================
+  [Server] Round 18 Distributed Client Evaluation
+  Loss: 0.6705 | Accuracy: 0.7823 (78.23%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 19]
+[92mINFO [0m:      [Server] Config for Round 19: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 19: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 1 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 19 Eval | MCTA: 78.81% (BMCTA: 78.81% @ R19) | Combined: 77.51% (BTA: 78.57% @ R17)
+
+============================================================
+  [Server] Round 19 Distributed Client Evaluation
+  Loss: 0.6987 | Accuracy: 0.7751 (77.51%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 20]
+[92mINFO [0m:      [Server] Config for Round 20: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 20: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 6 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 20 Eval | MCTA: 76.85% (BMCTA: 78.81% @ R19) | Combined: 77.92% (BTA: 78.57% @ R17)
+
+============================================================
+  [Server] Round 20 Distributed Client Evaluation
+  Loss: 0.6929 | Accuracy: 0.7792 (77.92%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 21]
+[92mINFO [0m:      [Server] Config for Round 21: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 21: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 8 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 21 Eval | MCTA: 79.18% (BMCTA: 79.18% @ R21) | Combined: 78.73% (BTA: 78.73% @ R21)
+[92mINFO [0m:      [BestModel] Round 21: new best accuracy = 0.7873
+
+============================================================
+  [Server] Round 21 Distributed Client Evaluation
+  Loss: 0.6837 | Accuracy: 0.7873 (78.73%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 22]
+[92mINFO [0m:      [Server] Config for Round 22: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 22: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 1 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 22 Eval | MCTA: 79.28% (BMCTA: 79.28% @ R22) | Combined: 79.69% (BTA: 79.69% @ R22)
+[92mINFO [0m:      [BestModel] Round 22: new best accuracy = 0.7969
+
+============================================================
+  [Server] Round 22 Distributed Client Evaluation
+  Loss: 0.6477 | Accuracy: 0.7969 (79.69%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 23]
+[92mINFO [0m:      [Server] Config for Round 23: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 23: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 1 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 23 Eval | MCTA: 78.06% (BMCTA: 79.28% @ R22) | Combined: 78.37% (BTA: 79.69% @ R22)
+
+============================================================
+  [Server] Round 23 Distributed Client Evaluation
+  Loss: 0.6747 | Accuracy: 0.7837 (78.37%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 24]
+[92mINFO [0m:      [Server] Config for Round 24: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 24: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 5 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 24 Eval | MCTA: 79.68% (BMCTA: 79.68% @ R24) | Combined: 79.93% (BTA: 79.93% @ R24)
+[92mINFO [0m:      [BestModel] Round 24: new best accuracy = 0.7993
+
+============================================================
+  [Server] Round 24 Distributed Client Evaluation
+  Loss: 0.6513 | Accuracy: 0.7993 (79.93%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 25]
+[92mINFO [0m:      [Server] Config for Round 25: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 25: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 4 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 25 Eval | MCTA: 75.67% (BMCTA: 79.68% @ R24) | Combined: 77.35% (BTA: 79.93% @ R24)
+
+============================================================
+  [Server] Round 25 Distributed Client Evaluation
+  Loss: 0.7473 | Accuracy: 0.7735 (77.35%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 26]
+[92mINFO [0m:      [Server] Config for Round 26: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 26: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 7 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 26 Eval | MCTA: 76.30% (BMCTA: 79.68% @ R24) | Combined: 77.56% (BTA: 79.93% @ R24)
+
+============================================================
+  [Server] Round 26 Distributed Client Evaluation
+  Loss: 0.7065 | Accuracy: 0.7756 (77.56%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 27]
+[92mINFO [0m:      [Server] Config for Round 27: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 27: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 8 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 27 Eval | MCTA: 76.64% (BMCTA: 79.68% @ R24) | Combined: 78.13% (BTA: 79.93% @ R24)
+
+============================================================
+  [Server] Round 27 Distributed Client Evaluation
+  Loss: 0.7043 | Accuracy: 0.7813 (78.13%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 28]
+[92mINFO [0m:      [Server] Config for Round 28: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 28: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 11 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 28 Eval | MCTA: 76.24% (BMCTA: 79.68% @ R24) | Combined: 77.98% (BTA: 79.93% @ R24)
+
+============================================================
+  [Server] Round 28 Distributed Client Evaluation
+  Loss: 0.7307 | Accuracy: 0.7798 (77.98%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 29]
+[92mINFO [0m:      [Server] Config for Round 29: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 29: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 3 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 29 Eval | MCTA: 80.19% (BMCTA: 80.19% @ R29) | Combined: 79.85% (BTA: 79.93% @ R24)
+
+============================================================
+  [Server] Round 29 Distributed Client Evaluation
+  Loss: 0.6990 | Accuracy: 0.7985 (79.85%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 30]
+[92mINFO [0m:      [Server] Config for Round 30: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 30: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 8 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 30 Eval | MCTA: 78.70% (BMCTA: 80.19% @ R29) | Combined: 79.50% (BTA: 79.93% @ R24)
+
+============================================================
+  [Server] Round 30 Distributed Client Evaluation
+  Loss: 0.6978 | Accuracy: 0.7950 (79.50%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 31]
+[92mINFO [0m:      [Server] Config for Round 31: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 31: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 6 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 31 Eval | MCTA: 76.08% (BMCTA: 80.19% @ R29) | Combined: 77.88% (BTA: 79.93% @ R24)
+
+============================================================
+  [Server] Round 31 Distributed Client Evaluation
+  Loss: 0.7902 | Accuracy: 0.7788 (77.88%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 32]
+[92mINFO [0m:      [Server] Config for Round 32: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 32: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 10 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 32 Eval | MCTA: 77.75% (BMCTA: 80.19% @ R29) | Combined: 78.30% (BTA: 79.93% @ R24)
+
+============================================================
+  [Server] Round 32 Distributed Client Evaluation
+  Loss: 0.7545 | Accuracy: 0.7830 (78.30%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 33]
+[92mINFO [0m:      [Server] Config for Round 33: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 33: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 10 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 33 Eval | MCTA: 76.01% (BMCTA: 80.19% @ R29) | Combined: 77.80% (BTA: 79.93% @ R24)
+
+============================================================
+  [Server] Round 33 Distributed Client Evaluation
+  Loss: 0.7976 | Accuracy: 0.7780 (77.80%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 34]
+[92mINFO [0m:      [Server] Config for Round 34: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 34: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 10 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 34 Eval | MCTA: 76.51% (BMCTA: 80.19% @ R29) | Combined: 77.90% (BTA: 79.93% @ R24)
+
+============================================================
+  [Server] Round 34 Distributed Client Evaluation
+  Loss: 0.8239 | Accuracy: 0.7790 (77.90%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 35]
+[92mINFO [0m:      [Server] Config for Round 35: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 35: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 3 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 35 Eval | MCTA: 76.84% (BMCTA: 80.19% @ R29) | Combined: 78.33% (BTA: 79.93% @ R24)
+
+============================================================
+  [Server] Round 35 Distributed Client Evaluation
+  Loss: 0.8125 | Accuracy: 0.7833 (78.33%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 36]
+[92mINFO [0m:      [Server] Config for Round 36: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 36: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 3 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 36 Eval | MCTA: 76.65% (BMCTA: 80.19% @ R29) | Combined: 77.99% (BTA: 79.93% @ R24)
+
+============================================================
+  [Server] Round 36 Distributed Client Evaluation
+  Loss: 0.8282 | Accuracy: 0.7799 (77.99%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 37]
+[92mINFO [0m:      [Server] Config for Round 37: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 37: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 11 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 37 Eval | MCTA: 76.94% (BMCTA: 80.19% @ R29) | Combined: 78.50% (BTA: 79.93% @ R24)
+
+============================================================
+  [Server] Round 37 Distributed Client Evaluation
+  Loss: 0.8300 | Accuracy: 0.7850 (78.50%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 38]
+[92mINFO [0m:      [Server] Config for Round 38: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 38: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 2 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 38 Eval | MCTA: 77.30% (BMCTA: 80.19% @ R29) | Combined: 78.41% (BTA: 79.93% @ R24)
+
+============================================================
+  [Server] Round 38 Distributed Client Evaluation
+  Loss: 0.8469 | Accuracy: 0.7841 (78.41%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 39]
+[92mINFO [0m:      [Server] Config for Round 39: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 39: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 1 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 39 Eval | MCTA: 76.02% (BMCTA: 80.19% @ R29) | Combined: 77.58% (BTA: 79.93% @ R24)
+
+============================================================
+  [Server] Round 39 Distributed Client Evaluation
+  Loss: 0.9127 | Accuracy: 0.7758 (77.58%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 40]
+[92mINFO [0m:      [Server] Config for Round 40: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 40: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 6 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 40 Eval | MCTA: 76.19% (BMCTA: 80.19% @ R29) | Combined: 76.99% (BTA: 79.93% @ R24)
+
+============================================================
+  [Server] Round 40 Distributed Client Evaluation
+  Loss: 0.9411 | Accuracy: 0.7699 (76.99%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 41]
+[92mINFO [0m:      [Server] Config for Round 41: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 41: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 9 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 41 Eval | MCTA: 75.78% (BMCTA: 80.19% @ R29) | Combined: 77.52% (BTA: 79.93% @ R24)
+
+============================================================
+  [Server] Round 41 Distributed Client Evaluation
+  Loss: 0.9431 | Accuracy: 0.7752 (77.52%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 42]
+[92mINFO [0m:      [Server] Config for Round 42: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 42: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 10 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 42 Eval | MCTA: 76.49% (BMCTA: 80.19% @ R29) | Combined: 77.69% (BTA: 79.93% @ R24)
+
+============================================================
+  [Server] Round 42 Distributed Client Evaluation
+  Loss: 0.9101 | Accuracy: 0.7769 (77.69%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 43]
+[92mINFO [0m:      [Server] Config for Round 43: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 43: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 8 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 43 Eval | MCTA: 74.95% (BMCTA: 80.19% @ R29) | Combined: 77.13% (BTA: 79.93% @ R24)
+
+============================================================
+  [Server] Round 43 Distributed Client Evaluation
+  Loss: 1.0024 | Accuracy: 0.7713 (77.13%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 44]
+[92mINFO [0m:      [Server] Config for Round 44: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 44: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 2 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 44 Eval | MCTA: 76.31% (BMCTA: 80.19% @ R29) | Combined: 77.26% (BTA: 79.93% @ R24)
+
+============================================================
+  [Server] Round 44 Distributed Client Evaluation
+  Loss: 0.9701 | Accuracy: 0.7726 (77.26%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 45]
+[92mINFO [0m:      [Server] Config for Round 45: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 45: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 5 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 45 Eval | MCTA: 75.74% (BMCTA: 80.19% @ R29) | Combined: 77.44% (BTA: 79.93% @ R24)
+
+============================================================
+  [Server] Round 45 Distributed Client Evaluation
+  Loss: 0.9884 | Accuracy: 0.7744 (77.44%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 46]
+[92mINFO [0m:      [Server] Config for Round 46: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 46: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 10 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 46 Eval | MCTA: 75.88% (BMCTA: 80.19% @ R29) | Combined: 77.10% (BTA: 79.93% @ R24)
+
+============================================================
+  [Server] Round 46 Distributed Client Evaluation
+  Loss: 0.9850 | Accuracy: 0.7710 (77.10%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 47]
+[92mINFO [0m:      [Server] Config for Round 47: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 47: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 10 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 47 Eval | MCTA: 75.68% (BMCTA: 80.19% @ R29) | Combined: 77.49% (BTA: 79.93% @ R24)
+
+============================================================
+  [Server] Round 47 Distributed Client Evaluation
+  Loss: 0.9991 | Accuracy: 0.7749 (77.49%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 48]
+[92mINFO [0m:      [Server] Config for Round 48: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 48: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 8 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 48 Eval | MCTA: 75.53% (BMCTA: 80.19% @ R29) | Combined: 76.84% (BTA: 79.93% @ R24)
+
+============================================================
+  [Server] Round 48 Distributed Client Evaluation
+  Loss: 1.0321 | Accuracy: 0.7684 (76.84%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 49]
+[92mINFO [0m:      [Server] Config for Round 49: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 49: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 11 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 6 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 49 Eval | MCTA: 75.34% (BMCTA: 80.19% @ R29) | Combined: 77.40% (BTA: 79.93% @ R24)
+
+============================================================
+  [Server] Round 49 Distributed Client Evaluation
+  Loss: 0.9877 | Accuracy: 0.7740 (77.40%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 50]
+[92mINFO [0m:      [Server] Config for Round 50: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 50: Balanced phase (distribution-aware weighting)
+[92mINFO [0m:      [Reporting Devices] Client 6 (IPv4: 10.20.101.162, pc) | Client 10 (IPv4: 10.20.101.162, pc) | Client 3 (IPv4: 10.20.101.162, pc) | Client 2 (IPv4: 10.20.101.162, pc) | Client 0 (IPv4: 10.20.101.162, pc) | Client 4 (IPv4: 10.20.101.162, pc) | Client 7 (IPv4: 10.20.101.162, pc) | Client 11 (IPv4: 10.20.101.162, pc) | Client 9 (IPv4: 10.20.101.162, pc) | Client 8 (IPv4: 10.20.101.162, pc) | Client 5 (IPv4: 10.20.101.162, pc) | Client 1 (IPv4: 10.20.101.162, pc)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSwitch] Round 50 Eval | MCTA: 76.11% (BMCTA: 80.19% @ R29) | Combined: 77.44% (BTA: 79.93% @ R24)
+
+============================================================
+  [Server] Round 50 Distributed Client Evaluation
+  Loss: 1.0267 | Accuracy: 0.7744 (77.44%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 51]
+[92mINFO [0m:      [Server] Config for Round 51: strategy=FEDSWITCH, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)

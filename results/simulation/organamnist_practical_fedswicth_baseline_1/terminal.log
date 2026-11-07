@@ -1,0 +1,87 @@
+
+======================================================================
+  FedMedAI Automated Simulation Benchmark
+======================================================================
+  Run Name         : organamnist_practical_fedswicth_baseline_1
+  Output Directory : results/simulation/organamnist_practical_fedswicth_baseline_1
+  Terminal Log     : results/simulation/organamnist_practical_fedswicth_baseline_1/terminal.log
+  Model            : BASELINE
+  Optimizer        : SGD (momentum=0.9)
+  Augmentation     : Disabled (crop=False, flip=False)
+  Seed             : 42
+  Clients          : 12
+  Rounds per Run   : 80
+  Local Epochs     : 5
+  Local Test Eval  : Enabled (BMCTA/BTA tracking)
+  Client Module    : client.client (Parallel Execution)
+  Timeout per Run  : Disabled (Infinite)
+  Datasets         : ['organamnist']
+  Partitions       : ['practical']
+  Strategies       : ['fedswicth']
+  Total Runs Grid  : 1 combinations
+======================================================================
+
+Verifying data partition files for all dataset and partition combinations...
+
+>>> [Simulation Matrix 1/1] Starting: Dataset=organamnist | Partition=practical | Strategy=FEDSWICTH
+
+-----------------------------------------------------------------
+  Launching FL Server: FEDSWICTH | Model: BASELINE | Optimizer: SGD | Dataset: organamnist | Partition: practical | Port: 36909 | LocalTest: True | Seed: 42
+  Artifact Directory : results/simulation/organamnist_practical_fedswicth_baseline_1/organamnist/practical/fedswicth
+-----------------------------------------------------------------
+
+  [Run Error] FEDSWICTH (practical) failed:
+Server process terminated unexpectedly on startup (exit code 2).
+  =======================================================
+  Tail of results/simulation/organamnist_practical_fedswicth_baseline_1/organamnist/practical/fedswicth/server.log:
+  =======================================================
+[--partition_mode PARTITION_MODE]
+                 [--strategy {fedavg,fedprox,fednova,fedbn,scaffold,fedbns,proposed,fedbn_scaffold,cla,scr,coverage_la,coveragela,fedsld,fed_sld,fedsol,fed_sol,fedswitch,fed_switch}]
+                 [--rounds ROUNDS] [--min_clients MIN_CLIENTS]
+                 [--local_epochs LOCAL_EPOCHS]
+                 [--lr_mode {client_loss,server_decay,fixed}]
+                 [--learning_rate LEARNING_RATE]
+                 [--lr_decay_steps LR_DECAY_STEPS]
+                 [--lr_decay_gamma LR_DECAY_GAMMA]
+                 [--server_lr_min SERVER_LR_MIN]
+                 [--client_lr_patience CLIENT_LR_PATIENCE]
+                 [--client_lr_factor CLIENT_LR_FACTOR]
+                 [--client_lr_min CLIENT_LR_MIN] [--proximal_mu PROXIMAL_MU]
+                 [--coverage_kappa COVERAGE_KAPPA]
+                 [--coverage_mu_head COVERAGE_MU_HEAD] [--la_tau LA_TAU]
+                 [--la_epsilon LA_EPSILON] [--scr_gamma SCR_GAMMA]
+                 [--scr_head_lambda SCR_HEAD_LAMBDA]
+                 [--fedsld_epsilon FEDSLD_EPSILON]
+                 [--fedsld_reduction {mean,sum}] [--fedsol_rho FEDSOL_RHO]
+                 [--fedsol_loss_type {kl,l2}]
+                 [--fedsol_temperature FEDSOL_TEMPERATURE]
+                 [--fedsol_adaptive | --no-fedsol_adaptive]
+                 [--switch_round SWITCH_ROUND]
+                 [--fedswitch_coverage FEDSWITCH_COVERAGE]
+                 [--fedswitch_epsilon FEDSWITCH_EPSILON]
+                 [--fedswitch_c_bound FEDSWITCH_C_BOUND]
+                 [--clip_grad_norm CLIP_GRAD_NORM]
+                 [--early_stop_patience EARLY_STOP_PATIENCE]
+                 [--early_stop_metric {accuracy,loss}] [--host HOST]
+                 [--port PORT] [--server_eval | --no-server_eval]
+                 [--local_test | --no-local_test]
+                 [--model {cnn,baseline,paper,classic_cnn,baseline_bn,baselinecnn_bn,classic_bn}]
+                 [--optimizer {adam,sgd,adamw}] [--momentum MOMENTUM]
+                 [--weight_decay WEIGHT_DECAY] [--seed SEED] [--name NAME]
+                 [--save_dir SAVE_DIR]
+server.py: error: argument --strategy: invalid choice: 'fedswicth' (choose from 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold', 'fedbns', 'proposed', 'fedbn_scaffold', 'cla', 'scr', 'coverage_la', 'coveragela', 'fedsld', 'fed_sld', 'fedsol', 'fed_sol', 'fedswitch', 'fed_switch')
+  =======================================================
+
+  [Failed] organamnist/practical/fedswicth: error: RuntimeError (0 partial rounds)
+
+Generating multi-strategy comparison plots grouped by dataset...
+  [Notice] No rounds history available to plot (runs may have timed out or failed before completing).
+
+===========================================================================
+  FedMedAI Simulation Finished: 0 completed, 1 failed. Total Wall-Clock Time: 0.1 minutes
+===========================================================================
+  Artifacts Saved in Directory: results/simulation/organamnist_practical_fedswicth_baseline_1
+  - Executive Report     : simulation_report.md
+  - Terminal Log         : terminal.log
+===========================================================================
+
