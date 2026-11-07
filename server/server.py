@@ -293,7 +293,8 @@ def _make_on_fit_config_fn(
     coverage_mu_head: float = 0.1,
     la_tau: float = 1.0,
     la_epsilon: float = 1.0,
-    fedsol_rho: float = 0.05,
+    fedsol_rho: float = 2.0,
+    fedsol_target: str = "head",
     fedsol_loss_type: str = "kl",
     fedsol_temperature: float = 3.0,
     fedsol_adaptive: bool = False,
@@ -326,6 +327,7 @@ def _make_on_fit_config_fn(
 
         if strategy_name.lower() in ("fedsol", "fed_sol"):
             config["fedsol_rho"] = float(fedsol_rho)
+            config["fedsol_target"] = str(fedsol_target).lower()
             config["fedsol_loss_type"] = str(fedsol_loss_type).lower()
             config["fedsol_temperature"] = float(fedsol_temperature)
             config["fedsol_adaptive"] = bool(fedsol_adaptive)
@@ -597,8 +599,15 @@ def main():
     parser.add_argument(
         "--fedsol_rho",
         type=float,
-        default=yaml_cfg.get("fedsol_rho", 0.05),
-        help=f"FedSOL perturbation radius rho (default: {yaml_cfg.get('fedsol_rho', 0.05)})",
+        default=yaml_cfg.get("fedsol_rho", 2.0),
+        help=f"FedSOL perturbation radius rho (default: {yaml_cfg.get('fedsol_rho', 2.0)})",
+    )
+    parser.add_argument(
+        "--fedsol_target",
+        type=str,
+        default=yaml_cfg.get("fedsol_target", "head"),
+        choices=["head", "all"],
+        help=f"FedSOL perturbation target layers ('head' for classifier only as per paper Sec 3.4, or 'all') (default: {yaml_cfg.get('fedsol_target', 'head')})",
     )
     parser.add_argument(
         "--fedsol_loss_type",
@@ -624,6 +633,13 @@ def main():
         type=int,
         default=yaml_cfg.get("switch_round", None),
         help="FedSwitch switching round R* (default: auto-computed via closed-form)",
+    )
+    parser.add_argument(
+        "--fedswitch_weighting_mode",
+        type=str,
+        default=yaml_cfg.get("fedswitch_weighting_mode", "bounded_sum"),
+        choices=["bounded_sum", "stratified"],
+        help=f"FedSwitch aggregation weighting mode: 'bounded_sum' (paper Eq. 6) or 'stratified' (default: {yaml_cfg.get('fedswitch_weighting_mode', 'bounded_sum')})",
     )
     parser.add_argument(
         "--fedswitch_coverage",
@@ -788,9 +804,9 @@ def main():
     if args.strategy.lower() in ("fedsld", "fed_sld"):
         print(f"  FedSLD       : partition={args.partition_path}")
     if args.strategy.lower() in ("fedsol", "fed_sol"):
-        print(f"  FedSOL       : rho={args.fedsol_rho}, loss_type={args.fedsol_loss_type}, T={args.fedsol_temperature}, adaptive={args.fedsol_adaptive}")
+        print(f"  FedSOL       : rho={args.fedsol_rho}, target={args.fedsol_target}, loss_type={args.fedsol_loss_type}, T={args.fedsol_temperature}, adaptive={args.fedsol_adaptive}")
     if args.strategy.lower() in ("fedswitch", "fed_switch"):
-        print(f"  FedSwitch    : switch_round={args.switch_round}, coverage={args.fedswitch_coverage}, epsilon={args.fedswitch_epsilon}, c_bound={args.fedswitch_c_bound}")
+        print(f"  FedSwitch    : switch_round={args.switch_round}, weighting_mode={args.fedswitch_weighting_mode}, coverage={args.fedswitch_coverage}, epsilon={args.fedswitch_epsilon}, c_bound={args.fedswitch_c_bound}")
     if args.clip_grad_norm is not None:
         print(f"  Grad Clip    : max_norm={args.clip_grad_norm}")
     print(f"  Early Stop   : Patience={args.early_stop_patience} (metric: {args.early_stop_metric})")
@@ -835,6 +851,7 @@ def main():
             la_tau=args.la_tau,
             la_epsilon=args.la_epsilon,
             fedsol_rho=args.fedsol_rho,
+            fedsol_target=args.fedsol_target,
             fedsol_loss_type=args.fedsol_loss_type,
             fedsol_temperature=args.fedsol_temperature,
             fedsol_adaptive=args.fedsol_adaptive,
@@ -889,6 +906,7 @@ def main():
         strategy_kwargs.update({
             "model": initial_model,
             "fedsol_rho": args.fedsol_rho,
+            "fedsol_target": args.fedsol_target,
             "fedsol_loss_type": args.fedsol_loss_type,
             "fedsol_temperature": args.fedsol_temperature,
             "fedsol_adaptive": args.fedsol_adaptive,
@@ -900,6 +918,8 @@ def main():
             "num_classes": num_classes,
             "num_total_clients": args.min_clients,
             "switch_round": args.switch_round,
+            "weighting_mode": args.fedswitch_weighting_mode,
+            "total_rounds": args.rounds,
             "switch_coverage": args.fedswitch_coverage,
             "switch_epsilon": args.fedswitch_epsilon,
             "switch_c_bound": args.fedswitch_c_bound,

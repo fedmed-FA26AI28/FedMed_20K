@@ -366,11 +366,13 @@ def run_single_experiment(
     la_epsilon: float = 1.0,
     scr_gamma: float = 1.0,
     scr_head_lambda: float = 0.01,
-    fedsol_rho: float = 0.05,
+    fedsol_rho: float = 2.0,
+    fedsol_target: str = "head",
     fedsol_loss_type: str = "kl",
     fedsol_temperature: float = 3.0,
     fedsol_adaptive: bool = False,
     switch_round: Optional[int] = None,
+    fedswitch_weighting_mode: str = "bounded_sum",
     fedswitch_coverage: float = 0.9,
     fedswitch_epsilon: float = 1.0,
     fedswitch_c_bound: int = 50,
@@ -421,8 +423,10 @@ def run_single_experiment(
         "--scr_gamma", str(scr_gamma),
         "--scr_head_lambda", str(scr_head_lambda),
         "--fedsol_rho", str(fedsol_rho),
+        "--fedsol_target", str(fedsol_target),
         "--fedsol_loss_type", str(fedsol_loss_type),
         "--fedsol_temperature", str(fedsol_temperature),
+        "--fedswitch_weighting_mode", str(fedswitch_weighting_mode),
         "--fedswitch_coverage", str(fedswitch_coverage),
         "--fedswitch_epsilon", str(fedswitch_epsilon),
         "--fedswitch_c_bound", str(fedswitch_c_bound),
@@ -554,6 +558,7 @@ def run_single_experiment(
                 "--la_tau", str(la_tau),
                 "--la_epsilon", str(la_epsilon),
                 "--fedsol_rho", str(fedsol_rho),
+                "--fedsol_target", str(fedsol_target),
                 "--fedsol_loss_type", str(fedsol_loss_type),
                 "--fedsol_temperature", str(fedsol_temperature),
             ]
@@ -1239,10 +1244,12 @@ def main():
     parser.add_argument("--la_tau", type=float, default=None, help="Logit adjustment intensity tau")
     parser.add_argument("--la_epsilon", type=float, default=None, help="Logit adjustment label count smoothing epsilon")
     parser.add_argument("--fedsol_rho", type=float, default=None, help="FedSOL perturbation radius rho")
+    parser.add_argument("--fedsol_target", type=str, choices=["head", "all"], default=None, help="FedSOL perturbation target layers ('head' or 'all')")
     parser.add_argument("--fedsol_loss_type", type=str, choices=["kl", "l2"], default=None, help="FedSOL discrepancy loss ('kl' or 'l2')")
     parser.add_argument("--fedsol_temperature", type=float, default=None, help="FedSOL softmax temperature T")
     parser.add_argument("--fedsol_adaptive", dest="fedsol_adaptive", action=argparse.BooleanOptionalAction, default=None, help="FedSOL adaptive perturbation radius")
     parser.add_argument("--switch_round", type=int, default=None, help="FedSwitch switching round R*")
+    parser.add_argument("--fedswitch_weighting_mode", type=str, choices=["bounded_sum", "stratified"], default=None, help="FedSwitch aggregation weighting mode")
     parser.add_argument("--fedswitch_coverage", type=float, default=None, help="FedSwitch target coverage probability rho")
     parser.add_argument("--fedswitch_epsilon", type=float, default=None, help="FedSwitch DP privacy budget epsilon")
     parser.add_argument("--fedswitch_c_bound", type=int, default=None, help="FedSwitch DP sensitivity clipping bound C")
@@ -1292,11 +1299,13 @@ def main():
     scr_head_lambda = args.scr_head_lambda if args.scr_head_lambda is not None else cfg.get("scr_head_lambda", 0.01)
     la_tau = args.la_tau if args.la_tau is not None else cfg.get("la_tau", 1.0)
     la_epsilon = args.la_epsilon if args.la_epsilon is not None else cfg.get("la_epsilon", 1.0)
-    fedsol_rho = args.fedsol_rho if args.fedsol_rho is not None else cfg.get("fedsol_rho", 0.05)
+    fedsol_rho = args.fedsol_rho if args.fedsol_rho is not None else cfg.get("fedsol_rho", 2.0)
+    fedsol_target = args.fedsol_target if args.fedsol_target is not None else cfg.get("fedsol_target", "head")
     fedsol_loss_type = args.fedsol_loss_type if args.fedsol_loss_type is not None else cfg.get("fedsol_loss_type", "kl")
     fedsol_temperature = args.fedsol_temperature if args.fedsol_temperature is not None else cfg.get("fedsol_temperature", 3.0)
     fedsol_adaptive = args.fedsol_adaptive if args.fedsol_adaptive is not None else cfg.get("fedsol_adaptive", False)
     switch_round = args.switch_round if args.switch_round is not None else cfg.get("switch_round", None)
+    fedswitch_weighting_mode = args.fedswitch_weighting_mode if args.fedswitch_weighting_mode is not None else cfg.get("fedswitch_weighting_mode", "bounded_sum")
     fedswitch_coverage = args.fedswitch_coverage if args.fedswitch_coverage is not None else cfg.get("fedswitch_coverage", 0.9)
     fedswitch_epsilon = args.fedswitch_epsilon if args.fedswitch_epsilon is not None else cfg.get("fedswitch_epsilon", 1.0)
     fedswitch_c_bound = args.fedswitch_c_bound if args.fedswitch_c_bound is not None else cfg.get("fedswitch_c_bound", 50)
@@ -1429,10 +1438,12 @@ def main():
                     la_tau=la_tau,
                     la_epsilon=la_epsilon,
                     fedsol_rho=fedsol_rho,
+                    fedsol_target=fedsol_target,
                     fedsol_loss_type=fedsol_loss_type,
                     fedsol_temperature=fedsol_temperature,
                     fedsol_adaptive=fedsol_adaptive,
                     switch_round=switch_round,
+                    fedswitch_weighting_mode=fedswitch_weighting_mode,
                     fedswitch_coverage=fedswitch_coverage,
                     fedswitch_epsilon=fedswitch_epsilon,
                     fedswitch_c_bound=fedswitch_c_bound,

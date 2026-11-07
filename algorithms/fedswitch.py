@@ -50,15 +50,25 @@ def _sample_discrete_laplace(scale: float, size: int = 1) -> np.ndarray:
     return (g1 - g2).astype(np.int64)
 
 
-def compute_switching_round(total_clients: int, sampled_per_round: int, coverage: float = 0.9) -> int:
+def compute_switching_round(
+    total_clients: int,
+    sampled_per_round: int,
+    coverage: float = 0.9,
+    total_rounds: Optional[int] = None,
+) -> int:
     """Calculate the earliest communication round R* achieving target client coverage rho.
 
     Formula: R* = ceil( log(1 - rho) / log(1 - m/N) )
+    When m >= N (all clients participate every round), coverage is immediately 100%.
+    In accordance with the FedSwitch paper's warm-up requirement (~20-25% of total budget),
+    we allocate a 25% warm-up phase (e.g. Round 20 for 80 rounds, or 20 by default).
     """
     N = max(int(total_clients), 1)
     m = max(int(sampled_per_round), 1)
     if m >= N:
-        return 1
+        if total_rounds is not None and int(total_rounds) > 0:
+            return max(1, int(0.25 * int(total_rounds)))
+        return 20  # Paper-aligned default warm-up (e.g. R*=21 in MICCAI 2024 paper)
     rho = min(max(float(coverage), 0.01), 0.999)
     ratio = 1.0 - (float(m) / float(N))
     r_star = int(np.ceil(np.log(1.0 - rho) / np.log(ratio)))
@@ -81,7 +91,7 @@ class FedSwitchStrategy(FedStrategyBase):
         partition_path: Optional path to partition JSON file with ground-truth distributions.
         num_classes: Optional total number of classes.
         num_total_clients: Total clients N in the federation (default: 12).
-        weighting_mode: 'stratified' (per-class mean ratio) or 'bounded_sum' (min(1, sum(c/y))).
+        weighting_mode: 'bounded_sum' (min(1, sum(c/y)), MICCAI 2024 paper default) or 'stratified' (mean(c/y)).
         model: Global model instance for inspection.
         **kwargs: Forwarded to FedStrategyBase.
     """
@@ -96,7 +106,8 @@ class FedSwitchStrategy(FedStrategyBase):
         partition_path: Optional[Union[str, Path]] = None,
         num_classes: Optional[int] = None,
         num_total_clients: int = 12,
-        weighting_mode: str = "stratified",
+        weighting_mode: str = "bounded_sum",
+        total_rounds: Optional[int] = None,
         model: Optional[nn.Module] = None,
         strategy_name: str = "FedSwitch",
         **kwargs,
@@ -112,7 +123,10 @@ class FedSwitchStrategy(FedStrategyBase):
         self.switch_c_bound = int(switch_c_bound) if switch_c_bound is not None else 50
         self.partition_path = Path(partition_path) if partition_path else None
         self.num_classes = int(num_classes) if num_classes is not None else None
+        self.total_rounds = int(total_rounds) if total_rounds is not None else None
         self.weighting_mode = str(weighting_mode).lower().strip()
+        if self.weighting_mode not in ("bounded_sum", "stratified"):
+            raise ValueError(f"Unknown weighting_mode: '{self.weighting_mode}'. Must be 'bounded_sum' or 'stratified'.")
 
         # Determine sampling rate m from kwargs or default
         min_fit = kwargs.get("min_fit_clients", kwargs.get("min_clients", self.num_total_clients))
@@ -127,6 +141,16 @@ class FedSwitchStrategy(FedStrategyBase):
                 total_clients=self.num_total_clients,
                 sampled_per_round=self.sampled_per_round,
                 coverage=self.switch_coverage,
+                total_rounds=self.total_rounds,
+            )
+            log(
+                INFO,
+                "[FedSwitch] Auto-computed switch_round: R*=%d (N=%d, m=%d, coverage=%.2f, mode=%s)",
+                self.switch_round,
+                self.num_total_clients,
+                self.sampled_per_round,
+                self.switch_coverage,
+                self.weighting_mode,
             )
             log(
                 INFO,
