@@ -1,0 +1,54 @@
+
+======================================================================
+  FedMedAI Automated Simulation Benchmark
+======================================================================
+  Run Identifier   : RUN_3_SEED_44
+  Master CSV File  : /home/ezycloudx-admin/FedMed_20K/CSV file/master_runs.csv
+  Run Name         : organamnist_dirichlet_0.1_run_3_seed_44_baseline_bn_proposed
+  Output Directory : results/simulation/organamnist_dirichlet_0.1_run_3_seed_44_baseline_bn_proposed
+  Terminal Log     : results/simulation/organamnist_dirichlet_0.1_run_3_seed_44_baseline_bn_proposed/terminal.log
+  Model            : BASELINE_BN
+  Optimizer        : SGD (momentum=0.9)
+  Augmentation     : Disabled (crop=False, flip=False)
+  Seed             : 44
+  Clients          : 12
+  Rounds per Run   : 80
+  Local Epochs     : 5
+  Local Test Eval  : Enabled (BMCTA/BTA tracking)
+  Client Module    : client.client (Parallel Execution)
+  Timeout per Run  : Disabled (Infinite)
+  Datasets         : ['organamnist']
+  Partitions       : ['dirichlet_0.1']
+  Strategies       : ['proposed']
+  Total Runs Grid  : 1 combinations
+======================================================================
+
+Verifying data partition files for all dataset and partition combinations...
+
+>>> [Simulation Matrix 1/1] Starting: Dataset=organamnist | Partition=dirichlet_0.1 | Strategy=PROPOSED
+
+-----------------------------------------------------------------
+  Launching FL Server: PROPOSED | Model: BASELINE_BN | Optimizer: SGD | Dataset: organamnist | Partition: dirichlet_0.1 | Port: 41777 | LocalTest: True | Seed: 44
+  Artifact Directory : results/simulation/organamnist_dirichlet_0.1_run_3_seed_44_baseline_bn_proposed/organamnist/dirichlet_0.1/proposed
+-----------------------------------------------------------------
+  [Server] Listening. Launching 12 client workers (Module: client.client)...
+  [Success] Finished PROPOSED (dirichlet_0.1) [Local Test]: BMCTA: 94.32% (R80) | BTA: 94.76% (R80) | Time: 288.2s
+
+======================================================================
+  [Master CSV Updated] -> master_runs.csv
+  Configuration : ORGANAMNIST | PROPOSED | BASELINE_BN | dirichlet_0.1
+  Recorded Run  : run_3_seed_44 -> BTA=94.76% | BMCTA=94.32% | Loss=0.2024
+  Current Mean  : average (3 runs) -> BTA=94.29 ± 0.41% | BMCTA=94.05 ± 0.53% | Loss=0.2174 ± 0.0133
+======================================================================
+
+
+Generating multi-strategy comparison plots grouped by dataset...
+
+===========================================================================
+  FedMedAI Simulation Complete! Total Wall-Clock Time: 5.0 minutes
+===========================================================================
+  Artifacts Saved in Directory: results/simulation/organamnist_dirichlet_0.1_run_3_seed_44_baseline_bn_proposed
+  - Executive Report     : simulation_report.md
+  - Terminal Log         : terminal.log
+===========================================================================
+

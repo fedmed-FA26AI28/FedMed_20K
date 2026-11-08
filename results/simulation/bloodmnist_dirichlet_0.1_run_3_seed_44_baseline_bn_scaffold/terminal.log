@@ -1,0 +1,54 @@
+
+======================================================================
+  FedMedAI Automated Simulation Benchmark
+======================================================================
+  Run Identifier   : RUN_3_SEED_44
+  Master CSV File  : /home/ezycloudx-admin/FedMed_20K/CSV file/master_runs.csv
+  Run Name         : bloodmnist_dirichlet_0.1_run_3_seed_44_baseline_bn_scaffold
+  Output Directory : results/simulation/bloodmnist_dirichlet_0.1_run_3_seed_44_baseline_bn_scaffold
+  Terminal Log     : results/simulation/bloodmnist_dirichlet_0.1_run_3_seed_44_baseline_bn_scaffold/terminal.log
+  Model            : BASELINE_BN
+  Optimizer        : SGD (momentum=0.9)
+  Augmentation     : Disabled (crop=False, flip=False)
+  Seed             : 44
+  Clients          : 12
+  Rounds per Run   : 80
+  Local Epochs     : 5
+  Local Test Eval  : Enabled (BMCTA/BTA tracking)
+  Client Module    : client.client (Parallel Execution)
+  Timeout per Run  : Disabled (Infinite)
+  Datasets         : ['bloodmnist']
+  Partitions       : ['dirichlet_0.1']
+  Strategies       : ['scaffold']
+  Total Runs Grid  : 1 combinations
+======================================================================
+
+Verifying data partition files for all dataset and partition combinations...
+
+>>> [Simulation Matrix 1/1] Starting: Dataset=bloodmnist | Partition=dirichlet_0.1 | Strategy=SCAFFOLD
+
+-----------------------------------------------------------------
+  Launching FL Server: SCAFFOLD | Model: BASELINE_BN | Optimizer: SGD | Dataset: bloodmnist | Partition: dirichlet_0.1 | Port: 41437 | LocalTest: True | Seed: 44
+  Artifact Directory : results/simulation/bloodmnist_dirichlet_0.1_run_3_seed_44_baseline_bn_scaffold/bloodmnist/dirichlet_0.1/scaffold
+-----------------------------------------------------------------
+  [Server] Listening. Launching 12 client workers (Module: client.client)...
+  [Success] Finished SCAFFOLD (dirichlet_0.1) [Local Test]: BMCTA: 82.25% (R73) | BTA: 87.66% (R73) | Time: 131.1s
+
+======================================================================
+  [Master CSV Updated] -> master_runs.csv
+  Configuration : BLOODMNIST | SCAFFOLD | BASELINE_BN | dirichlet_0.1
+  Recorded Run  : run_3_seed_44 -> BTA=87.66% | BMCTA=82.25% | Loss=0.3353
+  Current Mean  : average (3 runs) -> BTA=88.38 ± 3.25% | BMCTA=87.25 ± 5.01% | Loss=0.3219 ± 0.0751
+======================================================================
+
+
+Generating multi-strategy comparison plots grouped by dataset...
+
+===========================================================================
+  FedMedAI Simulation Complete! Total Wall-Clock Time: 2.3 minutes
+===========================================================================
+  Artifacts Saved in Directory: results/simulation/bloodmnist_dirichlet_0.1_run_3_seed_44_baseline_bn_scaffold
+  - Executive Report     : simulation_report.md
+  - Terminal Log         : terminal.log
+===========================================================================
+

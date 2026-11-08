@@ -1,0 +1,59 @@
+
+======================================================================
+  FedMedAI Automated Simulation Benchmark
+======================================================================
+  Run Identifier   : RUN_2_SEED_43
+  Master CSV File  : /home/ezycloudx-admin/FedMed_20K/CSV file/master_runs.csv
+  Run Name         : bloodmnist_dirichlet_0.1_run_2_seed_43_baseline_bn_fedavg
+  Output Directory : results/simulation/bloodmnist_dirichlet_0.1_run_2_seed_43_baseline_bn_fedavg
+  Terminal Log     : results/simulation/bloodmnist_dirichlet_0.1_run_2_seed_43_baseline_bn_fedavg/terminal.log
+  Model            : BASELINE_BN
+  Optimizer        : SGD (momentum=0.9)
+  Augmentation     : Disabled (crop=False, flip=False)
+  Seed             : 43
+  Clients          : 12
+  Rounds per Run   : 80
+  Local Epochs     : 5
+  Local Test Eval  : Enabled (BMCTA/BTA tracking)
+  Client Module    : client.client (Parallel Execution)
+  Timeout per Run  : Disabled (Infinite)
+  Datasets         : ['bloodmnist']
+  Partitions       : ['dirichlet_0.1']
+  Strategies       : ['fedavg']
+  Total Runs Grid  : 1 combinations
+======================================================================
+
+Verifying data partition files for all dataset and partition combinations...
+
+[Partition] Missing partition: partition_bloodmnist_dirichlet_0.1_localtest_seed43_clients12.json. Generating automatically (local_test=True)...
+Partition saved: data/partitions/partition_bloodmnist_dirichlet_0.1_localtest_seed43_clients12.json (Local test included: True)
+Plot saved: /home/ezycloudx-admin/FedMed_20K/data/partitions/plots/dist_bloodmnist_dirichlet_0.1_localtest_seed43_clients12.png
+[Partition] Generated and verified: data/partitions/partition_bloodmnist_dirichlet_0.1_localtest_seed43_clients12.json (plot: data/partitions/plots/dist_bloodmnist_dirichlet_0.1_localtest_seed43_clients12.png)
+
+>>> [Simulation Matrix 1/1] Starting: Dataset=bloodmnist | Partition=dirichlet_0.1 | Strategy=FEDAVG
+
+-----------------------------------------------------------------
+  Launching FL Server: FEDAVG | Model: BASELINE_BN | Optimizer: SGD | Dataset: bloodmnist | Partition: dirichlet_0.1 | Port: 38785 | LocalTest: True | Seed: 43
+  Artifact Directory : results/simulation/bloodmnist_dirichlet_0.1_run_2_seed_43_baseline_bn_fedavg/bloodmnist/dirichlet_0.1/fedavg
+-----------------------------------------------------------------
+  [Server] Listening. Launching 12 client workers (Module: client.client)...
+  [Success] Finished FEDAVG (dirichlet_0.1) [Local Test]: BMCTA: 88.13% (R73) | BTA: 86.73% (R77) | Time: 139.3s
+
+======================================================================
+  [Master CSV Updated] -> master_runs.csv
+  Configuration : BLOODMNIST | FEDAVG | BASELINE_BN | dirichlet_0.1
+  Recorded Run  : run_2_seed_43 -> BTA=86.73% | BMCTA=88.13% | Loss=0.3523
+  Current Mean  : average (2 runs) -> BTA=89.03 ± 3.25% | BMCTA=90.28 ± 3.03% | Loss=0.3054 ± 0.0664
+======================================================================
+
+
+Generating multi-strategy comparison plots grouped by dataset...
+
+===========================================================================
+  FedMedAI Simulation Complete! Total Wall-Clock Time: 2.5 minutes
+===========================================================================
+  Artifacts Saved in Directory: results/simulation/bloodmnist_dirichlet_0.1_run_2_seed_43_baseline_bn_fedavg
+  - Executive Report     : simulation_report.md
+  - Terminal Log         : terminal.log
+===========================================================================
+
