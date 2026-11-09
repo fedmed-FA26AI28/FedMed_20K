@@ -134,3 +134,140 @@ Generating multi-strategy comparison plots grouped by dataset...
   - Terminal Log         : terminal.log
 ===========================================================================
 
+
+======================================================================
+  FedMedAI Automated Simulation Benchmark
+======================================================================
+  Run Name         : pathmnist_dirichlet_0.1_fedswitch_baseline_bn_4
+  Output Directory : results/simulation/pathmnist_dirichlet_0.1_fedswitch_baseline_bn_4
+  Terminal Log     : results/simulation/pathmnist_dirichlet_0.1_fedswitch_baseline_bn_4/terminal.log
+  Model            : BASELINE_BN
+  Optimizer        : SGD (momentum=0.9)
+  Augmentation     : Disabled (crop=False, flip=False)
+  Seed             : 45
+  Clients          : 12
+  Rounds per Run   : 80
+  Local Epochs     : 5
+  Local Test Eval  : Enabled (BMCTA/BTA tracking)
+  Client Module    : client.client (Parallel Execution)
+  Timeout per Run  : Disabled (Infinite)
+  Datasets         : ['pathmnist']
+  Partitions       : ['dirichlet_0.1']
+  Strategies       : ['fedswitch']
+  Total Runs Grid  : 1 combinations
+======================================================================
+
+Verifying data partition files for all dataset and partition combinations...
+
+[Partition] Missing partition: partition_pathmnist_dirichlet_0.1_localtest_seed45_clients12.json. Generating automatically (local_test=True)...
+Partition saved: data/partitions/partition_pathmnist_dirichlet_0.1_localtest_seed45_clients12.json (Local test included: True)
+Plot saved: /home/ezycloudx-admin/FedMed_20K/data/partitions/plots/dist_pathmnist_dirichlet_0.1_localtest_seed45_clients12.png
+[Partition] Generated and verified: data/partitions/partition_pathmnist_dirichlet_0.1_localtest_seed45_clients12.json (plot: data/partitions/plots/dist_pathmnist_dirichlet_0.1_localtest_seed45_clients12.png)
+
+>>> [Simulation Matrix 1/1] Starting: Dataset=pathmnist | Partition=dirichlet_0.1 | Strategy=FEDSWITCH
+
+-----------------------------------------------------------------
+  Launching FL Server: FEDSWITCH | Model: BASELINE_BN | Optimizer: SGD | Dataset: pathmnist | Partition: dirichlet_0.1 | Port: 41469 | LocalTest: True | Seed: 45
+  Artifact Directory : results/simulation/pathmnist_dirichlet_0.1_fedswitch_baseline_bn_4/pathmnist/dirichlet_0.1/fedswitch
+-----------------------------------------------------------------
+  [Server] Listening. Launching 12 client workers (Module: client.client)...
+  [Progress] [FedSwitch] Round 1 Eval | MCTA: 33.31% (BMCTA: 33.31% @ R1) | Combined: 29.94% (BTA: 29.94% @ R1)
+  [BestModel] Round 1: new best accuracy = 0.2994
+  [Progress] [FedSwitch] Round 2 Eval | MCTA: 25.94% (BMCTA: 33.31% @ R1) | Combined: 23.44% (BTA: 29.94% @ R1)
+  [Progress] [FedSwitch] Round 3 Eval | MCTA: 46.07% (BMCTA: 46.07% @ R3) | Combined: 52.42% (BTA: 52.42% @ R3)
+  [BestModel] Round 3: new best accuracy = 0.5242
+  [Progress] [FedSwitch] Round 4 Eval | MCTA: 24.52% (BMCTA: 46.07% @ R3) | Combined: 22.09% (BTA: 52.42% @ R3)
+  [Progress] [FedSwitch] Round 5 Eval | MCTA: 52.10% (BMCTA: 52.10% @ R5) | Combined: 55.40% (BTA: 55.40% @ R5)
+  [BestModel] Round 5: new best accuracy = 0.5540
+  [Progress] [FedSwitch] Round 6 Eval | MCTA: 28.13% (BMCTA: 52.10% @ R5) | Combined: 29.12% (BTA: 55.40% @ R5)
+  [Progress] [FedSwitch] Round 7 Eval | MCTA: 45.34% (BMCTA: 52.10% @ R5) | Combined: 44.79% (BTA: 55.40% @ R5)
+  [Progress] [FedSwitch] Round 8 Eval | MCTA: 27.21% (BMCTA: 52.10% @ R5) | Combined: 27.63% (BTA: 55.40% @ R5)
+  [Progress] [FedSwitch] Round 9 Eval | MCTA: 56.18% (BMCTA: 56.18% @ R9) | Combined: 57.86% (BTA: 57.86% @ R9)
+  [BestModel] Round 9: new best accuracy = 0.5786
+  [Progress] [FedSwitch] Round 10 Eval | MCTA: 33.87% (BMCTA: 56.18% @ R9) | Combined: 33.01% (BTA: 57.86% @ R9)
+  [Progress] [FedSwitch] Round 11 Eval | MCTA: 58.11% (BMCTA: 58.11% @ R11) | Combined: 64.39% (BTA: 64.39% @ R11)
+  [BestModel] Round 11: new best accuracy = 0.6439
+  [Progress] [FedSwitch] Round 12 Eval | MCTA: 48.65% (BMCTA: 58.11% @ R11) | Combined: 44.48% (BTA: 64.39% @ R11)
+  [Progress] [FedSwitch] Round 13 Eval | MCTA: 50.00% (BMCTA: 58.11% @ R11) | Combined: 55.40% (BTA: 64.39% @ R11)
+  [Progress] [FedSwitch] Round 14 Eval | MCTA: 49.95% (BMCTA: 58.11% @ R11) | Combined: 46.73% (BTA: 64.39% @ R11)
+  [Progress] [FedSwitch] Round 15 Eval | MCTA: 53.14% (BMCTA: 58.11% @ R11) | Combined: 57.66% (BTA: 64.39% @ R11)
+  [Progress] [FedSwitch] Round 16 Eval | MCTA: 53.04% (BMCTA: 58.11% @ R11) | Combined: 45.84% (BTA: 64.39% @ R11)
+  [Progress] [FedSwitch] Round 17 Eval | MCTA: 58.12% (BMCTA: 58.12% @ R17) | Combined: 60.88% (BTA: 64.39% @ R11)
+  [Progress] [FedSwitch] Round 18 Eval | MCTA: 43.74% (BMCTA: 58.12% @ R17) | Combined: 39.28% (BTA: 64.39% @ R11)
+  [Progress] [FedSwitch] Round 19 Eval | MCTA: 55.95% (BMCTA: 58.12% @ R17) | Combined: 57.69% (BTA: 64.39% @ R11)
+  [Progress] [FedSwitch] Round 20 Eval | MCTA: 59.59% (BMCTA: 59.59% @ R20) | Combined: 55.56% (BTA: 64.39% @ R11)
+  [Progress] [FedSwitch] Round 21 Eval | MCTA: 55.20% (BMCTA: 59.59% @ R20) | Combined: 55.28% (BTA: 64.39% @ R11)
+  [Progress] [FedSwitch] Round 22 Eval | MCTA: 64.50% (BMCTA: 64.50% @ R22) | Combined: 62.23% (BTA: 64.39% @ R11)
+  [Progress] [FedSwitch] Round 23 Eval | MCTA: 52.67% (BMCTA: 64.50% @ R22) | Combined: 52.84% (BTA: 64.39% @ R11)
+  [Progress] [FedSwitch] Round 24 Eval | MCTA: 64.51% (BMCTA: 64.51% @ R24) | Combined: 61.11% (BTA: 64.39% @ R11)
+  [Progress] [FedSwitch] Round 25 Eval | MCTA: 46.89% (BMCTA: 64.51% @ R24) | Combined: 51.21% (BTA: 64.39% @ R11)
+  [Progress] [FedSwitch] Round 26 Eval | MCTA: 57.55% (BMCTA: 64.51% @ R24) | Combined: 50.72% (BTA: 64.39% @ R11)
+  [Progress] [FedSwitch] Round 27 Eval | MCTA: 53.56% (BMCTA: 64.51% @ R24) | Combined: 55.36% (BTA: 64.39% @ R11)
+  [Progress] [FedSwitch] Round 28 Eval | MCTA: 57.21% (BMCTA: 64.51% @ R24) | Combined: 50.71% (BTA: 64.39% @ R11)
+  [Progress] [FedSwitch] Round 29 Eval | MCTA: 56.97% (BMCTA: 64.51% @ R24) | Combined: 59.93% (BTA: 64.39% @ R11)
+  [Progress] [FedSwitch] Round 30 Eval | MCTA: 60.07% (BMCTA: 64.51% @ R24) | Combined: 56.25% (BTA: 64.39% @ R11)
+  [Progress] [FedSwitch] Round 31 Eval | MCTA: 59.12% (BMCTA: 64.51% @ R24) | Combined: 62.06% (BTA: 64.39% @ R11)
+  [Progress] [FedSwitch] Round 32 Eval | MCTA: 60.17% (BMCTA: 64.51% @ R24) | Combined: 60.15% (BTA: 64.39% @ R11)
+  [Progress] [FedSwitch] Round 33 Eval | MCTA: 56.18% (BMCTA: 64.51% @ R24) | Combined: 55.75% (BTA: 64.39% @ R11)
+  [Progress] [FedSwitch] Round 34 Eval | MCTA: 62.43% (BMCTA: 64.51% @ R24) | Combined: 62.70% (BTA: 64.39% @ R11)
+  [Progress] [FedSwitch] Round 35 Eval | MCTA: 61.77% (BMCTA: 64.51% @ R24) | Combined: 67.45% (BTA: 67.45% @ R35)
+  [BestModel] Round 35: new best accuracy = 0.6745
+  [Progress] [FedSwitch] Round 36 Eval | MCTA: 59.17% (BMCTA: 64.51% @ R24) | Combined: 53.68% (BTA: 67.45% @ R35)
+  [Progress] [FedSwitch] Round 37 Eval | MCTA: 56.12% (BMCTA: 64.51% @ R24) | Combined: 60.46% (BTA: 67.45% @ R35)
+  [Progress] [FedSwitch] Round 38 Eval | MCTA: 59.87% (BMCTA: 64.51% @ R24) | Combined: 58.04% (BTA: 67.45% @ R35)
+  [Progress] [FedSwitch] Round 39 Eval | MCTA: 60.18% (BMCTA: 64.51% @ R24) | Combined: 66.49% (BTA: 67.45% @ R35)
+  [Progress] [FedSwitch] Round 40 Eval | MCTA: 60.41% (BMCTA: 64.51% @ R24) | Combined: 60.75% (BTA: 67.45% @ R35)
+  [Progress] [FedSwitch] Round 41 Eval | MCTA: 59.90% (BMCTA: 64.51% @ R24) | Combined: 64.39% (BTA: 67.45% @ R35)
+  [Progress] [FedSwitch] Round 42 Eval | MCTA: 62.92% (BMCTA: 64.51% @ R24) | Combined: 62.02% (BTA: 67.45% @ R35)
+  [Progress] [FedSwitch] Round 43 Eval | MCTA: 61.17% (BMCTA: 64.51% @ R24) | Combined: 62.26% (BTA: 67.45% @ R35)
+  [Progress] [FedSwitch] Round 44 Eval | MCTA: 58.57% (BMCTA: 64.51% @ R24) | Combined: 59.47% (BTA: 67.45% @ R35)
+  [Progress] [FedSwitch] Round 45 Eval | MCTA: 65.10% (BMCTA: 65.10% @ R45) | Combined: 66.74% (BTA: 67.45% @ R35)
+  [Progress] [FedSwitch] Round 46 Eval | MCTA: 63.71% (BMCTA: 65.10% @ R45) | Combined: 63.25% (BTA: 67.45% @ R35)
+  [Progress] [FedSwitch] Round 47 Eval | MCTA: 66.49% (BMCTA: 66.49% @ R47) | Combined: 69.96% (BTA: 69.96% @ R47)
+  [BestModel] Round 47: new best accuracy = 0.6996
+  [Progress] [FedSwitch] Round 48 Eval | MCTA: 59.57% (BMCTA: 66.49% @ R47) | Combined: 59.14% (BTA: 69.96% @ R47)
+  [Progress] [FedSwitch] Round 49 Eval | MCTA: 63.89% (BMCTA: 66.49% @ R47) | Combined: 64.99% (BTA: 69.96% @ R47)
+  [Progress] [FedSwitch] Round 50 Eval | MCTA: 59.73% (BMCTA: 66.49% @ R47) | Combined: 54.86% (BTA: 69.96% @ R47)
+  [Progress] [FedSwitch] Round 51 Eval | MCTA: 62.34% (BMCTA: 66.49% @ R47) | Combined: 64.60% (BTA: 69.96% @ R47)
+  [Progress] [FedSwitch] Round 52 Eval | MCTA: 61.44% (BMCTA: 66.49% @ R47) | Combined: 61.27% (BTA: 69.96% @ R47)
+  [Progress] [FedSwitch] Round 53 Eval | MCTA: 63.72% (BMCTA: 66.49% @ R47) | Combined: 65.96% (BTA: 69.96% @ R47)
+  [Progress] [FedSwitch] Round 54 Eval | MCTA: 61.27% (BMCTA: 66.49% @ R47) | Combined: 63.18% (BTA: 69.96% @ R47)
+  [Progress] [FedSwitch] Round 55 Eval | MCTA: 63.61% (BMCTA: 66.49% @ R47) | Combined: 65.88% (BTA: 69.96% @ R47)
+  [Progress] [FedSwitch] Round 56 Eval | MCTA: 63.50% (BMCTA: 66.49% @ R47) | Combined: 65.07% (BTA: 69.96% @ R47)
+  [Progress] [FedSwitch] Round 57 Eval | MCTA: 66.26% (BMCTA: 66.49% @ R47) | Combined: 67.48% (BTA: 69.96% @ R47)
+  [Progress] [FedSwitch] Round 58 Eval | MCTA: 64.09% (BMCTA: 66.49% @ R47) | Combined: 65.85% (BTA: 69.96% @ R47)
+  [Progress] [FedSwitch] Round 59 Eval | MCTA: 64.11% (BMCTA: 66.49% @ R47) | Combined: 64.28% (BTA: 69.96% @ R47)
+  [Progress] [FedSwitch] Round 60 Eval | MCTA: 54.63% (BMCTA: 66.49% @ R47) | Combined: 56.57% (BTA: 69.96% @ R47)
+  [Progress] [FedSwitch] Round 61 Eval | MCTA: 63.27% (BMCTA: 66.49% @ R47) | Combined: 60.32% (BTA: 69.96% @ R47)
+  [Progress] [FedSwitch] Round 62 Eval | MCTA: 58.91% (BMCTA: 66.49% @ R47) | Combined: 60.36% (BTA: 69.96% @ R47)
+  [Progress] [FedSwitch] Round 63 Eval | MCTA: 64.23% (BMCTA: 66.49% @ R47) | Combined: 63.41% (BTA: 69.96% @ R47)
+  [Progress] [FedSwitch] Round 64 Eval | MCTA: 62.43% (BMCTA: 66.49% @ R47) | Combined: 65.35% (BTA: 69.96% @ R47)
+  [Progress] [FedSwitch] Round 65 Eval | MCTA: 64.20% (BMCTA: 66.49% @ R47) | Combined: 64.58% (BTA: 69.96% @ R47)
+  [Progress] [FedSwitch] Round 66 Eval | MCTA: 65.88% (BMCTA: 66.49% @ R47) | Combined: 69.82% (BTA: 69.96% @ R47)
+  [Progress] [FedSwitch] Round 67 Eval | MCTA: 62.45% (BMCTA: 66.49% @ R47) | Combined: 61.82% (BTA: 69.96% @ R47)
+  [Progress] [FedSwitch] Round 68 Eval | MCTA: 65.33% (BMCTA: 66.49% @ R47) | Combined: 70.11% (BTA: 70.11% @ R68)
+  [BestModel] Round 68: new best accuracy = 0.7011
+  [Progress] [FedSwitch] Round 69 Eval | MCTA: 65.50% (BMCTA: 66.49% @ R47) | Combined: 65.47% (BTA: 70.11% @ R68)
+  [Progress] [FedSwitch] Round 70 Eval | MCTA: 63.46% (BMCTA: 66.49% @ R47) | Combined: 65.32% (BTA: 70.11% @ R68)
+  [Progress] [FedSwitch] Round 71 Eval | MCTA: 63.85% (BMCTA: 66.49% @ R47) | Combined: 64.40% (BTA: 70.11% @ R68)
+  [Progress] [FedSwitch] Round 72 Eval | MCTA: 64.08% (BMCTA: 66.49% @ R47) | Combined: 66.96% (BTA: 70.11% @ R68)
+  [Progress] [FedSwitch] Round 73 Eval | MCTA: 63.69% (BMCTA: 66.49% @ R47) | Combined: 63.36% (BTA: 70.11% @ R68)
+  [Progress] [FedSwitch] Round 74 Eval | MCTA: 65.58% (BMCTA: 66.49% @ R47) | Combined: 68.89% (BTA: 70.11% @ R68)
+  [Progress] [FedSwitch] Round 75 Eval | MCTA: 62.35% (BMCTA: 66.49% @ R47) | Combined: 61.38% (BTA: 70.11% @ R68)
+  [Progress] [FedSwitch] Round 76 Eval | MCTA: 63.76% (BMCTA: 66.49% @ R47) | Combined: 66.30% (BTA: 70.11% @ R68)
+  [Progress] [FedSwitch] Round 77 Eval | MCTA: 63.00% (BMCTA: 66.49% @ R47) | Combined: 64.92% (BTA: 70.11% @ R68)
+  [Progress] [FedSwitch] Round 78 Eval | MCTA: 63.30% (BMCTA: 66.49% @ R47) | Combined: 64.83% (BTA: 70.11% @ R68)
+  [Progress] [FedSwitch] Round 79 Eval | MCTA: 64.08% (BMCTA: 66.49% @ R47) | Combined: 65.39% (BTA: 70.11% @ R68)
+  [Progress] [FedSwitch] Round 80 Eval | MCTA: 64.29% (BMCTA: 66.49% @ R47) | Combined: 66.24% (BTA: 70.11% @ R68)
+  [Success] Finished FEDSWITCH (dirichlet_0.1) [Local Test]: BMCTA: 66.49% (R47) | BMCTA Loss: 1.3279 | BTA: 70.11% (R68) | Time: 619.9s
+
+Generating multi-strategy comparison plots grouped by dataset...
+
+===========================================================================
+  FedMedAI Simulation Finished: 1 completed, 0 failed. Total Wall-Clock Time: 10.4 minutes
+===========================================================================
+  Artifacts Saved in Directory: results/simulation/pathmnist_dirichlet_0.1_fedswitch_baseline_bn_4
+  - Executive Report     : simulation_report.md
+  - Terminal Log         : terminal.log
+===========================================================================
+
