@@ -117,10 +117,6 @@ MOMENTUM="${MOMENTUM:-0.9}"
 OPTIMIZER="${OPTIMIZER:-sgd}"
 LR_MODE="${LR_MODE:-fixed}"
 TIMEOUT="${TIMEOUT:-0}"
-COVERAGE_KAPPA="${COVERAGE_KAPPA:-}"
-COVERAGE_MU_HEAD="${COVERAGE_MU_HEAD:-}"
-LA_TAU="${LA_TAU:-}"
-LA_EPSILON="${LA_EPSILON:-}"
 SCR_GAMMA="${SCR_GAMMA:-}"
 SCR_HEAD_LAMBDA="${SCR_HEAD_LAMBDA:-}"
 PROXIMAL_MU="${PROXIMAL_MU:-}"
@@ -225,10 +221,6 @@ for d_idx in "${!DATASETS[@]}"; do
                 echo ">>> [Overall: $GLOBAL_RUN_COUNTER/$TOTAL_ALL_RUNS | $CURRENT_DATASET | $CURRENT_PARTITION | $CURRENT_STRATEGY: Run $RUN_NUM/$RUNS_PER_CONFIG] (Seed: $SEED, Name: $RUN_NAME) <<<"
 
                 EXTRA_ARGS=()
-                [ -n "$COVERAGE_KAPPA" ] && EXTRA_ARGS+=(--coverage_kappa "$COVERAGE_KAPPA")
-                [ -n "$COVERAGE_MU_HEAD" ] && EXTRA_ARGS+=(--coverage_mu_head "$COVERAGE_MU_HEAD")
-                [ -n "$LA_TAU" ] && EXTRA_ARGS+=(--la_tau "$LA_TAU")
-                [ -n "$LA_EPSILON" ] && EXTRA_ARGS+=(--la_epsilon "$LA_EPSILON")
                 [ -n "$SCR_GAMMA" ] && EXTRA_ARGS+=(--scr_gamma "$SCR_GAMMA")
                 [ -n "$SCR_HEAD_LAMBDA" ] && EXTRA_ARGS+=(--scr_head_lambda "$SCR_HEAD_LAMBDA")
                 [ -n "$PROXIMAL_MU" ] && EXTRA_ARGS+=(--proximal_mu "$PROXIMAL_MU")
