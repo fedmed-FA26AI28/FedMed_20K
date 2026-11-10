@@ -169,10 +169,6 @@ def _local_train(
     is_scaffold: bool = False,
     min_lr: float = 1e-6,
     early_stop_patience: int = 5,
-    coverage_head_ref: dict = None,
-    coverage_weights: "torch.Tensor | None" = None,
-    la_offsets: "torch.Tensor | None" = None,
-    coverage_mu_head: float = 0.0,
     scr_sample_weights: "torch.Tensor | None" = None,
     scr_anchor: "torch.Tensor | None" = None,
     scr_reference: "tuple[torch.Tensor, torch.Tensor] | None" = None,
@@ -198,11 +194,6 @@ def _local_train(
         global_params: Global model parameters (list of tensors) for proximal term.
         scaffold_drift: List of tensor drift terms (c - c_i) for trainable parameters in SCAFFOLD.
         is_scaffold: Whether SCAFFOLD is active to track uncorrupted loss gradients (Option 2).
-        coverage_head_ref: Dict with 'weight' and optionally 'bias' reference tensors
-            from the global model at the start of the round (Coverage penalty).
-        coverage_weights: Tensor of shape (C,) with per-class anchoring weights a_{k,c}.
-        la_offsets: Tensor of shape (C,) with logit adjustment offsets Delta_{k,c}.
-        coverage_mu_head: Intensity of the Coverage head penalty.
         scr_sample_weights: Fixed per-class training-sample weights for SCR.
         scr_anchor: Support-dependent classifier row anchor for SCR.
         scr_reference: Received global classifier weight and bias at round start.
@@ -221,12 +212,6 @@ def _local_train(
         clip_grad_norm: Maximum L2 gradient norm for clipping (None or <= 0 disables).
     """
     criterion = nn.CrossEntropyLoss()
-    is_coverage_la = (
-        coverage_head_ref is not None
-        and coverage_weights is not None
-        and coverage_mu_head > 0.0
-    )
-    use_la = la_offsets is not None
     use_scr = scr_sample_weights is not None
     if use_scr:
         if scr_anchor is None or scr_reference is None:
@@ -250,7 +235,7 @@ def _local_train(
     trainable_params = [p for p in model.parameters() if p.requires_grad]
     grad_accum = [torch.zeros_like(p) for p in trainable_params] if is_scaffold else None
 
-    # Identify the final classifier layer for FedSOL partial perturbation and Coverage penalty
+    # Identify the final classifier layer for FedSOL partial perturbation
     last_linear = None
     for m in model.modules():
         if isinstance(m, nn.Linear):
@@ -286,18 +271,6 @@ def _local_train(
             adaptive=fedsol_adaptive,
             ref_params=ref_p,
         )
-
-    head_weight_param = None
-    head_bias_param = None
-    if is_coverage_la and last_linear is not None:
-        head_weight_param = last_linear.weight
-        head_bias_param = last_linear.bias  # May be None
-        if coverage_weights is not None:
-            coverage_weights = coverage_weights.to(device)
-        if coverage_head_ref is not None:
-            coverage_head_ref = {k: v.to(device) for k, v in coverage_head_ref.items()}
-    if use_la and la_offsets is not None:
-        la_offsets = la_offsets.to(device)
 
     for epoch in range(epochs):
         model.train()
@@ -371,22 +344,8 @@ def _local_train(
                 loss = (scr_sample_weights[labels] * ce).mean()
                 loss = loss + head_penalty(
                     model, scr_reference, scr_anchor, scr_head_lambda)
-            elif use_la:
-                adjusted_logits = outputs + la_offsets.unsqueeze(0)
-                loss = criterion(adjusted_logits, labels)
             else:
                 loss = criterion(outputs, labels)
-
-            # Coverage head penalty: anchor classifier rows to reference
-            if is_coverage_la and head_weight_param is not None:
-                w_ref = coverage_head_ref["weight"]
-                penalty = (coverage_weights.unsqueeze(1) *
-                           (head_weight_param - w_ref) ** 2).sum()
-                if head_bias_param is not None and "bias" in coverage_head_ref:
-                    b_ref = coverage_head_ref["bias"]
-                    penalty = penalty + (coverage_weights *
-                                         (head_bias_param - b_ref) ** 2).sum()
-                loss = loss + (coverage_mu_head / 2.0) * penalty
 
             # FedProx proximal term
             if proximal_mu > 0.0 and global_params is not None:
@@ -789,61 +748,11 @@ class FedMedAIClient(fl.client.NumPyClient):
                 p.clone().detach() for p in self.model.parameters()
             ]
 
-        # Prepare Coverage + LA parameters
-        coverage_head_ref = None
-        coverage_weights_tensor = None
-        la_offsets_tensor = None
-        coverage_mu_head_val = 0.0
+        # Prepare SCR parameters
         scr_sample_weights = None
         scr_anchor = None
         scr_reference = None
         scr_head_lambda = 0.0
-
-        if strategy in ("coverage_la", "cla", "coveragela"):
-            cov_kappa = float(config.get("coverage_kappa", 512.0))
-            cov_mu_head = float(config.get("coverage_mu_head", 0.1))
-            la_tau = float(config.get("la_tau", 1.0))
-            la_epsilon = float(config.get("la_epsilon", 1.0))
-
-            self.optimizer.state.clear()
-
-            if not hasattr(self, "_class_counts") or self._class_counts is None:
-                last_linear = None
-                for m in self.model.modules():
-                    if isinstance(m, nn.Linear):
-                        last_linear = m
-                num_cls = last_linear.out_features if last_linear is not None else getattr(self, "num_classes", 8)
-                class_counts = torch.zeros(num_cls, dtype=torch.float32)
-                for _, labels_batch in self.train_loader:
-                    labels_flat = labels_batch.view(-1).long()
-                    for c in range(num_cls):
-                        class_counts[c] += (labels_flat == c).sum().item()
-                self._class_counts = class_counts
-            else:
-                class_counts = self._class_counts
-
-            coverage_weights_tensor = (cov_kappa / (class_counts + cov_kappa)).to(self.device)
-
-            if la_tau > 0:
-                la_offsets_tensor = (la_tau * torch.log(class_counts + la_epsilon)).to(self.device)
-
-            if cov_mu_head > 0:
-                last_linear = None
-                for m in self.model.modules():
-                    if isinstance(m, nn.Linear):
-                        last_linear = m
-                if last_linear is not None:
-                    coverage_head_ref = {
-                        "weight": last_linear.weight.clone().detach(),
-                    }
-                    if last_linear.bias is not None:
-                        coverage_head_ref["bias"] = last_linear.bias.clone().detach()
-                    coverage_mu_head_val = cov_mu_head
-
-            print(
-                f"[Client {self.client_id}] Coverage+LA: kappa={cov_kappa} mu_head={cov_mu_head} "
-                f"tau={la_tau} eps={la_epsilon} | class_counts={class_counts.tolist()}"
-            )
 
         if strategy == "scr":
             required = ("scr_global_counts", "scr_coverage_sum", "scr_total_samples",
@@ -931,10 +840,6 @@ class FedMedAIClient(fl.client.NumPyClient):
             global_params=global_params,
             scaffold_drift=scaffold_drift,
             is_scaffold=is_scaffold,
-            coverage_head_ref=coverage_head_ref,
-            coverage_weights=coverage_weights_tensor,
-            la_offsets=la_offsets_tensor,
-            coverage_mu_head=coverage_mu_head_val,
             scr_sample_weights=scr_sample_weights,
             scr_anchor=scr_anchor,
             scr_reference=scr_reference,
@@ -1293,10 +1198,7 @@ def main():
             "fedbns",
             "proposed",
             "fedbn_scaffold",
-            "cla",
             "scr",
-            "coverage_la",
-            "coveragela",
             "fedsld",
             "fed_sld",
             "fedsol",
@@ -1338,30 +1240,6 @@ def main():
         default=yaml_cfg.get("optimizer", "adam"),
         choices=["adam", "sgd", "adamw"],
         help=f"Client local optimizer ('adam', 'sgd', or 'adamw') (default: {yaml_cfg.get('optimizer', 'adam')})",
-    )
-    parser.add_argument(
-        "--coverage_kappa",
-        type=float,
-        default=yaml_cfg.get("coverage_kappa", 512.0),
-        help=f"Coverage anchoring parameter kappa (default: {yaml_cfg.get('coverage_kappa', 512.0)})",
-    )
-    parser.add_argument(
-        "--coverage_mu_head",
-        type=float,
-        default=yaml_cfg.get("coverage_mu_head", 0.1),
-        help=f"Coverage head penalty intensity mu_head (default: {yaml_cfg.get('coverage_mu_head', 0.1)})",
-    )
-    parser.add_argument(
-        "--la_tau",
-        type=float,
-        default=yaml_cfg.get("la_tau", 1.0),
-        help=f"Logit adjustment intensity tau (default: {yaml_cfg.get('la_tau', 1.0)})",
-    )
-    parser.add_argument(
-        "--la_epsilon",
-        type=float,
-        default=yaml_cfg.get("la_epsilon", 1.0),
-        help=f"Logit adjustment label count smoothing epsilon (default: {yaml_cfg.get('la_epsilon', 1.0)})",
     )
     parser.add_argument(
         "--fedsol_rho",

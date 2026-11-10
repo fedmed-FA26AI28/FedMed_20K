@@ -9,8 +9,6 @@ Usage:
     strategy = get_strategy("fedbn")
     strategy = get_strategy("scaffold")
     strategy = get_strategy("fedbns")       # FedBN + SCAFFOLD (alias: "proposed")
-    strategy = get_strategy("cla")          # Coverage + Logit Adjustment (CoverageLA)
-    strategy = get_strategy("coverage_la")  # Coverage + Logit Adjustment (alias)
     strategy = get_strategy("scr", model=model, partition_path=partition_path,
                             num_total_clients=12)  # Support-calibrated risk
     strategy = get_strategy("fedsld", partition_path=partition_path)  # FedSLD (ISBI 2022)
@@ -29,7 +27,6 @@ from algorithms.fedbns import (
     FedBNScaffoldStrategy,
     ScaffoldFedBNStrategy,
 )
-from algorithms.cla import CLAStrategy, CoverageLA_Strategy
 from algorithms.scr import SCRStrategy
 from algorithms.fedsld import FedSLDStrategy
 from algorithms.fedsol import FedSOLStrategy
@@ -49,10 +46,6 @@ STRATEGY_REGISTRY = {
     "fedbn_scaffold": FedBNScaffoldStrategy,
     "bn_scaffold": FedBNScaffoldStrategy,
     "scaffold_fedbn": ScaffoldFedBNStrategy,
-    # Coverage + Logit Adjustment (CLA / CoverageLA)
-    "cla": CLAStrategy,
-    "coverage_la": CoverageLA_Strategy,
-    "coveragela": CoverageLA_Strategy,
     # Support-calibrated risk
     "scr": SCRStrategy,
     # FedSLD (Shared Label Distribution)
@@ -69,7 +62,7 @@ def get_strategy(name: str = "fedavg", **kwargs):
     """Factory function to create a strategy by name.
 
     Args:
-        name: One of 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold', 'fedbns', 'proposed', 'cla', 'coverage_la', 'coveragela', 'scr', 'fedsld'.
+        name: One of 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold', 'fedbns', 'proposed', 'scr', 'fedsld', 'fedsol', 'fedswitch'.
         **kwargs: Forwarded to the strategy constructor.
 
     Returns:
@@ -99,8 +92,6 @@ __all__ = [
     "ProposedStrategy",
     "FedBNScaffoldStrategy",
     "ScaffoldFedBNStrategy",
-    "CLAStrategy",
-    "CoverageLA_Strategy",
     "SCRStrategy",
     "FedSLDStrategy",
     "FedSOLStrategy",

@@ -180,7 +180,7 @@ Run client instances on each physical machine pointing to the server address:
 | Option | Type | Default | Description |
 | :--- | :---: | :---: | :--- |
 | `--config` | `str` | `configs/experiment.yaml` | Path to YAML experiment configuration file. |
-| `--strategy` | `str` | `fedbns` | Aggregation strategy: `fedavg`, `fedprox`, `fednova`, `fedbn`, `scaffold`, `fedbns`, `proposed`, `cla`, `scr`, `fedsld`, `fedsol`, `fedswitch`. |
+| `--strategy` | `str` | `fedbns` | Aggregation strategy: `fedavg`, `fedprox`, `fednova`, `fedbn`, `scaffold`, `fedbns`, `proposed`, `scr`, `fedsld`, `fedsol`, `fedswitch`. |
 | `--dataset` | `str` | `pathmnist` | Dataset name: `bloodmnist`, `pathmnist`, `organamnist`, `dermamnist`. |
 | `--model` | `str` | `baseline_bn` | Model architecture: `baseline_bn` (with BN), `baseline` (without BN), or `cnn`. |
 | `--partition_mode` | `str` | `practical` | Partition mode (`practical`, `pathological`, `dirichlet_0.3`, etc.). |
@@ -193,10 +193,6 @@ Run client instances on each physical machine pointing to the server address:
 | `--local_test` | `bool` | `True` | Track BMCTA and BTA on client-specific local test sets (required for FedBN and FedBNS). |
 | `--server_eval` | `bool` | `True` | Evaluate aggregated model on server global test set each round. |
 | `--proximal_mu` | `float` | `0.01` | FedProx proximal penalty coefficient. |
-| `--coverage_kappa` | `float` | `512.0` | CLA coverage anchoring parameter kappa (controls weight decay curve). |
-| `--coverage_mu_head` | `float` | `0.1` | CLA classifier head penalty intensity mu_head (anchors to global head). |
-| `--la_tau` | `float` | `1.0` | CLA Logit Adjustment intensity tau (shifts logits by class frequency). |
-| `--la_epsilon` | `float` | `1.0` | CLA Logit Adjustment smoothing epsilon for log counts. |
 | `--scr_gamma` | `float` | `1.0` | SCR class-client support smoothing parameter gamma. |
 | `--scr_head_lambda` | `float` | `0.01` | SCR support-dependent classifier head anchor strength. |
 | `--fedsld_epsilon` | `float` | `1e-6` | FedSLD smoothing epsilon for batch loss reweighting. |
@@ -225,12 +221,8 @@ Run client instances on each physical machine pointing to the server address:
 | `--partition_mode` | `str` | `practical` | Partition mode (`practical`, `pathological`, `dirichlet_0.3`, etc.). |
 | `--partition_path` | `str` | `None` | Path to partition JSON. If omitted, auto-detected from `data/partitions/`. |
 | `--num_clients` | `int` | `12` | Total number of clients in partition split. |
-| `--strategy` | `str` | `fedbns` | Client FL strategy (`fedavg`, `fedprox`, `fednova`, `fedbn`, `scaffold`, `fedbns`, `cla`, `scr`, `fedsld`, `fedsol`, `fedswitch`). |
+| `--strategy` | `str` | `fedbns` | Client FL strategy (`fedavg`, `fedprox`, `fednova`, `fedbn`, `scaffold`, `fedbns`, `scr`, `fedsld`, `fedsol`, `fedswitch`). |
 | `--optimizer` | `str` | `sgd` | Client local optimizer: `adam`, `sgd`, or `adamw`. |
-| `--coverage_kappa` | `float` | `512.0` | CLA coverage anchoring parameter kappa. |
-| `--coverage_mu_head` | `float` | `0.1` | CLA classifier head penalty intensity mu_head. |
-| `--la_tau` | `float` | `1.0` | CLA Logit Adjustment intensity tau. |
-| `--la_epsilon` | `float` | `1.0` | CLA Logit Adjustment smoothing epsilon. |
 | `--fedsol_rho` | `float` | `0.05` | FedSOL SAM perturbation radius $\rho$. |
 | `--fedsol_loss_type` | `str` | `kl` | FedSOL proximal discrepancy loss metric (`kl` or `l2`). |
 | `--fedsol_temperature` | `float` | `3.0` | FedSOL softmax temperature $T$ for KL divergence. |
@@ -315,7 +307,6 @@ The simulation harness ([`experiments/run_simulation.py`](file:///D:/FPT/KLTN/FE
 | `fedbn` | Yes | No | Local Batch Normalization mitigates feature/domain shift. |
 | `scaffold` | No | Yes | Control variates correct client drift from label non-IID. |
 | `fedbns` (`proposed`) | Yes | Yes | **Proposed Strategy**: Synergistic integration of FedBN and SCAFFOLD. |
-| `cla` | No | No | **Coverage + Logit Adjustment (CoverageLA)**: Local classifier head anchoring penalty to global reference + class-frequency logit offset. |
 | `scr` | No | No | **Support-Calibrated Risk (SCR)**: Support statistics client risk weighting + support-dependent classifier head anchoring. |
 | `fedsld` | No | No | **Shared Label Distribution (FedSLD)**: Global marginal prior P~(y) estimation + dynamic mini-batch cross-entropy reweighting. |
 | `fedsol` | No | No | **Self-Centered Optimization (FedSOL)**: ExpSAM adversarial proximal perturbation against frozen round-start global reference model. |
@@ -334,10 +325,6 @@ The simulation harness ([`experiments/run_simulation.py`](file:///D:/FPT/KLTN/FE
 - **Paper Baseline Replication** (FedSLD Table 2: 12 clients, Practical partition, SGD lr=0.01, batch 256, 80 rounds):
   ```bash
   python -m experiments.run_simulation --datasets pathmnist --partitions practical --strategies fedavg --model baseline --optimizer sgd --learning_rate 0.01 --lr_mode fixed --batch_size 256 --rounds 80 --local_test
-  ```
-- **CLA (Coverage + Logit Adjustment) Benchmark Run** (80 rounds, PathMNIST, baseline architecture):
-  ```bash
-  python -m experiments.run_simulation --datasets pathmnist --partitions practical --strategies cla --model baseline --optimizer sgd --rounds 80 --local_test
   ```
 - **FedSOL Benchmark Run with AdamW** (40 rounds, PathMNIST, baseline_bn, ExpSAM rho=0.05, loss_type=kl):
   ```bash
@@ -389,10 +376,6 @@ Simulation outputs are compiled in `results/simulation/<name_or_timestamp>/`:
 | `--local_test` | `local_test` | `True` | Partition test set across clients and record BMCTA / BTA. |
 | `--server_eval` | `server_eval` | `True` | Evaluate global test set at server. |
 | `--proximal_mu` | `proximal_mu` | `0.01` | Proximal penalty $\mu$ for FedProx. |
-| `--coverage_kappa` | `coverage_kappa` | `512.0` | CLA coverage anchoring parameter kappa ($\kappa > 0$). |
-| `--coverage_mu_head` | `coverage_mu_head` | `0.1` | CLA classifier head penalty intensity $\mu_{\text{head}} \ge 0$. |
-| `--la_tau` | `la_tau` | `1.0` | CLA Logit Adjustment intensity $\tau \ge 0$. |
-| `--la_epsilon` | `la_epsilon` | `1.0` | CLA Logit Adjustment smoothing $\epsilon > 0$. |
 | `--fedsol_rho` | `fedsol_rho` | `0.05` | FedSOL SAM perturbation radius $\rho$. |
 | `--fedsol_loss_type` | `fedsol_loss_type` | `kl` | FedSOL proximal discrepancy loss metric (`kl` or `l2`). |
 | `--fedsol_temperature` | `fedsol_temperature` | `3.0` | FedSOL softmax temperature $T$. |

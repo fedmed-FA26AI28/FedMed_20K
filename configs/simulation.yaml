@@ -34,7 +34,6 @@ partitions:
 #   - 'fedbn'    : Local Batch Normalization for domain/feature shift (Li et al., 2021)
 #   - 'scaffold' : Control variates for client drift (Karimireddy et al., 2020)
 #   - 'fedbns'   : FedBN + SCAFFOLD (Dual-Heterogeneity, alias: 'proposed')
-#   - 'cla'      : Coverage + Logit Adjustment (CoverageLA: classifier head anchoring & logit offset, alias: 'coverage_la')
 #   - 'scr'      : Support-Calibrated Risk (training-count weights + head anchor)
 #   - 'fedsld'   : Shared Label Distribution with dynamic batch reweighting (Luo & Wu, IEEE ISBI 2022)
 #   - 'fedsol'   : Self-Centered Optimization with ExpSAM & reference model (Lee et al., NeurIPS 2024)
@@ -77,10 +76,6 @@ server_lr_min: 0.00001            # Minimum learning rate lower bound for server
 
 # --- Algorithm-Specific Hyperparameters ---
 proximal_mu: 0.01                 # FedProx proximal coefficient (0.0 = FedAvg)
-coverage_kappa: 512.0             # CLA coverage anchoring curve parameter kappa (kappa > 0)
-coverage_mu_head: 0.1             # CLA classifier head penalty intensity mu_head (mu_head >= 0)
-la_tau: 1.0                       # CLA logit adjustment intensity tau (tau >= 0)
-la_epsilon: 1.0                   # CLA logit adjustment label smoothing epsilon (epsilon > 0)
 scr_gamma: 1.0                    # SCR support smoothing, kappa_c = gamma * n_c / K
 scr_head_lambda: 0.01             # SCR classifier-row anchor strength
 

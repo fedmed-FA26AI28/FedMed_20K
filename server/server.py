@@ -1,7 +1,7 @@
 """FL Server entry point with Step LR Decay, Early Stopping, and YAML config support.
 
 Starts a Flower server with a user-selectable aggregation strategy from
-the algorithms/ folder (FedAvg, FedProx, FedNova, FedBN, SCAFFOLD, FedBNS, CLA, SCR, FedSLD).
+the algorithms/ folder (FedAvg, FedProx, FedNova, FedBN, SCAFFOLD, FedBNS, SCR, FedSLD, FedSOL, FedSwitch).
 
 Usage:
     # Run with default settings from configs/experiment.yaml:
@@ -289,10 +289,6 @@ def _make_on_fit_config_fn(
     client_lr_min: float = 1e-6,
     optimizer: str = "adam",
     momentum: float = 0.0,
-    coverage_kappa: float = 512.0,
-    coverage_mu_head: float = 0.1,
-    la_tau: float = 1.0,
-    la_epsilon: float = 1.0,
     fedsol_rho: float = 2.0,
     fedsol_target: str = "head",
     fedsol_loss_type: str = "kl",
@@ -318,12 +314,6 @@ def _make_on_fit_config_fn(
 
         if proximal_mu > 0.0:
             config["proximal_mu"] = proximal_mu
-
-        if strategy_name.lower() in ("coverage_la", "cla", "coveragela"):
-            config["coverage_kappa"] = float(coverage_kappa)
-            config["coverage_mu_head"] = float(coverage_mu_head)
-            config["la_tau"] = float(la_tau)
-            config["la_epsilon"] = float(la_epsilon)
 
         if strategy_name.lower() in ("fedsol", "fed_sol"):
             config["fedsol_rho"] = float(fedsol_rho)
@@ -464,10 +454,7 @@ def main():
             "fedbns",
             "proposed",
             "fedbn_scaffold",
-            "cla",
             "scr",
-            "coverage_la",
-            "coveragela",
             "fedsld",
             "fed_sld",
             "fedsol",
@@ -552,30 +539,6 @@ def main():
         type=float,
         default=yaml_cfg.get("proximal_mu", 0.01),
         help=f"FedProx proximal mu parameter (default: {yaml_cfg.get('proximal_mu', 0.01)})",
-    )
-    parser.add_argument(
-        "--coverage_kappa",
-        type=float,
-        default=yaml_cfg.get("coverage_kappa", 512.0),
-        help=f"Coverage anchoring parameter kappa (default: {yaml_cfg.get('coverage_kappa', 512.0)})",
-    )
-    parser.add_argument(
-        "--coverage_mu_head",
-        type=float,
-        default=yaml_cfg.get("coverage_mu_head", 0.1),
-        help=f"Coverage head penalty intensity mu_head (default: {yaml_cfg.get('coverage_mu_head', 0.1)})",
-    )
-    parser.add_argument(
-        "--la_tau",
-        type=float,
-        default=yaml_cfg.get("la_tau", 1.0),
-        help=f"Logit adjustment intensity tau (default: {yaml_cfg.get('la_tau', 1.0)})",
-    )
-    parser.add_argument(
-        "--la_epsilon",
-        type=float,
-        default=yaml_cfg.get("la_epsilon", 1.0),
-        help=f"Logit adjustment label count smoothing epsilon (default: {yaml_cfg.get('la_epsilon', 1.0)})",
     )
     parser.add_argument("--scr_gamma", type=float,
                         default=yaml_cfg.get("scr_gamma", 1.0),
@@ -797,8 +760,6 @@ def main():
         print(f"  LR Policy    : Fixed constant learning rate across all rounds")
     if args.strategy == "fedprox":
         print(f"  Proximal mu  : {args.proximal_mu}")
-    if args.strategy.lower() in ("coverage_la", "cla", "coveragela"):
-        print(f"  Coverage LA  : kappa={args.coverage_kappa}, mu_head={args.coverage_mu_head}, tau={args.la_tau}, eps={args.la_epsilon}")
     if args.strategy.lower() == "scr":
         print(f"  SCR          : gamma={args.scr_gamma}, head_lambda={args.scr_head_lambda}, partition={args.partition_path}")
     if args.strategy.lower() in ("fedsld", "fed_sld"):
@@ -846,10 +807,6 @@ def main():
             client_lr_min=args.client_lr_min,
             optimizer=args.optimizer,
             momentum=args.momentum,
-            coverage_kappa=args.coverage_kappa,
-            coverage_mu_head=args.coverage_mu_head,
-            la_tau=args.la_tau,
-            la_epsilon=args.la_epsilon,
             fedsol_rho=args.fedsol_rho,
             fedsol_target=args.fedsol_target,
             fedsol_loss_type=args.fedsol_loss_type,
@@ -924,12 +881,6 @@ def main():
             "switch_epsilon": args.fedswitch_epsilon,
             "switch_c_bound": args.fedswitch_c_bound,
         })
-    elif strat_key in ("coverage_la", "cla", "coveragela"):
-        strategy_kwargs["coverage_kappa"] = args.coverage_kappa
-        strategy_kwargs["coverage_mu_head"] = args.coverage_mu_head
-        strategy_kwargs["la_tau"] = args.la_tau
-        strategy_kwargs["la_epsilon"] = args.la_epsilon
-        strategy_kwargs["model"] = initial_model
     elif strat_key in (
         "scaffold",
         "fedbn_scaffold", "bn_scaffold", "scaffold_fedbn",
@@ -983,11 +934,6 @@ def main():
     print(f"  Early Stopped  : {summary.get('early_stopped', False)}")
     if "proximal_mu" in summary or args.strategy == "fedprox":
         print(f"  Proximal mu    : {summary.get('proximal_mu', getattr(args, 'proximal_mu', 'N/A'))}")
-    if "coverage_kappa" in summary or args.strategy.lower() in ("coverage_la", "cla", "coveragela"):
-        print(f"  Coverage LA    : kappa={summary.get('coverage_kappa', getattr(args, 'coverage_kappa', 512.0))}, "
-              f"mu_head={summary.get('coverage_mu_head', getattr(args, 'coverage_mu_head', 0.1))}, "
-              f"tau={summary.get('la_tau', getattr(args, 'la_tau', 1.0))}, "
-              f"eps={summary.get('la_epsilon', getattr(args, 'la_epsilon', 1.0))}")
     if "num_bn_layers_local" in summary:
         print(f"  Local BN Layers: {summary.get('num_bn_layers_local', 'N/A')}")
         print(f"  Aggregated Non-BN: {summary.get('num_non_bn_layers_aggregated', 'N/A')}")
