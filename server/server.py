@@ -728,6 +728,25 @@ def main():
         )
         if candidate_p.exists():
             args.partition_path = str(candidate_p)
+        else:
+            strat_key = args.strategy.lower()
+            if strat_key in ("scr", "fedsld", "fed_sld", "fedswitch", "fed_switch"):
+                print(f"[Server] Strategy {args.strategy.upper()} requires partition but {candidate_p.name} does not exist.")
+                print(f"[Server] Auto-generating missing partition for dataset={args.dataset}, mode={args.partition_mode}, clients={args.min_clients} (seed={args.seed})...")
+                try:
+                    from experiments.run_partition import run_one
+                    run_one(
+                        dataset_name=args.dataset,
+                        partition_mode=args.partition_mode,
+                        num_clients=args.min_clients,
+                        seed=args.seed,
+                        local_test=args.local_test,
+                    )
+                    if candidate_p.exists():
+                        args.partition_path = str(candidate_p)
+                        print(f"[Server] Partition generated: {candidate_p}")
+                except Exception as e:
+                    print(f"[Server] Warning: Failed to auto-generate partition: {e}")
 
     server_ipv4 = get_device_ipv4()
 

@@ -1341,9 +1341,24 @@ def main():
         )
 
     if not Path(partition_path).exists():
-        print(f"ERROR: Partition file not found: {partition_path}")
-        print("Run `python -m experiments.run_partition` first to generate partitions.")
-        sys.exit(1)
+        print(f"[Client {args.client_id}] Partition file not found: {partition_path}")
+        print(
+            f"[Client {args.client_id}] Auto-generating missing partition for "
+            f"dataset={args.dataset}, mode={args.partition_mode}, clients={args.num_clients}, seed={args.seed}..."
+        )
+        try:
+            from experiments.run_partition import run_one
+            run_one(
+                dataset_name=args.dataset,
+                partition_mode=args.partition_mode,
+                num_clients=args.num_clients,
+                seed=args.seed,
+                local_test=args.local_test,
+            )
+            print(f"[Client {args.client_id}] Auto-generation completed successfully.")
+        except Exception as e:
+            print(f"ERROR: Failed to auto-generate partition: {e}")
+            sys.exit(1)
 
     print(f"[Client {args.client_id}] Loading partition from {partition_path}")
 

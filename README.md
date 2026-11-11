@@ -117,7 +117,20 @@ python -m experiments.run_partition --dataset pathmnist --partition_mode practic
 python -m experiments.run_partition --dataset dermamnist --partition_mode pathological --num_clients 5 --local_test
 ```
 
-### 4.4. Real Multi-Device Deployment (Physical Clients over LAN)
+### 4.4. Graphical Orchestration Dashboard (Desktop GUI)
+
+FedMedAI provides a unified CustomTkinter desktop dashboard for launching, configuring, and live-monitoring both FL Server and FL Client nodes:
+
+- **Windows 1-Click Launch**: Double-click [`run_dashboard.bat`](file:///D:/FPT/KLTN/FED/FedMedAI_Study/run_dashboard.bat)
+- **Command Line**:
+  ```bash
+  python run_dashboard.py
+  ```
+- **FL Server Control**: Displays auto-detected LAN/VPN IP with one-click copy, port conflict auto-cleaner, parameter configuration with collapsible advanced accordion, live multi-metric progression curves (BTA, BMCTA, TA, MCTA, Global Loss), and real-time logs.
+- **FL Client Node**: Features pre-flight server ping tester, local partition & class distribution inspector, hardware profile overrides (PC, Jetson Orin/Nano), and live local training curves.
+- **Virtual Environment Manager**: Automatically links to the project `.venv` with built-in one-click diagnostics for PyTorch, CUDA, Flower, and MedMNIST dependencies.
+
+### 4.5. Real Multi-Device Deployment (Physical Clients over LAN)
 
 1. **Start Server** on the central machine:
    ```bash
