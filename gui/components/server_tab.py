@@ -1,3 +1,4 @@
+import copy
 import tkinter as tk
 import customtkinter as ctk
 from pathlib import Path
@@ -10,10 +11,14 @@ from gui.config_manager import (
     LR_MODES,
     OPTIMIZERS,
 )
+from gui.components.advanced_config_dialog import (
+    DEFAULT_SERVER_ADVANCED,
+    AdvancedConfigDialog,
+)
 
 
 class ServerTab(ctk.CTkFrame):
-    """FL Server Control tab: parameter forms, accordion, and action buttons."""
+    """FL Server Control tab: parameter forms, advanced sub-window trigger, and action buttons."""
 
     def __init__(
         self,
@@ -28,6 +33,7 @@ class ServerTab(ctk.CTkFrame):
         self.on_stop = on_stop
         self.on_export = on_export
 
+        self.advanced_config: Dict[str, Any] = copy.deepcopy(DEFAULT_SERVER_ADVANCED)
         self.adv_expanded = False
         self._build_form()
 
@@ -145,70 +151,33 @@ class ServerTab(ctk.CTkFrame):
         self.fields["name"] = add_field("Run Name / Tag:", ctk.CTkEntry, height=28, font=ctk.CTkFont(size=11))
         self.fields["name"].insert(0, "gui_server_run")
 
-        # --- ADVANCED ACCORDION ---
-        self.btn_toggle_adv = ctk.CTkButton(
+        # --- ADVANCED CONFIGURATION SUB-WINDOW TRIGGER ---
+        self.btn_open_adv = ctk.CTkButton(
             self.scroll,
-            text="▶ Show Advanced Hyperparameters",
+            text="⚙  Open Advanced Configuration...",
+            height=34,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            fg_color="#f1f5f9",
+            hover_color="#e2e8f0",
+            text_color="#162d43",
+            border_width=1,
+            border_color="#dfe6ed",
+            command=self._open_advanced_dialog,
+        )
+        self.btn_open_adv.pack(fill="x", padx=10, pady=(14, 4))
+
+        self.lbl_adv_status = ctk.CTkLabel(
+            self.scroll,
+            text="● Standard Defaults Active",
             font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color="#334155",
-            hover_color="#475569",
-            command=self._toggle_advanced,
+            text_color="#64748b",
+            anchor="center",
         )
-        self.btn_toggle_adv.pack(fill="x", padx=10, pady=(14, 6))
+        self.lbl_adv_status.pack(fill="x", padx=10, pady=(0, 6))
 
-        self.adv_container = ctk.CTkFrame(self.scroll, fg_color="#0f172a", corner_radius=6)
-
-        def add_adv_field(label_text: str, default_val: str):
-            r = ctk.CTkFrame(self.adv_container, fg_color="transparent", height=30)
-            r.pack(fill="x", padx=8, pady=3)
-            r.pack_propagate(False)
-            lbl = ctk.CTkLabel(r, text=label_text, font=ctk.CTkFont(size=10), text_color="#cbd5e1", width=140, anchor="w")
-            lbl.pack(side="left", padx=4)
-            entry = ctk.CTkEntry(r, height=24, font=ctk.CTkFont(size=10))
-            entry.insert(0, default_val)
-            entry.pack(side="right", fill="x", expand=True, padx=4)
-            return entry
-
-        self.adv_mu = add_adv_field("FedProx mu:", "0.01")
-        self.adv_rho = add_adv_field("FedSOL rho:", "2.0")
-        self.adv_switch = add_adv_field("Switch Round (0=auto):", "0")
-        self.adv_scr_gamma = add_adv_field("SCR gamma:", "1.0")
-        self.adv_es_patience = add_adv_field("Early Stop Patience:", "0")
-
-        # Partition Path Override with Browse Button
-        r_part = ctk.CTkFrame(self.adv_container, fg_color="transparent", height=30)
-        r_part.pack(fill="x", padx=8, pady=3)
-        r_part.pack_propagate(False)
-
-        lbl_part = ctk.CTkLabel(
-            r_part,
-            text="Partition Path Override:",
-            font=ctk.CTkFont(size=10),
-            text_color="#cbd5e1",
-            width=140,
-            anchor="w",
-        )
-        lbl_part.pack(side="left", padx=4)
-
-        self.adv_partition_path = ctk.CTkEntry(
-            r_part,
-            height=24,
-            font=ctk.CTkFont(family="monospace", size=10),
-            placeholder_text="data/partitions/... (Optional)",
-        )
-        self.adv_partition_path.pack(side="left", fill="x", expand=True, padx=(4, 2))
-
-        btn_browse = ctk.CTkButton(
-            r_part,
-            text="📁 Browse",
-            width=65,
-            height=24,
-            font=ctk.CTkFont(size=10, weight="bold"),
-            fg_color="#2563eb",
-            hover_color="#1d4ed8",
-            command=self._browse_partition_file,
-        )
-        btn_browse.pack(side="right", padx=(2, 4))
+        # Backward compatibility placeholders
+        self.adv_container = ctk.CTkFrame(self.scroll, fg_color="#f8fafc", corner_radius=6)
+        self.btn_toggle_adv = self.btn_open_adv
 
         # --- ACTION BUTTONS ---
         btn_box = ctk.CTkFrame(self.scroll, fg_color="transparent")
@@ -255,33 +224,47 @@ class ServerTab(ctk.CTkFrame):
         )
         self.btn_export.pack(side="right", fill="x", expand=True, padx=(4, 0))
 
+    def _open_advanced_dialog(self):
+        """Opens the modular multi-card Advanced Configuration sub-window."""
+        strat = self.fields["strategy"].get()
+        AdvancedConfigDialog(
+            parent=self.winfo_toplevel(),
+            mode="server",
+            current_config=self.advanced_config,
+            active_strategy=strat,
+            on_save=self._on_advanced_saved,
+        )
+
+    def _on_advanced_saved(self, new_cfg: Dict[str, Any]):
+        """Persists updated advanced configuration and updates visual indicator."""
+        self.advanced_config.update(new_cfg)
+        overrides = 0
+        for k, v in self.advanced_config.items():
+            if k in DEFAULT_SERVER_ADVANCED and str(v) != str(DEFAULT_SERVER_ADVANCED[k]):
+                overrides += 1
+        if overrides > 0:
+            self.lbl_adv_status.configure(
+                text=f"● {overrides} Custom Overrides Active",
+                text_color="#0c8c80",
+            )
+            self.btn_open_adv.configure(border_color="#0c8c80")
+        else:
+            self.lbl_adv_status.configure(
+                text="● Standard Defaults Active",
+                text_color="#64748b",
+            )
+            self.btn_open_adv.configure(border_color="#dfe6ed")
+
     def _toggle_advanced(self):
+        """Backward compatibility helper for headless test suites."""
         self.adv_expanded = not self.adv_expanded
         if self.adv_expanded:
-            self.adv_container.pack(fill="x", padx=10, pady=(0, 8))
-            self.btn_toggle_adv.configure(text="▼ Hide Advanced Hyperparameters")
+            self.btn_toggle_adv.configure(text="⚙  Advanced Configuration (Active)")
         else:
-            self.adv_container.pack_forget()
-            self.btn_toggle_adv.configure(text="▶ Show Advanced Hyperparameters")
-
-    def _browse_partition_file(self):
-        from tkinter import filedialog
-        init_dir = str(PROJECT_ROOT / "data" / "partitions")
-        f = filedialog.askopenfilename(
-            initialdir=init_dir,
-            title="Select Partition JSON File for Server",
-            filetypes=[("JSON Files", "*.json"), ("All Files", "*.*")],
-        )
-        if f:
-            self.adv_partition_path.delete(0, "end")
-            self.adv_partition_path.insert(0, f)
+            self.btn_toggle_adv.configure(text="⚙  Open Advanced Configuration...")
 
     def _on_strategy_changed(self, choice: str):
-        strat = choice.lower()
-        if "prox" in strat:
-            self.adv_mu.configure(fg_color="#1e3a8a")
-        else:
-            self.adv_mu.configure(fg_color="#1e293b")
+        pass
 
     def build_command(self, python_exe: str, port: str = "8080") -> List[str]:
         """Compile parameters into exact server.server CLI invocation command."""
@@ -304,29 +287,73 @@ class ServerTab(ctk.CTkFrame):
             "--host", "0.0.0.0",
         ]
 
-        # Check partition path override
-        if hasattr(self, "adv_partition_path"):
-            part = self.adv_partition_path.get().strip()
-            if part:
-                cmd.extend(["--partition_path", part])
+        adv = self.advanced_config
 
-        # Advanced options
-        if self.adv_expanded:
-            p_mu = self.adv_mu.get().strip()
+        # 1. Partition Path Override
+        part = adv.get("partition_path", "").strip()
+        if part:
+            cmd.extend(["--partition_path", part])
+
+        # 2. Custom Results Save Directory
+        s_dir = adv.get("save_dir", "").strip()
+        if s_dir:
+            cmd.extend(["--save_dir", s_dir])
+
+        # 3. Strategy Mathematical Hyperparameters
+        strat = self.fields["strategy"].get().lower()
+        if "prox" in strat:
+            p_mu = str(adv.get("proximal_mu", "0.01")).strip()
             if p_mu:
                 cmd.extend(["--proximal_mu", p_mu])
-            p_rho = self.adv_rho.get().strip()
-            if p_rho:
-                cmd.extend(["--fedsol_rho", p_rho])
-            p_sw = self.adv_switch.get().strip()
-            if p_sw and int(p_sw) > 0:
-                cmd.extend(["--switch_round", p_sw])
-            p_gamma = self.adv_scr_gamma.get().strip()
-            if p_gamma:
-                cmd.extend(["--scr_gamma", p_gamma])
-            p_es = self.adv_es_patience.get().strip()
-            if p_es and int(p_es) > 0:
-                cmd.extend(["--early_stop_patience", p_es])
+        elif "sol" in strat:
+            cmd.extend(["--fedsol_rho", str(adv.get("fedsol_rho", "2.0"))])
+            cmd.extend(["--fedsol_target", str(adv.get("fedsol_target", "head"))])
+            cmd.extend(["--fedsol_loss_type", str(adv.get("fedsol_loss_type", "kl"))])
+            cmd.extend(["--fedsol_temperature", str(adv.get("fedsol_temperature", "3.0"))])
+            if adv.get("fedsol_adaptive", False):
+                cmd.append("--fedsol_adaptive")
+        elif "switch" in strat:
+            sw_r = str(adv.get("switch_round", "0")).strip()
+            if sw_r and int(sw_r) > 0:
+                cmd.extend(["--switch_round", sw_r])
+            cmd.extend(["--fedswitch_weighting_mode", str(adv.get("fedswitch_weighting_mode", "bounded_sum"))])
+            cmd.extend(["--fedswitch_coverage", str(adv.get("fedswitch_coverage", "0.9"))])
+            cmd.extend(["--fedswitch_epsilon", str(adv.get("fedswitch_epsilon", "1.0"))])
+            cmd.extend(["--fedswitch_c_bound", str(adv.get("fedswitch_c_bound", "50"))])
+        elif "scr" in strat:
+            cmd.extend(["--scr_gamma", str(adv.get("scr_gamma", "1.0"))])
+            cmd.extend(["--scr_head_lambda", str(adv.get("scr_head_lambda", "0.01"))])
+        elif "sld" in strat:
+            cmd.extend(["--fedsld_epsilon", str(adv.get("fedsld_epsilon", "1e-6"))])
+            cmd.extend(["--fedsld_reduction", str(adv.get("fedsld_reduction", "mean"))])
+
+        # 4. Optimizer & LR Policies
+        opt = self.fields["optimizer"].get()
+        if opt == "sgd":
+            mom = str(adv.get("momentum", "0.9")).strip()
+            if mom:
+                cmd.extend(["--momentum", mom])
+        wd = str(adv.get("weight_decay", "")).strip()
+        if wd:
+            try:
+                if float(wd) > 0:
+                    cmd.extend(["--weight_decay", wd])
+            except ValueError:
+                pass
+        cgn = str(adv.get("clip_grad_norm", "")).strip()
+        if cgn:
+            cmd.extend(["--clip_grad_norm", cgn])
+
+        # 5. Evaluation & Early Stopping
+        if not adv.get("server_eval", True):
+            cmd.append("--no-server_eval")
+        if adv.get("local_test", False):
+            cmd.append("--local_test")
+
+        es_p = str(adv.get("early_stop_patience", "0")).strip()
+        if es_p and int(es_p) > 0:
+            cmd.extend(["--early_stop_patience", es_p])
+            cmd.extend(["--early_stop_metric", str(adv.get("early_stop_metric", "accuracy"))])
 
         return cmd
 

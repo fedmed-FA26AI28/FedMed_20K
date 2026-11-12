@@ -1,3 +1,4 @@
+import copy
 import tkinter as tk
 import customtkinter as ctk
 import threading
@@ -15,6 +16,10 @@ from gui.config_manager import (
     check_partition_exists,
     generate_partition_subprocess,
     get_default_venv_path,
+)
+from gui.components.advanced_config_dialog import (
+    DEFAULT_CLIENT_ADVANCED,
+    AdvancedConfigDialog,
 )
 
 
@@ -229,6 +234,7 @@ class ClientTab(ctk.CTkFrame):
         self.on_clear = on_clear
         self.get_python_exe = get_python_exe
 
+        self.advanced_config: Dict[str, Any] = copy.deepcopy(DEFAULT_CLIENT_ADVANCED)
         self.adv_expanded = False
         self.partition_confirmed = False
         self.is_generating_partition = False
@@ -298,6 +304,8 @@ class ClientTab(ctk.CTkFrame):
             fg_color="#f1f5f9",
             hover_color="#e2e8f0",
             text_color="#162d43",
+            border_width=1,
+            border_color="#dfe6ed",
             command=self._decrement_client_id,
         )
         btn_dec.pack(side="left", padx=(0, 4))
@@ -324,6 +332,8 @@ class ClientTab(ctk.CTkFrame):
             fg_color="#f1f5f9",
             hover_color="#e2e8f0",
             text_color="#162d43",
+            border_width=1,
+            border_color="#dfe6ed",
             command=self._increment_client_id,
         )
         btn_inc.pack(side="left", padx=(0, 0))
@@ -345,7 +355,7 @@ class ClientTab(ctk.CTkFrame):
             row_num_c,
             text="Total Clients (num_clients):",
             font=ctk.CTkFont(size=11, weight="bold"),
-            text_color="#93c5fd",
+            text_color="#475569",
             width=140,
             anchor="w",
         )
@@ -360,8 +370,11 @@ class ClientTab(ctk.CTkFrame):
             width=28,
             height=28,
             font=ctk.CTkFont(size=13, weight="bold"),
-            fg_color="#334155",
-            hover_color="#475569",
+            fg_color="#f1f5f9",
+            hover_color="#e2e8f0",
+            text_color="#162d43",
+            border_width=1,
+            border_color="#dfe6ed",
             command=self._decrement_num_clients,
         )
         btn_dec_nc.pack(side="left", padx=(0, 4))
@@ -370,6 +383,9 @@ class ClientTab(ctk.CTkFrame):
             stepper_num_c,
             height=28,
             font=ctk.CTkFont(family="monospace", size=11, weight="bold"),
+            fg_color="#ffffff",
+            border_color="#dce3eb",
+            text_color="#162d43",
             justify="center",
         )
         self.entry_num_clients.insert(0, "12")
@@ -382,8 +398,11 @@ class ClientTab(ctk.CTkFrame):
             width=28,
             height=28,
             font=ctk.CTkFont(size=13, weight="bold"),
-            fg_color="#334155",
-            hover_color="#475569",
+            fg_color="#f1f5f9",
+            hover_color="#e2e8f0",
+            text_color="#162d43",
+            border_width=1,
+            border_color="#dfe6ed",
             command=self._increment_num_clients,
         )
         btn_inc_nc.pack(side="left", padx=(0, 0))
@@ -525,81 +544,34 @@ class ClientTab(ctk.CTkFrame):
             client_id=0,
         )
 
-        # --- ADVANCED ACCORDION ---
-        self.btn_toggle_adv = ctk.CTkButton(
+        # --- ADVANCED CONFIGURATION SUB-WINDOW TRIGGER ---
+        self.btn_open_adv = ctk.CTkButton(
             self.scroll,
-            text="▶ Show Advanced Client Settings",
-            font=ctk.CTkFont(size=11, weight="bold"),
+            text="⚙  Open Advanced Configuration...",
+            height=34,
+            font=ctk.CTkFont(size=12, weight="bold"),
             fg_color="#f1f5f9",
             hover_color="#e2e8f0",
-            text_color="#475569",
-            command=self._toggle_advanced,
-        )
-        self.btn_toggle_adv.pack(fill="x", padx=10, pady=(10, 6))
-
-        self.adv_container = ctk.CTkFrame(self.scroll, fg_color="#f8fafc", corner_radius=6, border_width=1, border_color="#e8edf2")
-        
-        self.cb_augment = ctk.CTkCheckBox(self.adv_container, text="Data Augmentation (Crop / Flip)", font=ctk.CTkFont(size=10), text_color="#162d43", checkmark_color="#0c8c80")
-        self.cb_augment.pack(anchor="w", padx=10, pady=4)
-
-        self.cb_pin_mem = ctk.CTkCheckBox(self.adv_container, text="Pin Host Memory (DataLoader)", font=ctk.CTkFont(size=10), text_color="#162d43", checkmark_color="#0c8c80")
-        self.cb_pin_mem.select()
-        self.cb_pin_mem.pack(anchor="w", padx=10, pady=4)
-
-        def add_adv_field(label_text: str, default_val: str):
-            r = ctk.CTkFrame(self.adv_container, fg_color="transparent", height=30)
-            r.pack(fill="x", padx=8, pady=3)
-            r.pack_propagate(False)
-            lbl = ctk.CTkLabel(r, text=label_text, font=ctk.CTkFont(size=10), text_color="#475569", width=140, anchor="w")
-            lbl.pack(side="left", padx=4)
-            entry = ctk.CTkEntry(r, height=24, font=ctk.CTkFont(size=10), fg_color="#ffffff", border_color="#dce3eb", text_color="#162d43")
-            entry.insert(0, default_val)
-            entry.pack(side="right", fill="x", expand=True, padx=4)
-            return entry
-
-        self.adv_momentum = add_adv_field("SGD Momentum:", "0.9")
-
-        # Partition Path Override with Browse Button
-        r_part = ctk.CTkFrame(self.adv_container, fg_color="transparent", height=30)
-        r_part.pack(fill="x", padx=8, pady=3)
-        r_part.pack_propagate(False)
-
-        lbl_part = ctk.CTkLabel(
-            r_part,
-            text="Partition Path Override:",
-            font=ctk.CTkFont(size=10),
-            text_color="#475569",
-            width=140,
-            anchor="w",
-        )
-        lbl_part.pack(side="left", padx=4)
-
-        self.adv_partition_path = ctk.CTkEntry(
-            r_part,
-            height=24,
-            font=ctk.CTkFont(family="monospace", size=10),
-            fg_color="#ffffff",
-            border_color="#dce3eb",
             text_color="#162d43",
-            placeholder_text="data/partitions/... (Optional)",
-        )
-        self.adv_partition_path.pack(side="left", fill="x", expand=True, padx=(4, 2))
-        self.adv_partition_path.bind("<KeyRelease>", lambda e: self._on_params_changed_unconfirm())
-
-        btn_browse = ctk.CTkButton(
-            r_part,
-            text="📁 Browse",
-            width=65,
-            height=24,
-            font=ctk.CTkFont(size=10, weight="bold"),
-            fg_color="#ffffff",
-            hover_color="#f3f7fa",
-            text_color="#42566b",
             border_width=1,
             border_color="#dfe6ed",
-            command=self._browse_partition_file,
+            command=self._open_advanced_dialog,
         )
-        btn_browse.pack(side="right", padx=(2, 4))
+        self.btn_open_adv.pack(fill="x", padx=10, pady=(10, 4))
+
+        self.lbl_adv_status = ctk.CTkLabel(
+            self.scroll,
+            text="● Standard Defaults Active",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#64748b",
+            anchor="center",
+        )
+        self.lbl_adv_status.pack(fill="x", padx=10, pady=(0, 6))
+
+        # Backward compatibility placeholders
+        self.adv_container = ctk.CTkFrame(self.scroll, fg_color="#f8fafc", corner_radius=6)
+        self.btn_toggle_adv = self.btn_open_adv
+        self.adv_partition_path = ctk.CTkEntry(self.adv_container)
 
         # --- ACTION BUTTONS ---
         btn_box = ctk.CTkFrame(self.scroll, fg_color="transparent")
@@ -646,14 +618,44 @@ class ClientTab(ctk.CTkFrame):
         )
         self.btn_clear.pack(side="right", fill="x", expand=True, padx=(4, 0))
 
+    def _open_advanced_dialog(self):
+        """Opens the modular multi-card Advanced Configuration sub-window for Client."""
+        strat = self.fields["strategy"].get()
+        AdvancedConfigDialog(
+            parent=self.winfo_toplevel(),
+            mode="client",
+            current_config=self.advanced_config,
+            active_strategy=strat,
+            on_save=self._on_advanced_saved,
+        )
+
+    def _on_advanced_saved(self, new_cfg: Dict[str, Any]):
+        """Persists updated client advanced configuration and updates visual indicator."""
+        self.advanced_config.update(new_cfg)
+        overrides = 0
+        for k, v in self.advanced_config.items():
+            if k in DEFAULT_CLIENT_ADVANCED and str(v) != str(DEFAULT_CLIENT_ADVANCED[k]):
+                overrides += 1
+        if overrides > 0:
+            self.lbl_adv_status.configure(
+                text=f"● {overrides} Custom Overrides Active",
+                text_color="#0c8c80",
+            )
+            self.btn_open_adv.configure(border_color="#0c8c80")
+        else:
+            self.lbl_adv_status.configure(
+                text="● Standard Defaults Active",
+                text_color="#64748b",
+            )
+            self.btn_open_adv.configure(border_color="#dfe6ed")
+
     def _toggle_advanced(self):
+        """Backward compatibility helper for headless test suites."""
         self.adv_expanded = not self.adv_expanded
         if self.adv_expanded:
-            self.adv_container.pack(fill="x", padx=10, pady=(0, 8))
-            self.btn_toggle_adv.configure(text="▼ Hide Advanced Client Settings")
+            self.btn_toggle_adv.configure(text="⚙  Advanced Configuration (Active)")
         else:
-            self.adv_container.pack_forget()
-            self.btn_toggle_adv.configure(text="▶ Show Advanced Client Settings")
+            self.btn_toggle_adv.configure(text="⚙  Open Advanced Configuration...")
 
     def _increment_client_id(self):
         try:
@@ -887,21 +889,48 @@ class ClientTab(ctk.CTkFrame):
         if dev_type != "auto":
             cmd.extend(["--device_type", dev_type])
 
-        if hasattr(self, "adv_partition_path"):
-            part = self.adv_partition_path.get().strip()
-            if part:
-                cmd.extend(["--partition_path", part])
+        adv = self.advanced_config
 
-        if self.adv_expanded:
-            if self.cb_augment.get():
-                cmd.append("--augment")
-            else:
-                cmd.append("--no-augment")
-            if not self.cb_pin_mem.get():
-                cmd.append("--no-pin_memory")
-            mom = self.adv_momentum.get().strip()
+        # 1. Partition Path Override
+        part = adv.get("partition_path", "").strip()
+        if part:
+            cmd.extend(["--partition_path", part])
+
+        # 2. Client Dir
+        c_dir = adv.get("client_dir", "").strip()
+        if c_dir:
+            cmd.extend(["--client_dir", c_dir])
+
+        # 3. Pin Memory
+        if not adv.get("pin_memory", True):
+            cmd.append("--no-pin_memory")
+
+        # 4. Augmentation
+        if adv.get("augment", False):
+            cmd.append("--augment")
+        else:
+            cmd.append("--no-augment")
+
+        # 5. Local Test
+        if adv.get("local_test", False):
+            cmd.append("--local_test")
+
+        # 6. Momentum & Optimizer
+        opt = self.fields["optimizer"].get()
+        if opt == "sgd":
+            mom = str(adv.get("momentum", "0.9")).strip()
             if mom:
                 cmd.extend(["--momentum", mom])
+
+        # 7. Strategy Hyperparameters (e.g. FedSOL)
+        strat = self.fields["strategy"].get().lower()
+        if "sol" in strat:
+            cmd.extend(["--fedsol_rho", str(adv.get("fedsol_rho", "2.0"))])
+            cmd.extend(["--fedsol_target", str(adv.get("fedsol_target", "head"))])
+            cmd.extend(["--fedsol_loss_type", str(adv.get("fedsol_loss_type", "kl"))])
+            cmd.extend(["--fedsol_temperature", str(adv.get("fedsol_temperature", "3.0"))])
+            if adv.get("fedsol_adaptive", False):
+                cmd.append("--fedsol_adaptive")
 
         return cmd
 
@@ -916,7 +945,7 @@ class ClientTab(ctk.CTkFrame):
         ds = self.fields["dataset"].get()
         pm = self.fields["partition_mode"].get()
         seed = int(self.fields["seed"].get().strip()) if self.fields["seed"].get().strip().isdigit() else 42
-        custom_path = self.adv_partition_path.get().strip() if hasattr(self, "adv_partition_path") else None
+        custom_path = self.advanced_config.get("partition_path", "").strip() or None
 
         exists, p_file = check_partition_exists(ds, pm, nc, seed, custom_path or None)
         if exists:
