@@ -87,6 +87,16 @@ def main():
             assert finished['status']=='completed',finished
             events=coordinator.get(f'/api/v1/runs/{run_id}/events').json()['data']
             assert len([e for e in events if e['phase']=='round_completed'])==args.rounds
+            monitor = wait_until(lambda:coordinator.get(f'/api/v1/runs/{run_id}/monitor').json()['data'],
+                lambda m:bool(m['evaluations']) and m['evaluations'][-1]['reporting_clients']==3,
+                timeout=30,label='complete diagnostic telemetry')
+            assert len(monitor['rounds']) == args.rounds
+            assert monitor['logs'] and monitor['systems'] and len(monitor['epochs']) == 3 * args.rounds
+            assert monitor['summary']['upload_payload_kb'] > 0
+            assert all(e.get('last_batch_grad_l2') is not None for e in monitor['epochs'])
+            assert all(r.get('wall_seconds',0) >= r.get('fit_seconds',0) for r in monitor['rounds'])
+            if strategy == 'scr':
+                assert monitor['support'] and all(e.get('data_objective_loss') is not None for e in monitor['epochs'])
             snapshots=[]
             for client,app in zip(clients[1:],apps[1:]):
                 manifests=client.get('/api/v1/models').json()['data']['local']
@@ -117,7 +127,7 @@ def main():
                     state=torch.load(snapshot['path'],map_location='cpu',weights_only=True)
                     bnkeys=[k for k in state if k.endswith('running_mean')]
                     assert bnkeys and any(not torch.equal(state[k],initial[k]) for k in bnkeys)
-            report['strategies'].append({'strategy':strategy,'status':'passed','run_id':run_id,'clients':3,'rounds':args.rounds,'prediction_parity':True,'scoped_checkpoints':True})
+            report['strategies'].append({'strategy':strategy,'status':'passed','run_id':run_id,'clients':3,'rounds':args.rounds,'prediction_parity':True,'scoped_checkpoints':True,'detailed_monitoring':True})
             atomic_json(folder/'report.json',report)
             print(f'[{strategy}] passed: training, telemetry, checkpoints, prediction parity',flush=True)
         # Verify class maps and RGB/grayscale preprocessing for every supported benchmark.

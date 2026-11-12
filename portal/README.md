@@ -6,6 +6,8 @@ Two real workspaces wrap the existing Flower server and `client.client`: a coord
 
 The English UI includes device pairing, environment checks, public dataset preparation, explicit participation, live training, recorded experiments, verified model manifests, and local image prediction. Assets and Inter fonts are bundled for offline LAN use.
 
+The **Training → Experiment monitor** provides learning curves, SCR objective diagnostics, per-client comparisons, confusion matrices and class metrics, resource/timing charts, searchable process logs, and complete CSV/JSON exports. See [monitoring guide and metric definitions](MONITORING.md) for interpretation and a fair SCR/FedAvg experiment workflow.
+
 ## Setup on Windows
 
 Use **Node.js 22.12 or newer** to build the frontend, a **Python 3.11+ web environment**, and a separate working training environment with the repository's training dependencies. The implementation was verified locally with Node 24, Python 3.14, Flower 1.37, and PyTorch 2.14. Jetson versions require their own compatibility check.

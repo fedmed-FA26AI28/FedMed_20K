@@ -79,3 +79,15 @@ Với Jetson, copy source và `web/dist` đã build; dùng `scripts/start_portal
 - [ ] Kiểm thử mất kết nối, Cancel và restart; UI không báo thành công cho phiên lỗi.
 
 Các kiểm thử local bằng nhiều process chứng minh luồng tích hợp phần mềm. Chỉ đánh dấu nghiệm thu LAN/Jetson sau khi chạy trên những thiết bị thật.
+
+## 6. Theo dõi chi tiết quá trình học
+
+Trong **Training**, chọn phiên rồi kéo xuống **Experiment monitor**:
+
+- **Learning curves:** xem loss, accuracy, learning rate, gradient norm và độ thay đổi model. Với SCR, xem riêng weighted cross-entropy và head penalty. Chọn **Compare with another run** để đối chiếu hai phiên; chú ý cảnh báo nếu cấu hình hoặc partition không khớp.
+- **Client diagnostics:** chọn client và round để tìm máy chạy chậm hoặc có kết quả kém; kiểm tra số mẫu và trọng số lớp của SCR.
+- **Class performance:** xem confusion matrix, precision, recall, F1. Accuracy tổng cao vẫn có thể che giấu một lớp có recall thấp. Client không có ảnh test sẽ được bỏ qua, không xem là accuracy bằng 0.
+- **System & timing:** theo dõi thời gian train/evaluate, CPU, RAM, bộ nhớ GPU của tiến trình và kích thước parameter arrays. Kích thước này không phải toàn bộ lưu lượng mạng.
+- **Live logs:** lọc theo client, tìm lỗi/traceback và xem stdout/stderr thật. **CSV/JSON** dùng để phân tích hoặc lưu bằng chứng thí nghiệm.
+
+BTA/BMCTA chọn round tốt nhất trên tập test nên chỉ dùng để khảo sát. Các metric mới chỉ có khi tiến trình đã ghi nhận chúng. Xem [MONITORING.md](MONITORING.md) để hiểu công thức, giới hạn, và lệnh restart an toàn sau khi phiên hiện tại kết thúc.

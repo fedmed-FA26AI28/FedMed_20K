@@ -29,6 +29,8 @@ class Service:
         self.stop_event = threading.Event()
         self.processes = {}
         self.offsets = {}
+        self.log_offsets = {}
+        self.resource_samples = {}
         self.last_heartbeat = 0
         self.last_error = None
 
@@ -111,6 +113,8 @@ class Service:
             if not process:
                 continue
             self.tail_events(job)
+            if job['action'] == 'train':
+                self.capture_diagnostics(job, process)
             code = process.poll()
             timeout = 1800 if job['action'] == 'download' else 300
             if job['action'] == 'train':
@@ -121,6 +125,11 @@ class Service:
                 self.store.update('jobs', job['id'], error='Task timed out.')
             if code is None:
                 continue
+            # The worker may have written its final evaluation/traceback between
+            # our first tail and poll. Drain it before marking the job finished.
+            self.tail_events(job)
+            if job['action'] == 'train':
+                self.capture_diagnostics(job, process)
             response_path = Path(job['folder']) / 'response.json'
             result = json.loads(response_path.read_text()) if response_path.exists() else {}
             error = result.get('error') or self.store.get('jobs', job['id']).get('error')
@@ -162,6 +171,10 @@ class Service:
                     break
                 event = json.loads(line)
                 self.store.event(event)
+                progress_phases = {'training', 'evaluating', 'epoch_completed', 'fit_completed',
+                                   'evaluation_completed', 'evaluation_skipped', 'round_completed'}
+                if event['phase'] not in progress_phases:
+                    continue
                 if self.mode == 'coordinator' and event['client_id'] == -1:
                     run = self.store.get('runs', event['run_id'])
                     if run and run['status'] == 'running':
@@ -176,6 +189,41 @@ class Service:
                         if event['phase'] in ('evaluation_completed', 'evaluation_skipped'):
                             changes['completed_rounds'] = event['round']
                         self.store.update('participations', part['id'], **changes)
+
+    def capture_diagnostics(self, job, process):
+        """Relay bounded stdout chunks and periodic real resource samples with stable IDs."""
+        run_id = job['context']['run_id']
+        run = self.store.get('runs' if self.mode == 'coordinator' else 'participations', run_id, {})
+        base = {'run_id': run_id, 'client_id': -1 if self.mode == 'coordinator' else run.get('client_id', -1),
+                'round': run.get('current_round', 0), 'time': time.time()}
+        path = Path(job['folder']) / 'process.log'
+        offset = self.log_offsets.get(job['id'], 0)
+        if path.exists():
+            with path.open('rb') as stream:
+                stream.seek(offset)
+                # Bound each chunk; on process exit drain the rest so the traceback survives.
+                for _ in range(1 if process.poll() is None else 256):
+                    block = stream.read(16000)
+                    if not block:
+                        break
+                    end = stream.tell()
+                    self.store.event(dict(base, id=f"{job['id']}:stdout:{offset}", phase='process_log',
+                                          text=block.decode('utf-8', errors='replace')))
+                    offset = end
+            self.log_offsets[job['id']] = offset
+        bucket = int(time.time() // 5)
+        if self.resource_samples.get(job['id']) != bucket and process.poll() is None:
+            self.resource_samples[job['id']] = bucket
+            rss = None
+            try:
+                parent = psutil.Process(process.p.pid)
+                if abs(parent.create_time() - process.created) < 0.01:
+                    rss = sum(p.memory_info().rss for p in [parent] + parent.children(recursive=True)) / (1024 ** 2)
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                pass
+            self.store.event(dict(base, id=f"{job['id']}:resource:{bucket}", phase='system_sample',
+                                  process_tree_rss_mb=rss, worker_elapsed_seconds=max(0., time.time()-process.started),
+                                  **self.telemetry()))
 
     def complete(self, job):
         ctx, result = job['context'], job.get('result')

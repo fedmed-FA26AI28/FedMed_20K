@@ -136,6 +136,7 @@ class FedMedAIServer(fl.server.Server):
             log(INFO, "")
             log(INFO, "[ROUND %s]", current_round)
             emit('training', current_round)
+            portal_round_started = time.perf_counter()
 
             # Train model and replace previous global model
             res_fit = self.fit_round(
@@ -179,7 +180,9 @@ class FedMedAIServer(fl.server.Server):
                     )
 
             # Evaluate model on a sample of available clients (federated client evaluation)
+            portal_fit_seconds = time.perf_counter() - portal_round_started
             emit('evaluating', current_round)
+            portal_eval_started = time.perf_counter()
             res_fed = self.evaluate_round(server_round=current_round, timeout=timeout)
             if os.environ.get('FEDMED_STRICT_ROSTER') == '1':
                 if res_fed is None or res_fed[2][1] or len(res_fed[2][0]) != self.strategy.min_evaluate_clients:
@@ -205,7 +208,9 @@ class FedMedAIServer(fl.server.Server):
             recorder = getattr(self.strategy, 'recorder', None)
             records = getattr(recorder, 'round_records', [])
             record = next((r for r in records if r['round'] == current_round), {})
-            emit('round_completed', current_round, metrics=record)
+            emit('round_completed', current_round, metrics=dict(record,
+                 fit_seconds=portal_fit_seconds, evaluation_seconds=time.perf_counter()-portal_eval_started,
+                 wall_seconds=time.perf_counter()-portal_round_started))
 
             # Check if early stopping was triggered during evaluation in this round
             if getattr(self.strategy, "should_stop", False):

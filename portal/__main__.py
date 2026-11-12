@@ -25,6 +25,9 @@ def main():
     serve = sub.add_parser('serve', help='Serve the built website and supervise local workers')
     serve.add_argument('--state-dir', default='.portal')
     serve.add_argument('--host', default='0.0.0.0')
+    restart = sub.add_parser('restart', help='Restart an idle local portal; refuses to interrupt active work')
+    restart.add_argument('--state-dir', default='.portal')
+    restart.add_argument('--host', default='0.0.0.0')
     export = sub.add_parser('export-openapi')
     export.add_argument('--output', default='web/openapi.json')
     args = parser.parse_args()
@@ -46,12 +49,18 @@ def main():
         if os.name != 'nt':
             os.chmod(state/'settings.json', 0o600)
         print(f'Created {args.mode} instance: {state}\nStart with: python -m portal serve --state-dir "{state}"')
-    elif args.command == 'serve':
+    elif args.command in ('serve', 'restart'):
         import uvicorn
         from portal.app import create_app
         state = Path(args.state_dir).resolve()
         if not (state/'settings.json').exists():
             parser.error('Run python -m portal init first.')
+        if args.command == 'restart':
+            from portal.restart import stop_idle_portal
+            try:
+                stop_idle_portal(state)
+            except ValueError as exc:
+                parser.error(str(exc))
         config = json.loads((state/'settings.json').read_text())
         uvicorn.run(create_app(state), host=args.host, port=config['port'], workers=1, access_log=False)
     else:

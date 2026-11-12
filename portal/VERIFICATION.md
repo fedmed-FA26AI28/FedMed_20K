@@ -33,6 +33,24 @@ Test state and screenshots are ignored by Git and kept separate from research re
 
 The smoke-test instances use test-only accounts and loopback addresses. They are not deployment configuration. The regular launcher creates a new instance with an operator-selected password.
 
+## Detailed experiment monitoring update
+
+The monitoring update was checked locally on November 12, 2026:
+
+- 22 tests passed in `python -m unittest portal.tests.test_monitor portal.tests.test_portal portal.tests.test_workers -q`, followed by an additional passing isolated-process restart test. The resulting suite contains 23 tests. Coverage includes unchanged FedAvg/SCR model updates with telemetry on/off, directly computed confusion counts, macro/weighted metric semantics, skipped empty tests, semantic event deduplication, exports past 10,000 events, run ownership, log relaying, non-finite diagnostic values, and restart refusal during active work.
+- Real one-round CPU runs with three Flower client processes completed for **FedAvg, FedBN, SCAFFOLD, FedBNS, and SCR**. All produced epoch diagnostics, resource samples, process logs, confusion matrices, update norms, and parameter payload measurements. Checkpoint scope and direct-inference parity continued to pass.
+- All five pooled confusion-matrix accuracies matched their completed-round accuracy within `1e-6`; each covered the 3,421 assigned BloodMNIST test images. This is integration evidence, not a comparative research result.
+- TypeScript checking and the Vite production build passed. Browser checks against real recorded FedAvg and SCR runs covered charts, comparison selection, client filtering, confusion tables, log search, CSV/JSON downloads, pause, reload, and mobile overflow. Screenshots were inspected.
+- The restart command refused the user's active OrganAMNIST session without stopping any process. An isolated positive test verified that it stops only the matching idle portal and preserves an unrelated process, including Windows console-host handling.
+
+Evidence:
+
+- `.portal-qa/smoke-20261112-131905/report.json`
+- `.portal-qa/smoke-20261112-131905/monitor-validation.json`
+- `web/test-results/monitor/fedavg-report.json`, `scr-report.json`, and screenshots.
+
+These checks do not measure monitoring overhead in a controlled benchmark or constitute physical multi-laptop/Nano acceptance. Keep the same instrumentation enabled across compared methods. Older sessions cannot reconstruct diagnostics that were never recorded. See [MONITORING.md](MONITORING.md) for definitions and restart instructions.
+
 ## Still requiring physical hardware
 
 - Server laptop plus three separate client laptops on the actual LAN.

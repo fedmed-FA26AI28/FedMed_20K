@@ -87,6 +87,7 @@ def dataset_metadata(dataset, partition=None, client_id=None, download=False):
 
 
 def prepare_partition(request):
+    from medmnist import INFO
     from datasets.partition import dirichlet_partition, practical_partition, save_partition
     spec = request['spec']
     train, _, test, _ = data(spec['dataset'])
@@ -101,7 +102,8 @@ def prepare_partition(request):
                           test_dataset=test, test_indices=tests, save_dir=request['output_dir'])
     root = Path(os.environ.get('FEDMED_DATA_ROOT', str(Path.home() / '.medmnist')))
     return {'partition_path': str(path.resolve()), 'partition_hash': digest(path),
-            'dataset_hash': digest(root / f"{spec['dataset']}.npz"), 'capabilities': capabilities()}
+            'dataset_hash': digest(root / f"{spec['dataset']}.npz"), 'capabilities': capabilities(),
+            'class_labels': INFO[spec['dataset']]['label']}
 
 
 def model_manifest(request):

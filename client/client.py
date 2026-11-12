@@ -127,6 +127,7 @@ def _local_train(
     epoch_lrs = []
     total_samples = 0
     total_steps = 0
+    portal_diagnostics = bool(os.environ.get('FEDMED_EVENT_LOG'))
 
     trainable_params = [p for p in model.parameters() if p.requires_grad]
     grad_accum = [torch.zeros_like(p) for p in trainable_params] if is_scaffold else None
@@ -156,6 +157,7 @@ def _local_train(
         running_loss = 0.0
         correct = 0
         total = 0
+        diagnostic_totals = torch.zeros(3, device=device) if portal_diagnostics else None
 
         for images, labels in train_loader:
             images = images.to(device)
@@ -181,13 +183,22 @@ def _local_train(
             elif use_scr:
                 ce = F.cross_entropy(outputs, labels, reduction="none")
                 loss = (scr_sample_weights[labels] * ce).mean()
-                loss = loss + head_penalty(
+                scr_data_loss = loss
+                scr_penalty_loss = head_penalty(
                     model, scr_reference, scr_anchor, scr_head_lambda)
+                loss = loss + scr_penalty_loss
             elif use_la:
                 adjusted_logits = outputs + la_offsets.unsqueeze(0)
                 loss = criterion(adjusted_logits, labels)
             else:
                 loss = criterion(outputs, labels)
+
+            if portal_diagnostics:
+                # Detached diagnostics only: no extra model forward or gradient changes.
+                raw_ce = F.cross_entropy(outputs.detach(), labels)
+                data_loss = scr_data_loss.detach() if use_scr else loss.detach()
+                penalty_loss = scr_penalty_loss.detach() if use_scr else raw_ce.new_zeros(())
+                diagnostic_totals += torch.stack((raw_ce, data_loss, penalty_loss)) * labels.size(0)
 
             # Coverage head penalty: anchor classifier rows to reference
             if is_coverage_la and head_weight_param is not None:
@@ -240,8 +251,19 @@ def _local_train(
 
         epoch_times.append(epoch_time)
         epoch_losses.append(epoch_loss)
-        emit('epoch_completed', int(os.environ.get('FEDMED_ACTIVE_ROUND', '0')),
-             epoch=epoch + 1, loss=epoch_loss, accuracy=epoch_acc, seconds=epoch_time)
+        if portal_diagnostics:
+            raw_ce, data_loss, anchor_loss = (diagnostic_totals / total).cpu().tolist()
+            gradients = [p.grad.detach().float().norm().square() for p in trainable_params if p.grad is not None]
+            grad_norm = float(torch.stack(gradients).sum().sqrt().cpu()) if gradients else None
+            resources = get_resource_usage()
+            emit('epoch_completed', int(os.environ.get('FEDMED_ACTIVE_ROUND', '0')),
+                 epoch=epoch + 1, loss=epoch_loss, accuracy=epoch_acc, seconds=epoch_time,
+                 learning_rate=float(current_lr), num_samples=total, steps=total_steps,
+                 samples_per_second=total / epoch_time if epoch_time > 0 else None,
+                 raw_ce_loss=raw_ce, data_objective_loss=data_loss, head_penalty_loss=anchor_loss,
+                 last_batch_grad_l2=grad_norm, cpu_percent=resources['cpu_percent'],
+                 ram_percent=resources['ram_percent'],
+                 gpu_memory_mb=resources['gpu_memory_allocated_mb'] if device.type == 'cuda' else None)
         epoch_accuracies.append(epoch_acc)
         epoch_lrs.append(current_lr)
         total_samples = total
@@ -666,6 +688,8 @@ class FedMedAIClient(fl.client.NumPyClient):
             scr_reference = (head.weight.detach().clone(), head.bias.detach().clone())
             print(f"[Client {self.client_id}] SCR: gamma={scr_gamma:g} "
                   f"head_lambda={scr_head_lambda:g} counts={local_counts.tolist()}")
+            emit('support_configuration', server_round, class_counts=local_counts.tolist(),
+                 sample_weights=weights.tolist(), anchors=anchor.tolist())
 
         # Prepare FedSLD parameters
         fedsld_prior_tensor = None
@@ -690,6 +714,7 @@ class FedMedAIClient(fl.client.NumPyClient):
             )
 
         # Train locally
+        portal_before = [p.copy() for p in get_parameters(self.model)] if os.environ.get('FEDMED_EVENT_LOG') else None
         train_start = time.time()
         train_metrics = _local_train(
             model=self.model,
@@ -827,7 +852,18 @@ class FedMedAIClient(fl.client.NumPyClient):
             f"| weights={weight_size_kb:.1f}KB"
         )
 
-        emit('fit_completed', server_round, metrics=metrics)
+        diagnostic_metrics = dict(metrics)
+        if portal_before is not None:
+            floating = [(a.astype(np.float64), b.astype(np.float64)) for a, b in zip(portal_before, updated_model_params)
+                        if np.issubdtype(a.dtype, np.floating)]
+            update_l2 = float(np.sqrt(sum(float(np.square(b-a).sum()) for a, b in floating)))
+            reference_l2 = float(np.sqrt(sum(float(np.square(a).sum()) for a, _ in floating)))
+            diagnostic_metrics.update(model_update_l2=update_l2,
+                relative_update_l2=update_l2 / reference_l2 if reference_l2 else None,
+                download_payload_kb=sum(p.nbytes for p in parameters) / 1024.0,
+                upload_payload_kb=weight_size_kb,
+                gpu_memory_mb=metrics['gpu_memory_mb'] if self.device.type == 'cuda' else None)
+        emit('fit_completed', server_round, metrics=diagnostic_metrics)
         return return_parameters, train_metrics["num_samples"], metrics
 
     def _save_client_csvs(self):
@@ -885,6 +921,9 @@ class FedMedAIClient(fl.client.NumPyClient):
         total_loss = 0.0
         correct = 0
         total = 0
+        eval_started = time.perf_counter()
+        confusion = None
+        diagnostic_eval = bool(os.environ.get('FEDMED_EVENT_LOG'))
 
         with torch.no_grad():
             for images, labels in self.test_loader:
@@ -896,6 +935,12 @@ class FedMedAIClient(fl.client.NumPyClient):
                 _, predicted = torch.max(outputs.data, 1)
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
+                if diagnostic_eval:
+                    classes = outputs.shape[1]
+                    if confusion is None:
+                        confusion = torch.zeros((classes, classes), dtype=torch.int64, device=self.device)
+                    confusion += torch.bincount(labels * classes + predicted,
+                                                minlength=classes ** 2).reshape(classes, classes)
 
         checkpoint = os.environ.get('FEDMED_LOCAL_CHECKPOINT')
         if checkpoint:
@@ -912,7 +957,7 @@ class FedMedAIClient(fl.client.NumPyClient):
             if not getattr(self, "_empty_test_warning_issued", False):
                 print(f"[Client {self.client_id}] No local test samples; skipping evaluation")
                 self._empty_test_warning_issued = True
-            emit('evaluation_skipped', eval_round, num_samples=0)
+            emit('evaluation_skipped', eval_round, num_samples=0, seconds=time.perf_counter()-eval_started)
             return 0.0, 0, {"accuracy": 0.0, "client_id": int(self.client_id)}
 
         avg_loss = total_loss / total
@@ -923,7 +968,9 @@ class FedMedAIClient(fl.client.NumPyClient):
             f"loss={avg_loss:.4f} acc={accuracy:.4f}"
         )
 
-        emit('evaluation_completed', eval_round, loss=float(avg_loss), accuracy=float(accuracy), num_samples=total)
+        emit('evaluation_completed', eval_round, loss=float(avg_loss), accuracy=float(accuracy), num_samples=total,
+             seconds=time.perf_counter()-eval_started,
+             confusion_matrix=confusion.cpu().tolist() if confusion is not None else None)
         return float(avg_loss), total, {"accuracy": float(accuracy), "client_id": int(self.client_id)}
 
 

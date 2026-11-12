@@ -6,11 +6,13 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from urllib.parse import urlparse
 import httpx
-from fastapi import Depends, FastAPI, HTTPException, Request, Response
+from fastapi import Depends, FastAPI, HTTPException, Request, Response, Query
+from typing import Literal
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from portal.common import ROOT, connectivity, contained_path, password_matches, token_hash
 from portal.history import scan
+from portal.monitor import snapshot, metrics_csv, all_events
 from portal.schemas import (ACTIVE, ConnectRequest, DatasetRequest, Envelope, Heartbeat,
                             ImportModel, Login, PairRequest, PredictRequest, RunSpec)
 from portal.service import Busy, Service
@@ -267,7 +269,29 @@ def create_app(state, start_service=True):
         kind = 'runs' if service.mode == 'coordinator' else 'participations'
         if store.get(kind, run_id) is None:
             raise HTTPException(404, 'Session not found')
-        return envelope(store.events(run_id, limit=10000))
+        # Detailed logs/resources have their own paged monitor view; keep the legacy
+        # progress view useful even when a run produces more than 10,000 events.
+        return envelope([e for e in all_events(store, run_id)
+                         if e['phase'] not in ('process_log', 'system_sample')][-10000:])
+
+    def monitoring_data(run_id, client_id=None, full=False):
+        kind = 'runs' if service.mode == 'coordinator' else 'participations'
+        run = store.get(kind, run_id)
+        if run is None:
+            raise HTTPException(404, 'Session not found')
+        dataset = store.get('datasets', run['spec']['dataset'], {})
+        return snapshot(store, run, service.mode, run.get('class_labels') or dataset.get('classes', {}), client_id, full)
+
+    @app.get('/api/v1/runs/{run_id}/monitor', response_model=Envelope)
+    def monitor(run_id: str, client_id: int | None = Query(default=None, ge=-1, le=11), session=Depends(operator)):
+        return envelope(monitoring_data(run_id, client_id))
+
+    @app.get('/api/v1/runs/{run_id}/monitor/export')
+    def monitor_export(run_id: str, format: Literal['json', 'csv'] = 'json', session=Depends(operator)):
+        data = monitoring_data(run_id, full=True)
+        body = metrics_csv(data) if format == 'csv' else json.dumps(data, indent=2, allow_nan=False)
+        return Response(body, media_type='text/csv' if format == 'csv' else 'application/json',
+                        headers={'Content-Disposition': f'attachment; filename="training-monitor.{format}"'})
 
     @app.get('/api/v1/datasets', response_model=Envelope)
     def datasets(session=Depends(operator)):

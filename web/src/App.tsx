@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from "react";
+import RunMonitor from './RunMonitor';
 import { NavLink, Routes, Route, Link, useLocation } from "react-router-dom";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
@@ -1528,6 +1529,7 @@ function Training(ctx: Context) {
                   </button>
                 )}
               </div>
+              <RunMonitor key={run.id} run={run} overview={o} />
             </section>
           )}
         </>

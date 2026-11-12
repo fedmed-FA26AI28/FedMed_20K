@@ -365,6 +365,8 @@ On **each institution**, open **Training** and press **Accept & check readiness*
 
 Then the coordinator presses **Start training**. The application launches the Flower server and each client worker. Follow coordinator round metrics and the institutions' local progress. Browser refreshes and closed tabs do not stop training, but the Python service terminals must stay running.
 
+Scroll to **Experiment monitor** for detailed learning curves, per-client diagnostics, class recall/F1/confusion matrices, runtime and resource charts, and searchable live process logs. Download **CSV** or **JSON** to analyze a run outside the app. See [MONITORING.md](MONITORING.md) for metric definitions and how to investigate SCR behavior. New diagnostics require the updated code on every training device; older results show unavailable fields honestly.
+
 The website controls these runs. You do not need `experiments.run_simulation`, `test.sh`, manual Flower commands, edits to `configs/experiment.yaml`, or edits to the old hardcoded device registry for this workflow.
 
 After all rounds and checkpoint validation, the session becomes **Completed**. If a client fails or disconnects, inspect its task log; cancel/repair/create a new session rather than silently dropping that client.
