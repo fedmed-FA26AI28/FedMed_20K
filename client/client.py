@@ -535,6 +535,10 @@ class FedMedAIClient(fl.client.NumPyClient):
 
         self.round_history = []
         self.epoch_history = []
+        self.eval_history = []
+        self.best_eval_accuracy: float = -1.0
+        self.best_eval_round: Optional[int] = None
+        self.best_model_state: Optional[Dict[str, Any]] = None
 
         # Client ping logger
         if client_dir is not None:
@@ -967,6 +971,7 @@ class FedMedAIClient(fl.client.NumPyClient):
 
         if self.save_local_metrics:
             self._save_client_csvs()
+            self._save_client_plots()
 
         print(
             f"[Client {self.client_id}] fit done | Round {server_round} | IPv4: {self.device_ipv4} | "
@@ -976,6 +981,23 @@ class FedMedAIClient(fl.client.NumPyClient):
         )
 
         return return_parameters, train_metrics["num_samples"], metrics
+
+    def _save_checkpoint(self, filename: str, state_dict: Optional[dict] = None) -> Optional[Path]:
+        """Save model checkpoint to client directory."""
+        if not self.save_local_metrics:
+            return None
+        try:
+            self.client_dir.mkdir(parents=True, exist_ok=True)
+            save_path = self.client_dir / filename
+            if state_dict is None:
+                state_dict = {k: v.cpu().clone() for k, v in self.model.state_dict().items()}
+            torch.save(state_dict, save_path)
+            pth_size = save_path.stat().st_size / 1024.0
+            print(f"[Client {self.client_id}] Checkpoint Saved: {filename} ({pth_size:.1f} KB)")
+            return save_path
+        except Exception as e:
+            print(f"[Client {self.client_id}] Warning: Could not save checkpoint {filename}: {e}")
+            return None
 
     def _save_client_csvs(self):
         """Export local client CSV metrics for on-device inspection."""
@@ -1007,8 +1029,168 @@ class FedMedAIClient(fl.client.NumPyClient):
                 writer = csv.DictWriter(f, fieldnames=ep_cols, extrasaction="ignore")
                 writer.writeheader()
                 writer.writerows(self.epoch_history)
+
+            # Evaluation metrics
+            if self.eval_history:
+                ev_path = client_dir / f"client_{self.client_id}_eval_metrics.csv"
+                ev_cols = ["server_round", "eval_loss", "eval_accuracy"]
+                with open(ev_path, "w", newline="", encoding="utf-8") as f:
+                    writer = csv.DictWriter(f, fieldnames=ev_cols, extrasaction="ignore")
+                    writer.writeheader()
+                    writer.writerows(self.eval_history)
         except Exception as e:
             print(f"[Client {self.client_id}] Warning: could not write local CSV: {e}")
+
+    def _save_client_plots(self):
+        """Generate and save dual-panel loss and accuracy curves (PNG)."""
+        if not self.save_local_metrics:
+            return
+        try:
+            import tempfile
+            os.environ.setdefault("MPLCONFIGDIR", tempfile.gettempdir())
+            import matplotlib
+            matplotlib.use("Agg")
+            import matplotlib.pyplot as plt
+
+            if not self.round_history and not self.eval_history:
+                return
+
+            self.client_dir.mkdir(parents=True, exist_ok=True)
+            fig, (ax_loss, ax_acc) = plt.subplots(1, 2, figsize=(13, 5), dpi=150)
+            fig.patch.set_facecolor("white")
+
+            for ax in (ax_loss, ax_acc):
+                ax.set_facecolor("white")
+                ax.grid(True, linestyle="--", alpha=0.5, color="#cbd5e1")
+                for spine in ax.spines.values():
+                    spine.set_color("#94a3b8")
+
+            # --- Panel 1: Loss ---
+            rounds_fit = [r["server_round"] for r in self.round_history]
+            train_losses = [r["train_loss"] for r in self.round_history]
+            if rounds_fit:
+                ax_loss.plot(
+                    rounds_fit,
+                    train_losses,
+                    marker="o",
+                    markersize=5,
+                    linewidth=2,
+                    color="#2563eb",
+                    label="Train Loss",
+                )
+
+            rounds_eval = [e["server_round"] for e in self.eval_history]
+            eval_losses = [e["eval_loss"] for e in self.eval_history]
+            if rounds_eval:
+                ax_loss.plot(
+                    rounds_eval,
+                    eval_losses,
+                    marker="s",
+                    markersize=5,
+                    linewidth=2,
+                    color="#dc2626",
+                    label="Eval / Test Loss",
+                )
+
+            ax_loss.set_title("Training & Evaluation Loss", fontsize=12, fontweight="bold", pad=8)
+            ax_loss.set_xlabel("Server Round", fontsize=11)
+            ax_loss.set_ylabel("Loss", fontsize=11)
+            ax_loss.legend(frameon=True, facecolor="#f8fafc", edgecolor="#cbd5e1", fontsize=10)
+
+            # --- Panel 2: Accuracy ---
+            train_accs = [r["train_accuracy"] * 100 for r in self.round_history]
+            if rounds_fit:
+                ax_acc.plot(
+                    rounds_fit,
+                    train_accs,
+                    marker="o",
+                    markersize=5,
+                    linewidth=2,
+                    color="#3b82f6",
+                    label="Train Accuracy (%)",
+                )
+
+            eval_accs = [e["eval_accuracy"] * 100 for e in self.eval_history]
+            if rounds_eval:
+                ax_acc.plot(
+                    rounds_eval,
+                    eval_accs,
+                    marker="s",
+                    markersize=5,
+                    linewidth=2,
+                    color="#059669",
+                    label="Local Test Accuracy (TA %)",
+                )
+                # Cumulative Best Test Accuracy (BTA)
+                cum_bta = []
+                curr_best = 0.0
+                for a in eval_accs:
+                    curr_best = max(curr_best, a)
+                    cum_bta.append(curr_best)
+                ax_acc.plot(
+                    rounds_eval,
+                    cum_bta,
+                    marker="^",
+                    markersize=5,
+                    linestyle="--",
+                    linewidth=1.8,
+                    color="#7c3aed",
+                    label="Best Test Accuracy (BTA %)",
+                )
+
+            ax_acc.set_title("Training & Evaluation Accuracy", fontsize=12, fontweight="bold", pad=8)
+            ax_acc.set_xlabel("Server Round", fontsize=11)
+            ax_acc.set_ylabel("Accuracy (%)", fontsize=11)
+            ax_acc.legend(frameon=True, facecolor="#f8fafc", edgecolor="#cbd5e1", fontsize=10)
+
+            strat_str = (self.strategy or "Federated").upper()
+            fig.suptitle(
+                f"Client {self.client_id} Training Progress | Strategy: {strat_str}",
+                fontsize=13,
+                fontweight="bold",
+                y=0.98,
+            )
+
+            plt.tight_layout()
+            out_path = self.client_dir / f"client_{self.client_id}_training_curves.png"
+            plt.savefig(out_path, dpi=200, facecolor=fig.get_facecolor(), bbox_inches="tight")
+            plt.close(fig)
+        except Exception as e:
+            print(f"[Client {self.client_id}] Warning: Could not generate client plots: {e}")
+
+    def save_artifacts(self):
+        """Export all client artifacts: models, CSV metrics, and training curves plot."""
+        if not self.save_local_metrics:
+            return
+        print(f"\n{'='*55}")
+        print(f"[Client {self.client_id}] Finalizing and saving local client artifacts...")
+        print(f"{'='*55}")
+        self.client_dir.mkdir(parents=True, exist_ok=True)
+
+        # 1. Save final model
+        self._save_checkpoint("final_model.pth")
+
+        # 2. Ensure best model exists (if no evaluate improved best_eval_accuracy, use final model)
+        best_path = self.client_dir / "best_model.pth"
+        if not best_path.exists():
+            if self.best_model_state is not None:
+                self._save_checkpoint("best_model.pth", self.best_model_state)
+            else:
+                self._save_checkpoint("best_model.pth")
+
+        # 3. Export CSVs
+        self._save_client_csvs()
+
+        # 4. Generate and save dual-panel training curves
+        self._save_client_plots()
+
+        plot_path = self.client_dir / f"client_{self.client_id}_training_curves.png"
+        print(f"  Client Dir : {self.client_dir}")
+        print(f"  Best Model : {self.client_dir / 'best_model.pth'}")
+        print(f"  Final Model: {self.client_dir / 'final_model.pth'}")
+        if plot_path.exists():
+            print(f"  Plot Curve : {plot_path}")
+        print(f"{'='*55}\n")
 
     def evaluate(self, parameters: NDArrays, config: dict):
         """Evaluate the global model on the local test set."""
@@ -1053,6 +1235,30 @@ class FedMedAIClient(fl.client.NumPyClient):
 
         avg_loss = total_loss / total
         accuracy = correct / total
+
+        # Track evaluation metrics history
+        resolved_round = int(eval_round) if eval_round is not None else (
+            self.round_history[-1]["server_round"] if self.round_history else (len(self.eval_history) + 1)
+        )
+        self.eval_history.append({
+            "server_round": resolved_round,
+            "eval_loss": float(avg_loss),
+            "eval_accuracy": float(accuracy),
+        })
+
+        if accuracy > self.best_eval_accuracy:
+            self.best_eval_accuracy = accuracy
+            self.best_eval_round = resolved_round
+            self.best_model_state = {k: v.cpu().clone() for k, v in self.model.state_dict().items()}
+            self._save_checkpoint("best_model.pth", self.best_model_state)
+            print(
+                f"[Client {self.client_id}] ★ New Best Local Test Accuracy: {accuracy*100:.2f}% "
+                f"(Round {resolved_round}) -> Saved best_model.pth"
+            )
+
+        if self.save_local_metrics:
+            self._save_client_csvs()
+            self._save_client_plots()
 
         print(
             f"[Client {self.client_id}] evaluate | "
@@ -1462,7 +1668,10 @@ def main():
         )
     except KeyboardInterrupt:
         print(f"\n[Client {args.client_id}] Interrupted by user (Ctrl+C). Exiting...")
-        sys.exit(0)
+    except Exception as e:
+        print(f"\n[Client {args.client_id}] Session ended: {e}")
+    finally:
+        client.save_artifacts()
 
 
 if __name__ == "__main__":
