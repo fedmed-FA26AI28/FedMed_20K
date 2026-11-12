@@ -14,6 +14,8 @@ Usage:
     strategy = get_strategy("scr", model=model, partition_path=partition_path,
                             num_total_clients=12)  # Support-calibrated risk
     strategy = get_strategy("fedsld", partition_path=partition_path)  # FedSLD (ISBI 2022)
+    strategy = get_strategy("fedsol")       # FedSOL (CVPR 2024)
+    strategy = get_strategy("fedswitch")    # FedSwitch (MICCAI 2026)
 """
 
 from algorithms.base import FedStrategyBase
@@ -40,6 +42,8 @@ from algorithms.cla import (
 )
 from algorithms.scr import SCRStrategy
 from algorithms.fedsld import FedSLDStrategy
+from algorithms.fedsol import FedSOLStrategy
+from algorithms.fedswitch import FedSwitchStrategy
 
 
 STRATEGY_REGISTRY = {
@@ -64,6 +68,10 @@ STRATEGY_REGISTRY = {
     # FedSLD (Shared Label Distribution)
     "fedsld": FedSLDStrategy,
     "fed_sld": FedSLDStrategy,
+    # FedSOL (Stabilized Orthogonal Learning - CVPR 2024)
+    "fedsol": FedSOLStrategy,
+    # FedSwitch (Balanced Aggregation via Private DP Histogram - MICCAI 2026)
+    "fedswitch": FedSwitchStrategy,
 }
 
 
@@ -71,7 +79,7 @@ def get_strategy(name: str = "fedavg", **kwargs):
     """Factory function to create a strategy by name.
 
     Args:
-        name: One of 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold', 'fedbns', 'proposed', 'cla', 'coverage_la', 'coveragela', 'scr', 'fedsld'.
+        name: One of 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold', 'fedbns', 'proposed', 'cla', 'coverage_la', 'coveragela', 'scr', 'fedsld', 'fedsol', 'fedswitch'.
         **kwargs: Forwarded to the strategy constructor.
 
     Returns:
@@ -110,6 +118,8 @@ __all__ = [
     "ABLATION_PRESETS",
     "SCRStrategy",
     "FedSLDStrategy",
+    "FedSOLStrategy",
+    "FedSwitchStrategy",
     "STRATEGY_REGISTRY",
     "get_strategy",
 ]

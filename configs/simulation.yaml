@@ -34,9 +34,10 @@ partitions:
 #   - 'fedbn'    : Local Batch Normalization for domain/feature shift (Li et al., 2021)
 #   - 'scaffold' : Control variates for client drift (Karimireddy et al., 2020)
 #   - 'fedbns'   : FedBN + SCAFFOLD (Dual-Heterogeneity, alias: 'proposed')
-#   - 'cla'      : Coverage + Logit Adjustment (CoverageLA: classifier head anchoring & logit offset, alias: 'coverage_la')
 #   - 'scr'      : Support-Calibrated Risk (training-count weights + head anchor)
 #   - 'fedsld'   : Shared Label Distribution with dynamic batch reweighting (Luo & Wu, IEEE ISBI 2022)
+#   - 'fedsol'   : Self-Centered Optimization with ExpSAM & reference model (Lee et al., NeurIPS 2024)
+#   - 'fedswitch': Stage-Switching Federated Learning with DP Histogram Estimation (MICCAI 2024)
 strategies:
   - fedbns
 
@@ -90,6 +91,23 @@ la_tau: 1.0                       # Legacy tau (used if la_mode='v1_legacy')
 la_epsilon: 1.0                   # Legacy epsilon (used if la_mode='v1_legacy')
 scr_gamma: 1.0                    # SCR support smoothing, kappa_c = gamma * n_c / K
 scr_head_lambda: 0.01             # SCR classifier-row anchor strength
+
+# FedSOL
+fedsol_rho: 2.0                   # SAM perturbation radius rho (paper Table 4/5 default = 2.0)
+fedsol_target: head               # Perturbation target: 'head' (paper Sec 3.4 default) or 'all'
+fedsol_loss_type: kl              # Proximal discrepancy loss metric: 'kl' or 'l2'
+fedsol_temperature: 3.0           # Softmax temperature T for KL divergence
+fedsol_adaptive: false            # Adaptive perturbation radius
+
+# FedSwitch
+switch_round: null                # Fixed switching round R* (null = auto-computed via closed form, with 25% warm-up if m >= N)
+fedswitch_weighting_mode: bounded_sum # Aggregation weights: 'bounded_sum' (paper Eq. 6) or 'stratified'
+fedswitch_coverage: 0.9           # Target client coverage probability rho for closed-form R*
+fedswitch_epsilon: 1.0            # Differential Privacy budget epsilon for label histogram
+fedswitch_c_bound: 50             # Sensitivity clipping bound C for DP Laplace noise
+
+# Gradient Clipping
+clip_grad_norm: null              # Maximum L2 norm for gradient clipping (null = disabled)
 
 # --- Server Evaluation & Metrics Tracking ---
 server_eval: false                 # Centralized evaluation on global test set

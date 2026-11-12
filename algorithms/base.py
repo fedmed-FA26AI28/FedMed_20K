@@ -271,6 +271,26 @@ class FedStrategyBase(FlwrFedAvg):
 
         return metrics_aggregated
 
+    def aggregate_fit(
+        self,
+        server_round: int,
+        results: List[Tuple[ClientProxy, FitRes]],
+        failures: List[Union[Tuple[ClientProxy, FitRes], BaseException]],
+    ) -> Tuple[Optional[Parameters], Dict[str, Scalar]]:
+        """Aggregate fit results using standard FedAvg and finalize recording metrics."""
+        parameters_aggregated, metrics_aggregated = super().aggregate_fit(
+            server_round, results, failures
+        )
+        if parameters_aggregated is not None or metrics_aggregated:
+            metrics_aggregated = self._finalize_fit_aggregation(
+                server_round=server_round,
+                parameters_aggregated=parameters_aggregated,
+                metrics_aggregated=metrics_aggregated,
+                results=results,
+                failures=failures,
+            )
+        return parameters_aggregated, metrics_aggregated
+
     def evaluate(
         self, server_round: int, parameters: Parameters
     ) -> Optional[Tuple[float, Dict[str, Scalar]]]:

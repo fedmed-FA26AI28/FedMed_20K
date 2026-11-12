@@ -13,8 +13,8 @@
 # --- Dataset and Architecture ---
 # Supported datasets: 'bloodmnist', 'pathmnist', 'organamnist', 'dermamnist'
 dataset: pathmnist
-# Supported models: 'cnn' (Modern ~20K params with BatchNorm) or 'baseline' (FedSLD ~570K params)
-model: baseline
+# Supported models: 'cnn' (Modern ~20K params with BatchNorm), 'baseline_bn' (FedSLD CNN with BatchNorm), or 'baseline' (Classic CNN without BatchNorm)
+model: baseline_bn
 optimizer: sgd                   # Client optimizer: 'adam', 'sgd', or 'adamw'
 momentum: 0.9                     # SGD momentum (0.0 for pure SGD)
 weight_decay: 1e-4                # L2 regularization penalty (0.0 to disable)
@@ -34,12 +34,12 @@ num_clients: 12                   # Total number of physical clients participati
 min_clients: 12                   # Minimum connected clients before server starts the round
 
 # --- Server & FL Training Hyperparameters ---
-# Supported strategies: 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold', 'fedbns', 'proposed', 'cla', 'coverage_la', 'scr', 'fedsld'
+# Supported strategies: 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold', 'fedbns', 'proposed', 'scr', 'fedsld', 'fedsol', 'fedswitch'
 strategy: fedbns
 rounds: 40                        # Total federated communication rounds
 fl_rounds: 40                     # Alias for rounds
 local_epochs: 5                   # Local training epochs per round on each client
-batch_size: 256                   # Client DataLoader mini-batch size
+batch_size: 256                   # Client DataLoader mini-batch size (set integer or null to inherit per-device hardware profile from configs/jetson.yaml)
 learning_rate: 0.01               # Initial base learning rate
 
 # --- Learning Rate (LR) Scheduling Mode ---
@@ -82,6 +82,25 @@ la_tau: 1.0                       # Legacy tau (used if la_mode='v1_legacy')
 la_epsilon: 1.0                   # Legacy epsilon (used if la_mode='v1_legacy')
 scr_gamma: 1.0                    # SCR support smoothing, kappa_c = gamma * n_c / K
 scr_head_lambda: 0.01             # SCR classifier-row anchor strength
+fedsld_epsilon: 1.0e-6            # FedSLD label skew smoothing epsilon
+fedsld_reduction: mean            # FedSLD loss reduction mode ('mean' or 'sum')
+
+# FedSOL (Self-Centered Optimization via Sharpness-Aware Minimization)
+fedsol_rho: 2.0                   # SAM perturbation radius rho (paper Table 4/5 default = 2.0)
+fedsol_target: head               # Perturbation target: 'head' (paper Sec 3.4 default) or 'all'
+fedsol_loss_type: kl              # Proximal discrepancy loss metric: 'kl' or 'l2'
+fedsol_temperature: 3.0           # Softmax temperature T for KL divergence
+fedsol_adaptive: false            # Adaptive perturbation radius
+
+# FedSwitch (Stage-Switching Federated Learning with DP Histogram Estimation)
+switch_round: null                # Fixed switching round R* (null = auto-computed via closed form, with 25% warm-up if m >= N)
+fedswitch_weighting_mode: bounded_sum # Aggregation weights: 'bounded_sum' (paper Eq. 6) or 'stratified'
+fedswitch_coverage: 0.9           # Target client coverage probability rho for closed-form R*
+fedswitch_epsilon: 1.0            # Differential Privacy budget epsilon for label histogram
+fedswitch_c_bound: 50             # Sensitivity clipping bound C for DP Laplace noise
+
+# Gradient Clipping (disabled by default = null so prior runs are never modified)
+clip_grad_norm: null              # Maximum L2 norm for gradient clipping (null = disabled)
 
 # --- Hardware & Client Execution ---
 device_type: pc                   # Hardware profile: 'pc', 'jetson_orin', 'jetson_nano'
@@ -110,8 +129,8 @@ active_clients: null
 # ──────────────────────────────────────────────────────────────────────────────
 centralized:
   dataset: pathmnist              # Options: 'bloodmnist', 'pathmnist', 'organamnist', 'dermamnist'
-  model: baseline                 # Options: 'baseline' (FedSLD classic CNN), 'baseline_bn' (Baseline with BN), or 'cnn' (Modern)
-  optimizer: sgd                  # Options: 'sgd' or 'adam'
+  model: baseline_bn                 # Options: 'baseline' (FedSLD classic CNN), 'baseline_bn' (Baseline with BN), or 'cnn' (Modern)
+  optimizer: sgd                  # Options: 'sgd', 'adam', or 'adamw'
   momentum: 0.9
   epochs: 100
   batch_size: 256

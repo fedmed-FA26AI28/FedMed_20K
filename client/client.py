@@ -57,6 +57,110 @@ from monitoring.network import ClientPingLogger, get_device_ipv4
 
 
 # ──────────────────────────────────────────────────────────────
+# FedSOL Adversarial Proximal Perturbation Optimizer (CVPR 2024)
+# ──────────────────────────────────────────────────────────────
+
+class ExpSAM(torch.optim.Optimizer):
+    """Adversarial Proximal Perturbation Optimizer for FedSOL (CVPR 2024).
+
+    Wraps a base optimizer (SGD, Adam, AdamW) to perform:
+    1. first_step(): Perturbs target parameters (e.g., classifier head or all layers)
+                     along the proximal gradient direction.
+    2. second_step(): Restores perturbed parameters and steps base optimizer across
+                      all trainable parameters using local loss gradients.
+    """
+
+    def __init__(
+        self,
+        params,
+        base_optimizer: torch.optim.Optimizer,
+        rho: float = 2.0,
+        adaptive: bool = False,
+        ref_params: Optional[List[torch.Tensor]] = None,
+    ):
+        target_list = list(params)
+        defaults = dict(rho=float(rho), adaptive=bool(adaptive))
+        super().__init__(target_list, defaults)
+        self.base_optimizer = base_optimizer
+        self.target_params = target_list
+        self.ref_params = list(ref_params) if ref_params is not None else None
+
+    @torch.no_grad()
+    def first_step(self, zero_grad: bool = False):
+        grad_norm = self._grad_norm()
+        scale = self.defaults["rho"] / (grad_norm + 1e-12)
+        adaptive = self.defaults.get("adaptive", False)
+
+        for idx, p in enumerate(self.target_params):
+            if p.grad is None:
+                continue
+            self.state[p]["old_p"] = p.data.clone()
+            if adaptive and self.ref_params is not None and idx < len(self.ref_params):
+                diff = torch.abs(p - self.ref_params[idx])
+                diff_norm = torch.norm(diff, p=2) + 1e-12
+                lambda_vec = diff / diff_norm
+                e_w = lambda_vec * p.grad * scale.to(p)
+            else:
+                e_w = p.grad * scale.to(p)
+            p.add_(e_w)
+
+        if zero_grad:
+            self.zero_grad()
+
+    @torch.no_grad()
+    def second_step(self, zero_grad: bool = False):
+        for p in self.target_params:
+            if p.grad is None or "old_p" not in self.state[p]:
+                continue
+            p.data.copy_(self.state[p]["old_p"])
+
+        self.base_optimizer.step()
+
+        if zero_grad:
+            self.zero_grad()
+            self.base_optimizer.zero_grad()
+
+    def _grad_norm(self):
+        adaptive = self.defaults.get("adaptive", False)
+        grads = []
+        for idx, p in enumerate(self.target_params):
+            if p.grad is not None:
+                if adaptive and self.ref_params is not None and idx < len(self.ref_params):
+                    diff = torch.abs(p - self.ref_params[idx])
+                    diff_norm = torch.norm(diff, p=2) + 1e-12
+                    lambda_vec = diff / diff_norm
+                    grads.append((lambda_vec * p.grad).norm(p=2))
+                else:
+                    grads.append(p.grad.norm(p=2))
+        if not grads:
+            return torch.tensor(0.0)
+        shared_device = self.target_params[0].device
+        return torch.norm(torch.stack([g.to(shared_device) for g in grads]), p=2)
+
+
+def _extract_class_counts(loader, num_classes: int) -> dict[str, int]:
+    """Extract class occurrence frequencies from a DataLoader."""
+    counts = np.zeros(num_classes, dtype=np.int64)
+    if hasattr(loader.dataset, "labels"):
+        lbls = np.asarray(loader.dataset.labels).flatten()
+        b = np.bincount(lbls, minlength=num_classes)
+        for i in range(min(num_classes, len(b))):
+            counts[i] = int(b[i])
+    elif hasattr(loader.dataset, "targets"):
+        lbls = np.asarray(loader.dataset.targets).flatten()
+        b = np.bincount(lbls, minlength=num_classes)
+        for i in range(min(num_classes, len(b))):
+            counts[i] = int(b[i])
+    else:
+        for _, labels in loader:
+            lbls = labels.view(-1).cpu().numpy()
+            for l in lbls:
+                if 0 <= l < num_classes:
+                    counts[l] += 1
+    return {str(c): int(counts[c]) for c in range(num_classes)}
+
+
+# ──────────────────────────────────────────────────────────────
 # Local training function (FL-aware version with proximal term)
 # ──────────────────────────────────────────────────────────────
 
@@ -86,6 +190,14 @@ def _local_train(
     fedsld_prior: "torch.Tensor | None" = None,
     fedsld_epsilon: float = 1e-6,
     fedsld_reduction: str = "mean",
+    is_fedsol: bool = False,
+    fedsol_ref_model: "nn.Module | None" = None,
+    fedsol_rho: float = 2.0,
+    fedsol_target: str = "head",
+    fedsol_loss_type: str = "kl",
+    fedsol_temperature: float = 3.0,
+    fedsol_adaptive: bool = False,
+    clip_grad_norm: "float | None" = None,
 ):
     """Train locally and return rich metrics.
 
@@ -95,11 +207,6 @@ def _local_train(
         global_params: Global model parameters (list of tensors) for proximal term.
         scaffold_drift: List of tensor drift terms (c - c_i) for trainable parameters in SCAFFOLD.
         is_scaffold: Whether SCAFFOLD is active to track uncorrupted loss gradients (Option 2).
-        coverage_head_ref: Dict with 'weight' and optionally 'bias' reference tensors
-            from the global model at the start of the round (Coverage penalty).
-        coverage_weights: Tensor of shape (C,) with per-class anchoring weights a_{k,c}.
-        la_offsets: Tensor of shape (C,) with logit adjustment offsets Delta_{k,c}.
-        coverage_mu_head: Intensity of the Coverage head penalty.
         scr_sample_weights: Fixed per-class training-sample weights for SCR.
         scr_anchor: Support-dependent classifier row anchor for SCR.
         scr_reference: Received global classifier weight and bias at round start.
@@ -108,14 +215,16 @@ def _local_train(
         fedsld_prior: Global prior label distribution P~(y) tensor of shape (C,).
         fedsld_epsilon: Smoothing epsilon to prevent zero division in FedSLD.
         fedsld_reduction: Batch loss reduction ('mean' or 'sum').
+        is_fedsol: Whether FedSOL adversarial proximal perturbation is active.
+        fedsol_ref_model: Reference global model for FedSOL proximal discrepancy.
+        fedsol_rho: Perturbation radius strength for FedSOL (CVPR 2024 default: 2.0).
+        fedsol_target: Perturbation target layer ('head' = classifier head only, 'all' = full model).
+        fedsol_loss_type: Proximal discrepancy metric ('kl' or 'l2').
+        fedsol_temperature: Softmax temperature for KL divergence.
+        fedsol_adaptive: Whether to use adaptive perturbation radius in FedSOL.
+        clip_grad_norm: Maximum L2 gradient norm for clipping (None or <= 0 disables).
     """
     criterion = nn.CrossEntropyLoss()
-    is_coverage_la = (
-        coverage_head_ref is not None
-        and coverage_weights is not None
-        and coverage_mu_head > 0.0
-    )
-    use_la = la_offsets is not None
     use_scr = scr_sample_weights is not None
     if use_scr:
         if scr_anchor is None or scr_reference is None:
@@ -139,24 +248,42 @@ def _local_train(
     trainable_params = [p for p in model.parameters() if p.requires_grad]
     grad_accum = [torch.zeros_like(p) for p in trainable_params] if is_scaffold else None
 
-    # Identify the final classifier layer for Coverage penalty
-    head_weight_param = None
-    head_bias_param = None
-    if is_coverage_la:
-        # Find the last Linear layer's weight and bias
-        last_linear = None
-        for m in model.modules():
+    # Identify the final classifier layer for FedSOL partial perturbation
+    last_linear = None
+    for m in model.modules():
+        if isinstance(m, nn.Linear):
+            last_linear = m
+
+    head_params = []
+    if last_linear is not None:
+        head_params = [p for p in last_linear.parameters() if p.requires_grad]
+
+    ref_head_params = []
+    if fedsol_ref_model is not None and last_linear is not None:
+        ref_last_linear = None
+        for m in fedsol_ref_model.modules():
             if isinstance(m, nn.Linear):
-                last_linear = m
-        if last_linear is not None:
-            head_weight_param = last_linear.weight
-            head_bias_param = last_linear.bias  # May be None
-        if coverage_weights is not None:
-            coverage_weights = coverage_weights.to(device)
-        if coverage_head_ref is not None:
-            coverage_head_ref = {k: v.to(device) for k, v in coverage_head_ref.items()}
-    if use_la and la_offsets is not None:
-        la_offsets = la_offsets.to(device)
+                ref_last_linear = m
+        if ref_last_linear is not None:
+            ref_head_params = [p for p in ref_last_linear.parameters()]
+
+    # FedSOL optimizer wrapper (SAM-based adversarial proximal perturbation)
+    sam_optimizer = None
+    if is_fedsol and fedsol_ref_model is not None:
+        if str(fedsol_target).lower() == "head" and head_params:
+            target_p = head_params
+            ref_p = ref_head_params if ref_head_params else [p for p in fedsol_ref_model.parameters()]
+        else:
+            target_p = trainable_params
+            ref_p = [p for p in fedsol_ref_model.parameters()]
+
+        sam_optimizer = ExpSAM(
+            params=target_p,
+            base_optimizer=optimizer,
+            rho=fedsol_rho,
+            adaptive=fedsol_adaptive,
+            ref_params=ref_p,
+        )
 
     for epoch in range(epochs):
         model.train()
@@ -168,6 +295,45 @@ def _local_train(
         for images, labels in train_loader:
             images = images.to(device)
             labels = labels.view(-1).long().to(device)
+
+            # ── Special Branch: FedSOL Two-Pass Adversarial Proximal Update ──
+            if is_fedsol and fedsol_ref_model is not None and sam_optimizer is not None:
+                # Pass 1: Measure discrepancy to global reference model and perturb
+                optimizer.zero_grad()
+                local_logits = model(images)
+                with torch.no_grad():
+                    ref_logits = fedsol_ref_model(images)
+
+                if fedsol_loss_type == "kl":
+                    T = max(fedsol_temperature, 1e-4)
+                    pred_probs = F.log_softmax(local_logits / T, dim=1)
+                    target_probs = F.softmax(ref_logits / T, dim=1)
+                    prox_loss = F.kl_div(pred_probs, target_probs, reduction="batchmean") * (T * T)
+                else:  # 'l2' parameter distance
+                    prox_loss = 0.0
+                    for lp, rp in zip(model.parameters(), fedsol_ref_model.parameters()):
+                        prox_loss = prox_loss + 0.5 * ((lp - rp) ** 2).sum()
+
+                prox_loss.backward()
+                sam_optimizer.first_step(zero_grad=True)
+
+                # Pass 2: Evaluate local task loss on perturbed weights & update
+                optimizer.zero_grad()
+                perturbed_logits = model(images)
+                loss = criterion(perturbed_logits, labels)
+                loss.backward()
+
+                if clip_grad_norm is not None and clip_grad_norm > 0:
+                    torch.nn.utils.clip_grad_norm_(trainable_params, max_norm=clip_grad_norm)
+
+                sam_optimizer.second_step(zero_grad=True)
+
+                total_steps += 1
+                running_loss += loss.item() * images.size(0)
+                _, predicted = torch.max(perturbed_logits.data, 1)
+                total += labels.size(0)
+                correct += (predicted == labels).sum().item()
+                continue
 
             optimizer.zero_grad()
             outputs = model(images)
@@ -181,6 +347,9 @@ def _local_train(
                 batch_counts = torch.bincount(labels, minlength=fedsld_prior.size(0)).float()
                 pb = batch_counts / float(labels.size(0))
                 weights = pb[labels] / (fedsld_prior[labels] + fedsld_epsilon)
+                # Self-normalize weights to unit mean across batch to preserve standard CE gradient scale
+                # and prevent exponential divergence under severe non-IID label skew
+                weights = weights / (weights.mean() + 1e-8)
                 ce = F.cross_entropy(outputs, labels, reduction="none")
                 if fedsld_reduction == "sum":
                     loss = (weights * ce).sum()
@@ -191,9 +360,6 @@ def _local_train(
                 loss = (scr_sample_weights[labels] * ce).mean()
                 loss = loss + head_penalty(
                     model, scr_reference, scr_anchor, scr_head_lambda)
-            elif use_la:
-                adjusted_logits = outputs + la_offsets.unsqueeze(0)
-                loss = criterion(adjusted_logits, labels)
             else:
                 loss = criterion(outputs, labels)
 
@@ -207,7 +373,6 @@ def _local_train(
                     penalty = penalty + (coverage_weights *
                                          (head_bias_param - b_ref) ** 2).sum()
                 loss = loss + (coverage_mu_head / 2.0) * penalty
-
             # FedProx proximal term
             if proximal_mu > 0.0 and global_params is not None:
                 proximal_loss = 0.0
@@ -224,6 +389,9 @@ def _local_train(
                 for accum, p in zip(grad_accum, trainable_params):
                     if p.grad is not None:
                         accum.add_(p.grad)
+
+            if clip_grad_norm is not None and clip_grad_norm > 0:
+                torch.nn.utils.clip_grad_norm_(trainable_params, max_norm=clip_grad_norm)
 
             optimizer.step()
 
@@ -361,6 +529,12 @@ class FedMedAIClient(fl.client.NumPyClient):
         coverage_mu_head: float = 0.1,
         la_tau: float = 1.0,
         la_epsilon: float = 1.0,
+        fedsol_rho: float = 2.0,
+        fedsol_target: str = "head",
+        fedsol_loss_type: str = "kl",
+        fedsol_temperature: float = 3.0,
+        fedsol_adaptive: bool = False,
+        clip_grad_norm: Optional[float] = None,
     ):
         self.client_id = client_id
         self.model_name = model_name
@@ -395,6 +569,19 @@ class FedMedAIClient(fl.client.NumPyClient):
         self.la_tau = float(la_tau)
         self.la_epsilon = float(la_epsilon)
         self.client_control_variate: Optional[List[np.ndarray]] = None
+
+        self.fedsol_rho = float(fedsol_rho)
+        self.fedsol_target = str(fedsol_target).lower().strip()
+        self.fedsol_loss_type = str(fedsol_loss_type).lower().strip()
+        self.fedsol_temperature = float(fedsol_temperature)
+        self.fedsol_adaptive = bool(fedsol_adaptive)
+        self.clip_grad_norm = float(clip_grad_norm) if clip_grad_norm is not None and clip_grad_norm > 0 else None
+
+        self._class_counts_dict = _extract_class_counts(self.train_loader, self.num_classes)
+        self._class_counts = torch.tensor(
+            [self._class_counts_dict[str(c)] for c in range(self.num_classes)],
+            dtype=torch.float32,
+        )
 
         self.round_history = []
         self.epoch_history = []
@@ -618,6 +805,8 @@ class FedMedAIClient(fl.client.NumPyClient):
         la_offsets_tensor = None
         coverage_mu_head_val = 0.0
         cla_criterion = None
+
+        # Prepare SCR parameters
         scr_sample_weights = None
         scr_anchor = None
         scr_reference = None
@@ -717,7 +906,6 @@ class FedMedAIClient(fl.client.NumPyClient):
                 f"la_mode={la_mode} | adaptive_kappa={adaptive_kappa} | multi_linear={multi_linear_coverage} | "
                 f"disable_wd={disable_covered_wd} | bn_mode={bn_mode} | local_counts={class_counts_list}"
             )
-
         if strategy == "scr":
             required = ("scr_global_counts", "scr_coverage_sum", "scr_total_samples",
                         "scr_num_clients", "scr_gamma", "scr_head_lambda")
@@ -768,6 +956,29 @@ class FedMedAIClient(fl.client.NumPyClient):
                 f"| prior={[round(p, 4) for p in fedsld_prior_tensor.tolist()]}"
             )
 
+        # Prepare FedSOL parameters
+        is_fedsol = strategy in ("fedsol", "fed_sol")
+        fedsol_rho = float(config.get("fedsol_rho", self.fedsol_rho))
+        fedsol_target = str(config.get("fedsol_target", getattr(self, "fedsol_target", "head"))).lower().strip()
+        fedsol_loss_type = str(config.get("fedsol_loss_type", self.fedsol_loss_type)).lower()
+        fedsol_temperature = float(config.get("fedsol_temperature", self.fedsol_temperature))
+        fedsol_adaptive = bool(config.get("fedsol_adaptive", self.fedsol_adaptive))
+        clip_grad_norm_val = config.get("clip_grad_norm", self.clip_grad_norm)
+        if clip_grad_norm_val is not None:
+            clip_grad_norm_val = float(clip_grad_norm_val) if float(clip_grad_norm_val) > 0 else None
+
+        fedsol_ref_model = None
+        if is_fedsol:
+            import copy
+            fedsol_ref_model = copy.deepcopy(self.model)
+            fedsol_ref_model.eval()
+            for p in fedsol_ref_model.parameters():
+                p.requires_grad = False
+            print(
+                f"[Client {self.client_id}] FedSOL: rho={fedsol_rho} target={fedsol_target} "
+                f"loss_type={fedsol_loss_type} T={fedsol_temperature} adaptive={fedsol_adaptive}"
+            )
+
         # Train locally
         train_start = time.time()
         train_metrics = _local_train(
@@ -794,6 +1005,14 @@ class FedMedAIClient(fl.client.NumPyClient):
             fedsld_prior=fedsld_prior_tensor,
             fedsld_epsilon=fedsld_epsilon,
             fedsld_reduction=fedsld_reduction,
+            is_fedsol=is_fedsol,
+            fedsol_ref_model=fedsol_ref_model,
+            fedsol_rho=fedsol_rho,
+            fedsol_target=fedsol_target,
+            fedsol_loss_type=fedsol_loss_type,
+            fedsol_temperature=fedsol_temperature,
+            fedsol_adaptive=fedsol_adaptive,
+            clip_grad_norm=clip_grad_norm_val,
         )
         training_time = time.time() - train_start
 
@@ -870,6 +1089,12 @@ class FedMedAIClient(fl.client.NumPyClient):
             "ram_used_mb": float(res["ram_used_mb"]),
             "gpu_memory_mb": float(res["gpu_memory_allocated_mb"]),
         }
+        metrics["class_counts_json"] = json.dumps(self._class_counts_dict)
+        if is_fedsol:
+            metrics["fedsol_active"] = True
+            metrics["fedsol_rho"] = fedsol_rho
+            metrics["fedsol_target"] = fedsol_target
+            metrics["fedsol_loss_type"] = fedsol_loss_type
         if strategy == "scr":
             metrics["scr_active"] = True
             metrics["scr_gamma"] = float(config["scr_gamma"])
@@ -975,6 +1200,14 @@ class FedMedAIClient(fl.client.NumPyClient):
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
 
+        if total == 0:
+            # A Dirichlet split can give a training client no local test images.
+            # Report zero examples so sample-weighted evaluation ignores it.
+            if not getattr(self, "_empty_test_warning_issued", False):
+                print(f"[Client {self.client_id}] No local test samples; skipping evaluation")
+                self._empty_test_warning_issued = True
+            return 0.0, 0, {"accuracy": 0.0}
+
         avg_loss = total_loss / total
         accuracy = correct / total
 
@@ -1018,7 +1251,7 @@ def main():
     if server_host == "0.0.0.0":
         server_host = "127.0.0.1"
     server_port = yaml_cfg.get("server_port", 8080)
-    default_server_address = f"{server_host}:{server_port}"
+    default_server_address = yaml_cfg.get("server_address") or f"{server_host}:{server_port}"
 
     active_clients = yaml_cfg.get("active_clients")
     default_num_clients = len(active_clients) if isinstance(active_clients, list) and active_clients else yaml_cfg.get("num_clients", yaml_cfg.get("min_clients", 12))
@@ -1028,7 +1261,7 @@ def main():
         parents=[pre_parser],
     )
     parser.add_argument(
-        "--client_id", type=int, required=True, help="Client ID (0-9)"
+        "--client_id", type=int, required=True, help="Client ID integer (0, 1, 2, ...)"
     )
     parser.add_argument(
         "--server_address",
@@ -1122,12 +1355,13 @@ def main():
             "fedbns",
             "proposed",
             "fedbn_scaffold",
-            "cla",
             "scr",
-            "coverage_la",
-            "coveragela",
             "fedsld",
             "fed_sld",
+            "fedsol",
+            "fed_sol",
+            "fedswitch",
+            "fed_switch",
         ],
         help=f"FL strategy (default: {yaml_cfg.get('strategy', 'fedavg')})",
     )
@@ -1239,6 +1473,44 @@ def main():
         help=f"Logit adjustment label count smoothing epsilon (default: {yaml_cfg.get('la_epsilon', 1.0)})",
     )
     parser.add_argument(
+        "--fedsol_rho",
+        type=float,
+        default=yaml_cfg.get("fedsol_rho", 2.0),
+        help=f"FedSOL perturbation radius rho (default: {yaml_cfg.get('fedsol_rho', 2.0)})",
+    )
+    parser.add_argument(
+        "--fedsol_target",
+        type=str,
+        default=yaml_cfg.get("fedsol_target", "head"),
+        choices=["head", "all"],
+        help=f"FedSOL perturbation target layer ('head' or 'all') (default: {yaml_cfg.get('fedsol_target', 'head')})",
+    )
+    parser.add_argument(
+        "--fedsol_loss_type",
+        type=str,
+        default=yaml_cfg.get("fedsol_loss_type", "kl"),
+        choices=["kl", "l2"],
+        help=f"FedSOL proximal discrepancy loss type ('kl' or 'l2') (default: {yaml_cfg.get('fedsol_loss_type', 'kl')})",
+    )
+    parser.add_argument(
+        "--fedsol_temperature",
+        type=float,
+        default=yaml_cfg.get("fedsol_temperature", 3.0),
+        help=f"FedSOL softmax temperature T for KL divergence (default: {yaml_cfg.get('fedsol_temperature', 3.0)})",
+    )
+    parser.add_argument(
+        "--fedsol_adaptive",
+        action=argparse.BooleanOptionalAction,
+        default=yaml_cfg.get("fedsol_adaptive", False),
+        help=f"Enable adaptive perturbation radius for FedSOL (default: {yaml_cfg.get('fedsol_adaptive', False)})",
+    )
+    parser.add_argument(
+        "--clip_grad_norm",
+        type=float,
+        default=yaml_cfg.get("clip_grad_norm", None),
+        help=f"Max gradient L2 norm for clipping (default: {yaml_cfg.get('clip_grad_norm', None)})",
+    )
+    parser.add_argument(
         "--momentum",
         type=float,
         default=yaml_cfg.get("momentum", 0.0),
@@ -1300,9 +1572,24 @@ def main():
         )
 
     if not Path(partition_path).exists():
-        print(f"ERROR: Partition file not found: {partition_path}")
-        print("Run `python -m experiments.run_partition` first to generate partitions.")
-        sys.exit(1)
+        print(f"[Client {args.client_id}] Partition file not found: {partition_path}")
+        print(
+            f"[Client {args.client_id}] Auto-generating missing partition for "
+            f"dataset={args.dataset}, mode={args.partition_mode}, clients={args.num_clients}, seed={args.seed}..."
+        )
+        try:
+            from experiments.run_partition import run_one
+            run_one(
+                dataset_name=args.dataset,
+                partition_mode=args.partition_mode,
+                num_clients=args.num_clients,
+                seed=args.seed,
+                local_test=args.local_test,
+            )
+            print(f"[Client {args.client_id}] Auto-generation completed successfully.")
+        except Exception as e:
+            print(f"ERROR: Failed to auto-generate partition: {e}")
+            sys.exit(1)
 
     print(f"[Client {args.client_id}] Loading partition from {partition_path}")
 
@@ -1313,6 +1600,7 @@ def main():
         augment=args.augment,
         random_crop=args.random_crop,
         random_flip=args.random_flip,
+        load_val=False,
     )
     print(f"[Client {args.client_id}] Augmentation: augment={args.augment}, crop={args.random_crop}, flip={args.random_flip}")
     client_indices = load_partition(partition_path, split="train")
@@ -1325,6 +1613,7 @@ def main():
         sys.exit(1)
 
     my_indices = client_indices[args.client_id]
+    resolved_device_type = str(args.device_type).strip() if args.device_type else get_device_type(args.client_id)
     print(f"[Client {args.client_id}] Assigned {len(my_indices)} training samples")
 
     # Create data loaders
@@ -1332,7 +1621,7 @@ def main():
         train_dataset,
         my_indices,
         client_id=args.client_id,
-        device_type=args.device_type,
+        device_type=resolved_device_type,
         batch_size=args.batch_size,
         num_workers=args.num_workers,
         pin_memory=args.pin_memory,
@@ -1350,7 +1639,7 @@ def main():
                 test_dataset,
                 my_test_indices,
                 client_id=args.client_id,
-                device_type=args.device_type,
+                device_type=resolved_device_type,
                 batch_size=args.batch_size or 32,
                 shuffle=False,
                 num_workers=0,
@@ -1377,7 +1666,7 @@ def main():
         lr_patience=args.lr_patience,
         lr_factor=args.lr_factor,
         lr_min=args.lr_min,
-        device_type=args.device_type,
+        device_type=resolved_device_type,
         save_local_metrics=args.save_metrics,
         server_address=args.server_address,
         strategy=args.strategy,
@@ -1400,6 +1689,12 @@ def main():
         coverage_mu_head=args.coverage_mu_head,
         la_tau=args.la_tau,
         la_epsilon=args.la_epsilon,
+        fedsol_rho=args.fedsol_rho,
+        fedsol_target=args.fedsol_target,
+        fedsol_loss_type=args.fedsol_loss_type,
+        fedsol_temperature=args.fedsol_temperature,
+        fedsol_adaptive=args.fedsol_adaptive,
+        clip_grad_norm=args.clip_grad_norm,
     )
 
     print(f"[Client {args.client_id}] Connecting to {args.server_address}...")

@@ -1,7 +1,7 @@
 """FL Server entry point with Step LR Decay, Early Stopping, and YAML config support.
 
 Starts a Flower server with a user-selectable aggregation strategy from
-the algorithms/ folder (FedAvg, FedProx, FedNova, FedBN, SCAFFOLD, FedBNS, CLA, SCR, FedSLD).
+the algorithms/ folder (FedAvg, FedProx, FedNova, FedBN, SCAFFOLD, FedBNS, SCR, FedSLD, FedSOL, FedSwitch).
 
 Usage:
     # Run with default settings from configs/experiment.yaml:
@@ -303,6 +303,13 @@ def _make_on_fit_config_fn(
     la_tau: float = 1.0,
     la_epsilon: float = 1.0,
     global_class_counts: Optional[List[int]] = None,
+    fedsol_rho: float = 2.0,
+    fedsol_target: str = "head",
+    fedsol_loss_type: str = "kl",
+    fedsol_temperature: float = 3.0,
+    fedsol_adaptive: bool = False,
+    clip_grad_norm: Optional[float] = None,
+    switch_round: Optional[int] = None,
 ):
     """Create a function that calculates and sends training config to clients each round."""
     mode = str(lr_mode).lower().strip()
@@ -341,6 +348,19 @@ def _make_on_fit_config_fn(
                 config["ablation_preset"] = str(ablation_preset)
             if global_class_counts:
                 config["global_class_counts"] = json.dumps(global_class_counts)
+
+        if strategy_name.lower() in ("fedsol", "fed_sol"):
+            config["fedsol_rho"] = float(fedsol_rho)
+            config["fedsol_target"] = str(fedsol_target).lower()
+            config["fedsol_loss_type"] = str(fedsol_loss_type).lower()
+            config["fedsol_temperature"] = float(fedsol_temperature)
+            config["fedsol_adaptive"] = bool(fedsol_adaptive)
+
+        if clip_grad_norm is not None and clip_grad_norm > 0:
+            config["clip_grad_norm"] = float(clip_grad_norm)
+
+        if strategy_name.lower() in ("fedswitch", "fed_switch") and switch_round is not None:
+            config["switch_round"] = int(switch_round)
 
         if mode == "fixed":
             config["learning_rate"] = float(learning_rate)
@@ -450,6 +470,12 @@ def main():
                         default=yaml_cfg.get("partition_path"),
                         help="Training partition JSON required by SCR and FedSLD")
     parser.add_argument(
+        "--partition_mode",
+        type=str,
+        default=yaml_cfg.get("partition_mode", "practical"),
+        help=f"Partition mode for partition path resolution (default: {yaml_cfg.get('partition_mode', 'practical')})",
+    )
+    parser.add_argument(
         "--strategy",
         type=str,
         default=yaml_cfg.get("strategy", "fedavg"),
@@ -463,11 +489,15 @@ def main():
             "proposed",
             "fedbn_scaffold",
             "cla",
-            "scr",
             "coverage_la",
             "coveragela",
+            "scr",
             "fedsld",
             "fed_sld",
+            "fedsol",
+            "fed_sol",
+            "fedswitch",
+            "fed_switch",
         ],
         help=f"FL aggregation strategy (default: {yaml_cfg.get('strategy', 'fedavg')})",
     )
@@ -628,6 +658,88 @@ def main():
                         default=yaml_cfg.get("scr_head_lambda", 0.01),
                         help="SCR support-dependent classifier anchor strength")
     parser.add_argument(
+        "--fedsld_epsilon",
+        type=float,
+        default=yaml_cfg.get("fedsld_epsilon", 1e-6),
+        help=f"FedSLD smoothing epsilon (default: {yaml_cfg.get('fedsld_epsilon', 1e-6)})",
+    )
+    parser.add_argument(
+        "--fedsld_reduction",
+        type=str,
+        default=yaml_cfg.get("fedsld_reduction", "mean"),
+        choices=["mean", "sum"],
+        help=f"FedSLD loss reduction mode (default: {yaml_cfg.get('fedsld_reduction', 'mean')})",
+    )
+    parser.add_argument(
+        "--fedsol_rho",
+        type=float,
+        default=yaml_cfg.get("fedsol_rho", 2.0),
+        help=f"FedSOL perturbation radius rho (default: {yaml_cfg.get('fedsol_rho', 2.0)})",
+    )
+    parser.add_argument(
+        "--fedsol_target",
+        type=str,
+        default=yaml_cfg.get("fedsol_target", "head"),
+        choices=["head", "all"],
+        help=f"FedSOL perturbation target layers ('head' for classifier only as per paper Sec 3.4, or 'all') (default: {yaml_cfg.get('fedsol_target', 'head')})",
+    )
+    parser.add_argument(
+        "--fedsol_loss_type",
+        type=str,
+        default=yaml_cfg.get("fedsol_loss_type", "kl"),
+        choices=["kl", "l2"],
+        help=f"FedSOL proximal discrepancy loss type ('kl' or 'l2') (default: {yaml_cfg.get('fedsol_loss_type', 'kl')})",
+    )
+    parser.add_argument(
+        "--fedsol_temperature",
+        type=float,
+        default=yaml_cfg.get("fedsol_temperature", 3.0),
+        help=f"FedSOL softmax temperature T for KL divergence (default: {yaml_cfg.get('fedsol_temperature', 3.0)})",
+    )
+    parser.add_argument(
+        "--fedsol_adaptive",
+        action=argparse.BooleanOptionalAction,
+        default=yaml_cfg.get("fedsol_adaptive", False),
+        help=f"Enable adaptive perturbation radius for FedSOL (default: {yaml_cfg.get('fedsol_adaptive', False)})",
+    )
+    parser.add_argument(
+        "--switch_round",
+        type=int,
+        default=yaml_cfg.get("switch_round", None),
+        help="FedSwitch switching round R* (default: auto-computed via closed-form)",
+    )
+    parser.add_argument(
+        "--fedswitch_weighting_mode",
+        type=str,
+        default=yaml_cfg.get("fedswitch_weighting_mode", "bounded_sum"),
+        choices=["bounded_sum", "stratified"],
+        help=f"FedSwitch aggregation weighting mode: 'bounded_sum' (paper Eq. 6) or 'stratified' (default: {yaml_cfg.get('fedswitch_weighting_mode', 'bounded_sum')})",
+    )
+    parser.add_argument(
+        "--fedswitch_coverage",
+        type=float,
+        default=yaml_cfg.get("fedswitch_coverage", 0.9),
+        help=f"FedSwitch target client coverage prob rho (default: {yaml_cfg.get('fedswitch_coverage', 0.9)})",
+    )
+    parser.add_argument(
+        "--fedswitch_epsilon",
+        type=float,
+        default=yaml_cfg.get("fedswitch_epsilon", 1.0),
+        help=f"FedSwitch DP privacy budget epsilon (default: {yaml_cfg.get('fedswitch_epsilon', 1.0)})",
+    )
+    parser.add_argument(
+        "--fedswitch_c_bound",
+        type=int,
+        default=yaml_cfg.get("fedswitch_c_bound", 50),
+        help=f"FedSwitch DP clipping sensitivity bound C (default: {yaml_cfg.get('fedswitch_c_bound', 50)})",
+    )
+    parser.add_argument(
+        "--clip_grad_norm",
+        type=float,
+        default=yaml_cfg.get("clip_grad_norm", None),
+        help=f"Max gradient L2 norm for clipping (default: {yaml_cfg.get('clip_grad_norm', None)})",
+    )
+    parser.add_argument(
         "--early_stop_patience",
         type=int,
         default=yaml_cfg.get("early_stop_patience", 10),
@@ -716,6 +828,37 @@ def main():
 
     set_seed(args.seed)
 
+    if not args.partition_path:
+        from datasets.partition import get_partition_path
+        candidate_p = get_partition_path(
+            dataset_name=args.dataset,
+            partition_mode=args.partition_mode,
+            seed=args.seed,
+            num_clients=args.min_clients,
+            local_test=args.local_test,
+        )
+        if candidate_p.exists():
+            args.partition_path = str(candidate_p)
+        else:
+            strat_key = args.strategy.lower()
+            if strat_key in ("scr", "fedsld", "fed_sld", "fedswitch", "fed_switch"):
+                print(f"[Server] Strategy {args.strategy.upper()} requires partition but {candidate_p.name} does not exist.")
+                print(f"[Server] Auto-generating missing partition for dataset={args.dataset}, mode={args.partition_mode}, clients={args.min_clients} (seed={args.seed})...")
+                try:
+                    from experiments.run_partition import run_one
+                    run_one(
+                        dataset_name=args.dataset,
+                        partition_mode=args.partition_mode,
+                        num_clients=args.min_clients,
+                        seed=args.seed,
+                        local_test=args.local_test,
+                    )
+                    if candidate_p.exists():
+                        args.partition_path = str(candidate_p)
+                        print(f"[Server] Partition generated: {candidate_p}")
+                except Exception as e:
+                    print(f"[Server] Warning: Failed to auto-generate partition: {e}")
+
     server_ipv4 = get_device_ipv4()
 
     from medmnist import INFO
@@ -755,6 +898,12 @@ def main():
         print(f"  SCR          : gamma={args.scr_gamma}, head_lambda={args.scr_head_lambda}, partition={args.partition_path}")
     if args.strategy.lower() in ("fedsld", "fed_sld"):
         print(f"  FedSLD       : partition={args.partition_path}")
+    if args.strategy.lower() in ("fedsol", "fed_sol"):
+        print(f"  FedSOL       : rho={args.fedsol_rho}, target={args.fedsol_target}, loss_type={args.fedsol_loss_type}, T={args.fedsol_temperature}, adaptive={args.fedsol_adaptive}")
+    if args.strategy.lower() in ("fedswitch", "fed_switch"):
+        print(f"  FedSwitch    : switch_round={args.switch_round}, weighting_mode={args.fedswitch_weighting_mode}, coverage={args.fedswitch_coverage}, epsilon={args.fedswitch_epsilon}, c_bound={args.fedswitch_c_bound}")
+    if args.clip_grad_norm is not None:
+        print(f"  Grad Clip    : max_norm={args.clip_grad_norm}")
     print(f"  Early Stop   : Patience={args.early_stop_patience} (metric: {args.early_stop_metric})")
     print(f"  Server Eval  : {args.server_eval}")
     print(f"  Local Test   : {args.local_test}")
@@ -809,6 +958,13 @@ def main():
             la_tau=args.la_tau,
             la_epsilon=args.la_epsilon,
             global_class_counts=global_class_counts,
+            fedsol_rho=args.fedsol_rho,
+            fedsol_target=args.fedsol_target,
+            fedsol_loss_type=args.fedsol_loss_type,
+            fedsol_temperature=args.fedsol_temperature,
+            fedsol_adaptive=args.fedsol_adaptive,
+            clip_grad_norm=args.clip_grad_norm,
+            switch_round=args.switch_round,
         ),
         "evaluate_metrics_aggregation_fn": _evaluate_metrics_aggregation_fn,
         "early_stop_patience": args.early_stop_patience,
@@ -852,6 +1008,30 @@ def main():
             "model": initial_model,
             "partition_path": args.partition_path,
             "num_classes": num_classes,
+            "fedsld_epsilon": args.fedsld_epsilon,
+            "fedsld_reduction": args.fedsld_reduction,
+        })
+    elif strat_key in ("fedsol", "fed_sol"):
+        strategy_kwargs.update({
+            "model": initial_model,
+            "fedsol_rho": args.fedsol_rho,
+            "fedsol_target": args.fedsol_target,
+            "fedsol_loss_type": args.fedsol_loss_type,
+            "fedsol_temperature": args.fedsol_temperature,
+            "fedsol_adaptive": args.fedsol_adaptive,
+        })
+    elif strat_key in ("fedswitch", "fed_switch"):
+        strategy_kwargs.update({
+            "model": initial_model,
+            "partition_path": args.partition_path,
+            "num_classes": num_classes,
+            "num_total_clients": args.min_clients,
+            "switch_round": args.switch_round,
+            "weighting_mode": args.fedswitch_weighting_mode,
+            "total_rounds": args.rounds,
+            "switch_coverage": args.fedswitch_coverage,
+            "switch_epsilon": args.fedswitch_epsilon,
+            "switch_c_bound": args.fedswitch_c_bound,
         })
     elif strat_key in ("coverage_la", "cla", "coveragela"):
         strategy_kwargs.update({

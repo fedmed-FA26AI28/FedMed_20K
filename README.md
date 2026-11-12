@@ -2,13 +2,9 @@
 
 FedMedAI is an enterprise-grade Federated Learning (FL) framework designed for medical imaging classification benchmarks under severe non-IID data distributions (Dirichlet, Pathological, and Practical cross-institution partitions). It provides seamless support for centralized baselines, distributed physical multi-device execution (PC server and NVIDIA Jetson Orin/Nano edge clients over LAN), and automated local multi-client simulation.
 
-The separate [matched research runner](research/README.md) compares
-FedAvg, SCR and other registered research methods on the team's `baseline`
-and `baseline_bn` CNNs with 12 clients and zero weight decay. Its
-[run guide](research/SCR_BASELINE_EXPERIMENT.md)
-contains the pilot and validation-only comparison commands. The Flower
-`--strategies scr` option also runs support-calibrated risk; see the
-[SCR Flower guide](algorithms/SCR.md) for a matched FedAvg/SCR command.
+The Flower `--strategies scr` option runs support-calibrated risk. See the
+[SCR Dirichlet experiment guide](algorithms/SCR.md) for a matched FedAvg/SCR
+run on the `baseline_bn` CNN with 12 clients and zero weight decay.
 
 ---
 
@@ -26,7 +22,6 @@ contains the pilot and validation-only comparison commands. The Flower
   - `fedbn`: Local Batch Normalization for feature/domain shift (Li et al., 2021)
   - `scaffold`: Control variates for client drift correction (Karimireddy et al., 2020)
   - `proposed`: Synergistic integration of FedBN and SCAFFOLD (alias: `fedbns`, `fedbn_scaffold`)
-  - `cla`: Coverage + Logit Adjustment (CoverageLA, local classifier anchoring & logit correction, alias: `coverage_la`)
 - **Non-IID Partition Schemes**:
   - `practical`: Shards per class modeling clinical institution size disparity (FedSLD benchmark). Fully generalized for arbitrary client counts $K \ge 1$ with exact 100% FedSLD reproduction when $K = 12$.
   - `pathological`: Subsets of classes assigned to clients, dynamically scaling to guarantee 100% class coverage across the federation without sample loss.
@@ -60,8 +55,7 @@ FedMedAI_Study/
 │   ├── fednova.py              # FedNova strategy
 │   ├── fedbn.py                # FedBN strategy
 │   ├── scaffold.py             # SCAFFOLD strategy with control variates
-│   ├── proposed.py             # Proposed Strategy (FedBN + SCAFFOLD)
-│   └── cla.py                  # CLA strategy (Coverage + Logit Adjustment)
+│   └── proposed.py             # Proposed Strategy (FedBN + SCAFFOLD)
 ├── client/                     # FL Client execution logic
 │   ├── client.py               # Main Flower client implementation and CLI
 │   ├── train.py                # Local training loop and optimizer handlers
@@ -123,7 +117,20 @@ python -m experiments.run_partition --dataset pathmnist --partition_mode practic
 python -m experiments.run_partition --dataset dermamnist --partition_mode pathological --num_clients 5 --local_test
 ```
 
-### 4.4. Real Multi-Device Deployment (Physical Clients over LAN)
+### 4.4. Graphical Orchestration Dashboard (Desktop GUI)
+
+FedMedAI provides a unified CustomTkinter desktop dashboard for launching, configuring, and live-monitoring both FL Server and FL Client nodes:
+
+- **Windows 1-Click Launch**: Double-click [`run_dashboard.bat`](file:///D:/FPT/KLTN/FED/FedMedAI_Study/run_dashboard.bat)
+- **Command Line**:
+  ```bash
+  python run_dashboard.py
+  ```
+- **FL Server Control**: Displays auto-detected LAN/VPN IP with one-click copy, port conflict auto-cleaner, parameter configuration with collapsible advanced accordion, live multi-metric progression curves (BTA, BMCTA, TA, MCTA, Global Loss), and real-time logs.
+- **FL Client Node**: Features pre-flight server ping tester, local partition & class distribution inspector, hardware profile overrides (PC, Jetson Orin/Nano), and live local training curves.
+- **Virtual Environment Manager**: Automatically links to the project `.venv` with built-in one-click diagnostics for PyTorch, CUDA, Flower, and MedMNIST dependencies.
+
+### 4.5. Real Multi-Device Deployment (Physical Clients over LAN)
 
 1. **Start Server** on the central machine:
    ```bash
