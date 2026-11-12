@@ -79,7 +79,7 @@ class VenvDiagnosticModal(ctk.CTkToplevel):
                 diag.get("medmnist", False),
             ),
             (
-                "FedMedAI Algorithms & Models",
+                "FL Algorithms & Models",
                 "Loaded cleanly" if diag.get("project_modules") else "Import Failed",
                 diag.get("project_modules", False),
             ),
@@ -132,7 +132,7 @@ class EnvBanner(ctk.CTkFrame):
     """Top environment banner showing current python interpreter, status badge, and control buttons."""
 
     def __init__(self, master, on_venv_changed: Optional[Callable[[str], None]] = None, **kwargs):
-        super().__init__(master, fg_color="#1e293b", corner_radius=8, height=60, **kwargs)
+        super().__init__(master, fg_color="#ffffff", corner_radius=8, border_width=1, border_color="#e8edf2", height=52, **kwargs)
         self.on_venv_changed = on_venv_changed
         self.active_venv = get_default_venv_path()
 
@@ -146,9 +146,9 @@ class EnvBanner(ctk.CTkFrame):
 
         title = ctk.CTkLabel(
             left_box,
-            text="FedMedAI Federated Orchestrator & Live Monitor",
-            font=ctk.CTkFont(size=15, weight="bold"),
-            text_color="#60a5fa",
+            text="FL Orchestrator & Live Monitor",
+            font=ctk.CTkFont(size=14, weight="bold"),
+            text_color="#162d43",
         )
         title.pack(anchor="w")
 
@@ -159,7 +159,7 @@ class EnvBanner(ctk.CTkFrame):
             left_box,
             text=f"Active Venv: {short_path}",
             font=ctk.CTkFont(family="monospace", size=10),
-            text_color="#94a3b8",
+            text_color="#78889b",
         )
         self.lbl_path.pack(anchor="w")
 
@@ -170,11 +170,14 @@ class EnvBanner(ctk.CTkFrame):
         self.btn_change = ctk.CTkButton(
             btn_box,
             text="📁 Change Venv...",
-            width=130,
-            height=32,
+            width=120,
+            height=30,
             font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color="#334155",
-            hover_color="#475569",
+            fg_color="#ffffff",
+            hover_color="#f3f7fa",
+            text_color="#42566b",
+            border_width=1,
+            border_color="#dfe6ed",
             command=self._change_venv,
         )
         self.btn_change.pack(side="right", padx=6)
@@ -182,11 +185,12 @@ class EnvBanner(ctk.CTkFrame):
         self.btn_test = ctk.CTkButton(
             btn_box,
             text="🔍 Test Venv",
-            width=110,
-            height=32,
+            width=100,
+            height=30,
             font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color="#2563eb",
-            hover_color="#1d4ed8",
+            fg_color="#0c8c80",
+            hover_color="#087b70",
+            text_color="#ffffff",
             command=self._test_venv,
         )
         self.btn_test.pack(side="right", padx=6)
@@ -195,9 +199,9 @@ class EnvBanner(ctk.CTkFrame):
         self.lbl_status = ctk.CTkLabel(
             self,
             text="● Checking Venv...",
-            font=ctk.CTkFont(size=11, weight="bold"),
-            text_color="#34d399",
-            fg_color="#064e3b",
+            font=ctk.CTkFont(size=10, weight="bold"),
+            text_color="#0c8c80",
+            fg_color="#e6f7f5",
             corner_radius=12,
             padx=12,
             pady=4,

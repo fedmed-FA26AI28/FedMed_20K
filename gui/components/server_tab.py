@@ -33,14 +33,14 @@ class ServerTab(ctk.CTkFrame):
 
     def _build_form(self):
         """Builds scrollable configuration form on the left with rock-solid row alignment."""
-        self.scroll = ctk.CTkScrollableFrame(self, fg_color="#1e293b", corner_radius=8, width=380)
+        self.scroll = ctk.CTkScrollableFrame(self, fg_color="#ffffff", corner_radius=8, border_width=1, border_color="#e8edf2", width=380)
         self.scroll.pack(fill="both", expand=True, padx=4, pady=4)
 
         title = ctk.CTkLabel(
             self.scroll,
             text="⚙️ SERVER PARAMETER CONFIGURATION",
-            font=ctk.CTkFont(size=13, weight="bold"),
-            text_color="#f1f5f9",
+            font=ctk.CTkFont(size=12, weight="bold"),
+            text_color="#162d43",
         )
         title.pack(anchor="w", padx=12, pady=(10, 14))
 
@@ -56,13 +56,16 @@ class ServerTab(ctk.CTkFrame):
                 row,
                 text=label_text,
                 font=ctk.CTkFont(size=11, weight="bold"),
-                text_color="#93c5fd",
+                text_color="#475569",
                 width=140,
                 anchor="w",
             )
             lbl.pack(side="left", padx=(4, 8))
 
             # Crucial: widget master is row, NOT self.scroll!
+            kwargs.setdefault("fg_color", "#ffffff")
+            kwargs.setdefault("border_color", "#dce3eb")
+            kwargs.setdefault("text_color", "#162d43")
             widget = widget_cls(row, **kwargs)
             widget.pack(side="right", fill="x", expand=True, padx=(0, 4))
             return widget
@@ -213,11 +216,12 @@ class ServerTab(ctk.CTkFrame):
 
         self.btn_start = ctk.CTkButton(
             btn_box,
-            text="▶ START FEDERATED SERVER",
-            height=46,
-            font=ctk.CTkFont(size=13, weight="bold"),
-            fg_color="#059669",
-            hover_color="#047857",
+            text="▶ START FL SERVER",
+            height=44,
+            font=ctk.CTkFont(size=12, weight="bold"),
+            fg_color="#0c8c80",
+            hover_color="#087b70",
+            text_color="#ffffff",
             command=self._on_start_click,
         )
         self.btn_start.pack(fill="x", pady=(0, 8))
@@ -227,22 +231,26 @@ class ServerTab(ctk.CTkFrame):
 
         self.btn_stop = ctk.CTkButton(
             sub_btns,
-            text="■ STOP / KILL",
-            height=36,
+            text="■ STOP SERVER",
+            height=34,
             font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color="#dc2626",
-            hover_color="#b91c1c",
+            fg_color="#ba4c4c",
+            hover_color="#991b1b",
+            text_color="#ffffff",
             command=self._on_stop_click,
         )
         self.btn_stop.pack(side="left", fill="x", expand=True, padx=(0, 4))
 
         self.btn_export = ctk.CTkButton(
             sub_btns,
-            text="📊 Export CSV",
-            height=36,
+            text="📊 Export Results",
+            height=34,
             font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color="#4f46e5",
-            hover_color="#4338ca",
+            fg_color="#ffffff",
+            hover_color="#f3f7fa",
+            text_color="#42566b",
+            border_width=1,
+            border_color="#dfe6ed",
             command=self._on_export_click,
         )
         self.btn_export.pack(side="right", fill="x", expand=True, padx=(4, 0))

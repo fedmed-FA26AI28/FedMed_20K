@@ -209,13 +209,13 @@ def resolve_partition_file(
             if c.is_file():
                 return c
 
-        for p in partitions_dir.glob(f"*{dataset}*{partition_mode}*clients{num_clients}*.json"):
+        for p in partitions_dir.glob(f"*{dataset}*{partition_mode}*seed{seed}*clients{num_clients}*.json"):
             if p.is_file():
                 return p
 
     # 2. If client_id is given (e.g. client 15), prioritize a partition file that contains this client ID
     if client_id is not None and client_id >= 0:
-        matching_files = list(partitions_dir.glob(f"*{dataset}*{partition_mode}*.json"))
+        matching_files = list(partitions_dir.glob(f"*{dataset}*{partition_mode}*seed{seed}*.json"))
         # First check filename for clients<N> where N > client_id
         for p in matching_files:
             try:
@@ -236,7 +236,7 @@ def resolve_partition_file(
             except Exception:
                 pass
 
-    # 3. Default priority pattern: clients12 then wildcard
+    # 3. Default priority pattern: clients12 then wildcard with target seed
     candidates = [
         partitions_dir / f"partition_{dataset}_{partition_mode}_localtest_seed{seed}_clients12.json",
         partitions_dir / f"partition_{dataset}_{partition_mode}_seed{seed}_clients12.json",
@@ -245,7 +245,7 @@ def resolve_partition_file(
         if c.is_file():
             return c
 
-    for p in partitions_dir.glob(f"*{dataset}*{partition_mode}*.json"):
+    for p in partitions_dir.glob(f"*{dataset}*{partition_mode}*seed{seed}*.json"):
         if p.is_file():
             return p
 

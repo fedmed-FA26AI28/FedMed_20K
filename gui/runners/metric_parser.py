@@ -26,6 +26,14 @@ class MetricStreamParser:
             r'Epoch\s*\[?(\d+)/(\d+)\]?\s*(?:LR=[\d\.]+)?\s*\|\s*Loss=([\d\.]+)\s*Acc=([\d\.]+)',
             re.IGNORECASE
         )
+        self.re_client_fit_done = re.compile(
+            r'\[Client\s+(\d+)\]\s+fit\s+done\s*\|\s*Round\s+(\d+).*?loss=([\d\.]+)\s+acc=([\d\.]+)',
+            re.IGNORECASE
+        )
+        self.re_client_evaluate_done = re.compile(
+            r'\[Client\s+(\d+)\]\s+evaluate\s*\|\s*loss=([\d\.]+)\s+acc=([\d\.]+)',
+            re.IGNORECASE
+        )
         self.re_client_local_test = re.compile(
             r'Local\s+Test.*?(?:Loss\s*[:=]\s*([\d\.]+))?.*?(?:Acc(?:uracy)?|TA)\s*[:=]\s*([\d\.]+)%?.*?(?:BTA\s*[:=]\s*([\d\.]+)%?)?',
             re.IGNORECASE
@@ -43,6 +51,18 @@ class MetricStreamParser:
             self._parse_client_line(clean)
 
     def _parse_server_line(self, line: str):
+        # Check for final client bundle
+        if "[CLIENT_FINAL_METRICS]" in line:
+            try:
+                import json
+                idx = line.find("[CLIENT_FINAL_METRICS]") + len("[CLIENT_FINAL_METRICS]")
+                payload = json.loads(line[idx:].strip())
+                if self.on_metric_callback:
+                    self.on_metric_callback("server_client_bundle", payload)
+                return
+            except Exception:
+                pass
+
         # Check for round start / progress
         m_round = self.re_server_round.search(line)
         if m_round:
@@ -79,20 +99,47 @@ class MetricStreamParser:
                 self.on_metric_callback("server", payload)
 
     def _parse_client_line(self, line: str):
-        # Check for epoch training progression
+        # 1. Check for client fit completion per round
+        m_fit = self.re_client_fit_done.search(line)
+        if m_fit:
+            payload = {
+                "client_id": int(m_fit.group(1)),
+                "round": int(m_fit.group(2)),
+                "train_loss": float(m_fit.group(3)),
+                "train_acc": float(m_fit.group(4)),
+            }
+            if self.on_metric_callback:
+                self.on_metric_callback("client_round_done", payload)
+            return
+
+        # 2. Check for evaluate done per round
+        m_eval_done = self.re_client_evaluate_done.search(line)
+        if m_eval_done:
+            payload = {
+                "client_id": int(m_eval_done.group(1)),
+                "loss": float(m_eval_done.group(2)),
+                "accuracy": float(m_eval_done.group(3)),
+            }
+            if self.on_metric_callback:
+                self.on_metric_callback("client_eval_done", payload)
+            return
+
+        # 3. Check for epoch training progression (within current round)
         m_epoch = self.re_client_epoch.search(line)
         if m_epoch:
+            ep = int(m_epoch.group(1))
             payload = {
-                "epoch": int(m_epoch.group(1)),
+                "epoch": ep,
                 "total_epochs": int(m_epoch.group(2)),
                 "train_loss": float(m_epoch.group(3)),
                 "train_acc": float(m_epoch.group(4)),
+                "is_new_round": bool(ep == 1),
             }
             if self.on_metric_callback:
                 self.on_metric_callback("client_epoch", payload)
             return
 
-        # Check for local test evaluation
+        # 4. Check for local test evaluation (legacy or fallback)
         m_eval = self.re_client_local_test.search(line)
         if m_eval:
             metrics = {}
