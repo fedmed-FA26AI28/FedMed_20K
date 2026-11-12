@@ -265,6 +265,41 @@ class FedStrategyBase(FlwrFedAvg):
             metrics_aggregated=metrics_aggregated,
         )
 
+        # Unpack final-round complete client metrics & data distribution bundles if present
+        for _, fit_res in results:
+            m = fit_res.metrics or {}
+            cid = m.get("client_id")
+            if "final_client_history_json" in m and cid is not None:
+                try:
+                    import json
+                    hist = json.loads(m["final_client_history_json"])
+                    class_dist = json.loads(m.get("class_counts_json", "{}"))
+                    eval_hist = json.loads(m.get("eval_history_json", "[]"))
+                    if not hasattr(self.recorder, "client_full_histories"):
+                        self.recorder.client_full_histories = {}
+                    if not hasattr(self.recorder, "client_class_distributions"):
+                        self.recorder.client_class_distributions = {}
+                    if not hasattr(self.recorder, "client_eval_histories"):
+                        self.recorder.client_eval_histories = {}
+
+                    int_cid = int(cid)
+                    self.recorder.client_full_histories[int_cid] = hist
+                    self.recorder.client_class_distributions[int_cid] = class_dist
+                    self.recorder.client_eval_histories[int_cid] = eval_hist
+
+                    summary_pkg = {
+                        "client_id": int_cid,
+                        "rounds": len(hist),
+                        "samples": int(fit_res.num_examples),
+                        "distribution": class_dist,
+                        "history": hist,
+                        "eval_history": eval_hist,
+                    }
+                    print(f"[CLIENT_FINAL_METRICS] {json.dumps(summary_pkg)}")
+                    log(INFO, "[Server] Received complete post-run metrics & class distribution from Client %d", int_cid)
+                except Exception as e:
+                    log(WARNING, "[Server] Failed to decode final client metrics package for client %s: %s", str(cid), e)
+
         dev_str = _format_device_details(results)
         if dev_str:
             log(INFO, "[Reporting Devices] %s", dev_str)

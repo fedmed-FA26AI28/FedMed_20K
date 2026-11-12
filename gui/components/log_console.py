@@ -7,21 +7,21 @@ class LiveLogConsole(ctk.CTkFrame):
     """Real-time scrolling terminal output console with syntax highlighting and hardware telemetry."""
 
     def __init__(self, master, title: str = "REAL-TIME LOG CONSOLE", **kwargs):
-        super().__init__(master, fg_color="#0b0f17", corner_radius=8, **kwargs)
+        super().__init__(master, fg_color="#102135", corner_radius=8, border_width=1, border_color="#1e2d42", **kwargs)
         self.autoscroll = tk.BooleanVar(value=True)
 
         self._build_header(title)
         self._build_text_area()
 
     def _build_header(self, title: str):
-        self.header_frame = ctk.CTkFrame(self, fg_color="#1e293b", height=32, corner_radius=6)
+        self.header_frame = ctk.CTkFrame(self, fg_color="#16273b", height=32, corner_radius=6)
         self.header_frame.pack(fill="x", padx=8, pady=(8, 4))
 
         lbl = ctk.CTkLabel(
             self.header_frame,
             text=f"📟 {title}",
-            font=ctk.CTkFont(size=12, weight="bold"),
-            text_color="#f1f5f9",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color="#e2e8f0",
         )
         lbl.pack(side="left", padx=10)
 
@@ -30,7 +30,7 @@ class LiveLogConsole(ctk.CTkFrame):
             self.header_frame,
             text="GPU: Scanning... | VRAM: 0.0 GB",
             font=ctk.CTkFont(family="monospace", size=10, weight="bold"),
-            text_color="#38bdf8",
+            text_color="#2caa9f",
         )
         self.lbl_telemetry.pack(side="left", padx=15)
 
@@ -40,9 +40,10 @@ class LiveLogConsole(ctk.CTkFrame):
             text="Clear Logs",
             width=70,
             height=22,
-            font=ctk.CTkFont(size=10),
-            fg_color="#334155",
-            hover_color="#475569",
+            font=ctk.CTkFont(size=10, weight="bold"),
+            fg_color="#1c334d",
+            hover_color="#223f5e",
+            text_color="#c7d4e0",
             command=self.clear,
         )
         btn_clear.pack(side="right", padx=6)
@@ -53,6 +54,9 @@ class LiveLogConsole(ctk.CTkFrame):
             text="Autoscroll",
             variable=self.autoscroll,
             font=ctk.CTkFont(size=10),
+            text_color="#94a3b8",
+            fg_color="#1c334d",
+            checkmark_color="#0c8c80",
             checkbox_width=18,
             checkbox_height=18,
         )
@@ -62,7 +66,7 @@ class LiveLogConsole(ctk.CTkFrame):
         # We use standard tk.Text with dark configuration for full control over tag coloring
         self.textbox = tk.Text(
             self,
-            bg="#080c14",
+            bg="#0d1726",
             fg="#cbd5e1",
             insertbackground="#60a5fa",
             relief="flat",

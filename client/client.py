@@ -980,7 +980,37 @@ class FedMedAIClient(fl.client.NumPyClient):
             f"| weights={weight_size_kb:.1f}KB"
         )
 
-        return return_parameters, train_metrics["num_samples"], metrics
+        # Check if this is the final round
+        is_final_round = bool(config.get("is_final_round", False))
+        if not is_final_round and "total_rounds" in config:
+            is_final_round = (server_round >= int(config["total_rounds"]))
+
+        if is_final_round:
+            # Transmit accumulated multi-round metrics and class distribution once at training completion
+            return_metrics = dict(metrics)
+            return_metrics["final_client_history_json"] = json.dumps(self.round_history)
+            return_metrics["class_counts_json"] = json.dumps(self._class_counts_dict)
+            return_metrics["eval_history_json"] = json.dumps(self.eval_history)
+            print(f"[Client {self.client_id}] Final round reached -> Packaging and returning full training history & class distribution to server.")
+        else:
+            # Intermediate rounds: send only essential aggregation scalars to save network bandwidth
+            return_metrics = {
+                "client_id": self.client_id,
+                "train_loss": float(metrics["train_loss"]),
+                "train_accuracy": float(metrics["train_accuracy"]),
+            }
+            if is_fedsol:
+                return_metrics["fedsol_active"] = True
+                return_metrics["fedsol_rho"] = fedsol_rho
+            if strategy == "scr":
+                return_metrics["scr_active"] = True
+                return_metrics["scr_gamma"] = float(config.get("scr_gamma", 1.0))
+                return_metrics["scr_head_lambda"] = scr_head_lambda
+            if is_fedsld:
+                return_metrics["fedsld_active"] = True
+                return_metrics["fedsld_epsilon"] = fedsld_epsilon
+
+        return return_parameters, train_metrics["num_samples"], return_metrics
 
     def _save_checkpoint(self, filename: str, state_dict: Optional[dict] = None) -> Optional[Path]:
         """Save model checkpoint to client directory."""
@@ -1152,7 +1182,7 @@ class FedMedAIClient(fl.client.NumPyClient):
             )
 
             plt.tight_layout()
-            out_path = self.client_dir / f"client_{self.client_id}_training_curves.png"
+            out_path = self.client_dir / f"client_{self.client_id}_round_curves.png"
             plt.savefig(out_path, dpi=200, facecolor=fig.get_facecolor(), bbox_inches="tight")
             plt.close(fig)
         except Exception as e:
@@ -1181,10 +1211,10 @@ class FedMedAIClient(fl.client.NumPyClient):
         # 3. Export CSVs
         self._save_client_csvs()
 
-        # 4. Generate and save dual-panel training curves
+        # 4. Generate and save dual-panel round training curves (no epoch plot on disk)
         self._save_client_plots()
 
-        plot_path = self.client_dir / f"client_{self.client_id}_training_curves.png"
+        plot_path = self.client_dir / f"client_{self.client_id}_round_curves.png"
         print(f"  Client Dir : {self.client_dir}")
         print(f"  Best Model : {self.client_dir / 'best_model.pth'}")
         print(f"  Final Model: {self.client_dir / 'final_model.pth'}")

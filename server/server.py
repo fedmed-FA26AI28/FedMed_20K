@@ -277,6 +277,7 @@ def _get_evaluate_fn(
 
 def _make_on_fit_config_fn(
     strategy_name: str = "fedavg",
+    total_rounds: int = 50,
     local_epochs: int = 5,
     learning_rate: float = 0.001,
     lr_mode: str = "client_loss",
@@ -305,6 +306,8 @@ def _make_on_fit_config_fn(
         config: Dict[str, Scalar] = {
             "strategy": strategy_name.lower(),
             "server_round": server_round,
+            "total_rounds": int(total_rounds),
+            "is_final_round": bool(server_round >= int(total_rounds)),
             "local_epochs": local_epochs,
             "lr_mode": mode,
             "initial_lr": float(learning_rate),
@@ -814,6 +817,7 @@ def main():
         "local_test": args.local_test,
         "on_fit_config_fn": _make_on_fit_config_fn(
             strategy_name=args.strategy,
+            total_rounds=args.rounds,
             local_epochs=args.local_epochs,
             learning_rate=args.learning_rate,
             lr_mode=args.lr_mode,

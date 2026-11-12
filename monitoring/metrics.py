@@ -1228,6 +1228,22 @@ class FLMetricsRecorder:
             full_results["artifacts"]["parameters_changes_csv"] = "parameters_changes.csv"
             full_results["artifacts"]["client_parameters_drift_csv"] = "client_parameters_drift.csv"
 
+        if hasattr(self, "client_full_histories") and self.client_full_histories:
+            full_results["client_full_histories"] = self.client_full_histories
+            full_results["client_class_distributions"] = getattr(self, "client_class_distributions", {})
+            full_results["client_eval_histories"] = getattr(self, "client_eval_histories", {})
+            hist_json_path = os.path.join(save_dir, "client_full_histories.json")
+            try:
+                with open(hist_json_path, "w", encoding="utf-8") as hf:
+                    json.dump({
+                        "histories": self.client_full_histories,
+                        "distributions": getattr(self, "client_class_distributions", {}),
+                        "eval_histories": getattr(self, "client_eval_histories", {})
+                    }, hf, indent=4, ensure_ascii=False, default=str)
+                full_results["artifacts"]["client_full_histories_json"] = "client_full_histories.json"
+            except Exception as e:
+                print(f"[MetricsRecorder] Warning: Failed to write client_full_histories.json: {e}")
+
         json_path = os.path.join(save_dir, "fl_results.json")
         with open(json_path, "w", encoding="utf-8") as f:
             json.dump(full_results, f, indent=4, ensure_ascii=False, default=str)

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""FedMedAI Unified Dashboard Launcher.
+"""FL Orchestrator Unified Dashboard Launcher.
 Launches the modern CustomTkinter desktop dashboard for FL Server orchestration and FL Client execution.
 """
 

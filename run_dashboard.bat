@@ -1,9 +1,9 @@
 @echo off
-title FedMedAI Federated Orchestrator ^& Live Monitor
+title FL Orchestrator ^& Live Monitor
 cd /d "%~dp0"
 
 echo ======================================================================
-echo        FedMedAI Federated Learning Orchestrator ^& Live Monitor
+echo          FL Orchestrator ^& Live Monitor
 echo ======================================================================
 echo.
 
@@ -23,10 +23,12 @@ if exist "..\.venv\Scripts\python.exe" (
 echo [!] Virtual environment not detected.
 echo [*] Triggering setup.bat to configure Python and PyTorch GPU automatically...
 echo.
-call setup.bat
-if exist ".venv\Scripts\python.exe" (
-    set "PYTHON_EXE=.venv\Scripts\python.exe"
-    goto :RUN
+if exist "setup.bat" (
+    call setup.bat
+    if exist ".venv\Scripts\python.exe" (
+        set "PYTHON_EXE=.venv\Scripts\python.exe"
+        goto :RUN
+    )
 )
 
 :: Fallback to system python
@@ -35,7 +37,7 @@ set "PYTHON_EXE=python"
 :RUN
 echo [*] Launching dashboard with: %PYTHON_EXE%
 echo.
-"%PYTHON_EXE%" run_dashboard.py
+"%PYTHON_EXE%" run_dashboard.py %*
 
 if %ERRORLEVEL% neq 0 (
     echo.
