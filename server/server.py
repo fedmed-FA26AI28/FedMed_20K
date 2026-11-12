@@ -45,6 +45,7 @@ from algorithms import get_strategy
 from monitoring.metrics import FLMetricsRecorder
 from utils.path_utils import sanitize_run_name
 from monitoring.network import get_device_ipv4
+from utils.portal_events import emit
 
 
 # ──────────────────────────────────────────────────────────────
@@ -80,6 +81,7 @@ class InterruptibleClientManager(fl.server.SimpleClientManager):
 
     def wait_for(self, num_clients: int, timeout: int = 86400) -> bool:
         """Wait until at least `num_clients` are connected, allowing Ctrl+C."""
+        timeout = min(timeout, int(os.environ.get('FEDMED_ROSTER_TIMEOUT', str(timeout))))
         end_time = time.time() + timeout
         while time.time() < end_time:
             with self._cv:
@@ -119,6 +121,7 @@ class FedMedAIServer(fl.server.Server):
             log(INFO, "Evaluation returned no results (`None`)")
 
         start_time = timeit.default_timer()
+        elapsed = 0.0
 
         for current_round in range(1, num_rounds + 1):
             # Check if strategy signaled early stopping prior to starting round
@@ -132,12 +135,16 @@ class FedMedAIServer(fl.server.Server):
 
             log(INFO, "")
             log(INFO, "[ROUND %s]", current_round)
+            emit('training', current_round)
 
             # Train model and replace previous global model
             res_fit = self.fit_round(
                 server_round=current_round,
                 timeout=timeout,
             )
+            if os.environ.get('FEDMED_STRICT_ROSTER') == '1':
+                if res_fit is None or res_fit[0] is None or res_fit[2][1] or len(res_fit[2][0]) != self.strategy.min_fit_clients:
+                    raise RuntimeError('Selected client roster did not complete training. Run stopped; no partial-client continuation.')
             if res_fit is not None:
                 parameters_prime, fit_metrics, _ = res_fit
                 if parameters_prime:
@@ -172,7 +179,11 @@ class FedMedAIServer(fl.server.Server):
                     )
 
             # Evaluate model on a sample of available clients (federated client evaluation)
+            emit('evaluating', current_round)
             res_fed = self.evaluate_round(server_round=current_round, timeout=timeout)
+            if os.environ.get('FEDMED_STRICT_ROSTER') == '1':
+                if res_fed is None or res_fed[2][1] or len(res_fed[2][0]) != self.strategy.min_evaluate_clients:
+                    raise RuntimeError('Selected client roster did not complete evaluation.')
             if res_fed is not None:
                 loss_fed, evaluate_metrics_fed, _ = res_fed
                 if loss_fed is not None:
@@ -190,6 +201,11 @@ class FedMedAIServer(fl.server.Server):
                             f"  Loss: {loss_fed:.4f} | Accuracy: {acc_fed:.4f} ({acc_fed*100:.2f}%)\n"
                             f"{'='*60}\n"
                         )
+
+            recorder = getattr(self.strategy, 'recorder', None)
+            records = getattr(recorder, 'round_records', [])
+            record = next((r for r in records if r['round'] == current_round), {})
+            emit('round_completed', current_round, metrics=record)
 
             # Check if early stopping was triggered during evaluation in this round
             if getattr(self.strategy, "should_stop", False):
@@ -638,6 +654,7 @@ def main():
         default=None,
         help="Custom directory path to save FL artifacts (default: results/federated/<strategy>/<name_or_timestamp>)",
     )
+    parser.add_argument('--round_timeout', type=float, default=None, help='Maximum seconds for each Flower round operation')
     args = parser.parse_args()
 
     set_seed(args.seed)
@@ -702,6 +719,7 @@ def main():
         "initial_parameters": initial_params,
         "metrics_recorder": recorder,
         "local_test": args.local_test,
+        "on_evaluate_config_fn": lambda server_round: {'server_round': server_round, 'strategy': args.strategy},
         "on_fit_config_fn": _make_on_fit_config_fn(
             strategy_name=args.strategy,
             local_epochs=args.local_epochs,
@@ -793,7 +811,7 @@ def main():
     try:
         history = fl.server.start_server(
             server_address=f"{args.host}:{args.port}",
-            config=fl.server.ServerConfig(num_rounds=args.rounds),
+            config=fl.server.ServerConfig(num_rounds=args.rounds, round_timeout=args.round_timeout),
             server=server,
         )
     except KeyboardInterrupt:

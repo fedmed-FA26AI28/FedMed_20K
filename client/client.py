@@ -13,6 +13,7 @@ Usage:
 """
 
 import argparse
+from utils.portal_events import emit
 import json
 import os
 import sys
@@ -239,6 +240,8 @@ def _local_train(
 
         epoch_times.append(epoch_time)
         epoch_losses.append(epoch_loss)
+        emit('epoch_completed', int(os.environ.get('FEDMED_ACTIVE_ROUND', '0')),
+             epoch=epoch + 1, loss=epoch_loss, accuracy=epoch_acc, seconds=epoch_time)
         epoch_accuracies.append(epoch_acc)
         epoch_lrs.append(current_lr)
         total_samples = total
@@ -478,6 +481,8 @@ class FedMedAIClient(fl.client.NumPyClient):
 
         # Read config from server
         server_round = int(config.get("server_round", len(self.round_history) + 1))
+        os.environ['FEDMED_ACTIVE_ROUND'] = str(server_round)
+        emit('training', server_round, train_samples=len(self.train_loader.dataset))
         local_epochs = int(config.get("local_epochs", self.local_epochs))
         proximal_mu = float(config.get("proximal_mu", 0.0))
         lr_mode = str(config.get("lr_mode", self.lr_mode)).lower().strip()
@@ -822,6 +827,7 @@ class FedMedAIClient(fl.client.NumPyClient):
             f"| weights={weight_size_kb:.1f}KB"
         )
 
+        emit('fit_completed', server_round, metrics=metrics)
         return return_parameters, train_metrics["num_samples"], metrics
 
     def _save_client_csvs(self):
@@ -860,6 +866,7 @@ class FedMedAIClient(fl.client.NumPyClient):
     def evaluate(self, parameters: NDArrays, config: dict):
         """Evaluate the global model on the local test set."""
         eval_round = config.get("server_round")
+        emit('evaluating', eval_round)
         if eval_round is not None:
             self.ping_logger.log_ping(server_round=int(eval_round), event="evaluate")
 
@@ -890,13 +897,23 @@ class FedMedAIClient(fl.client.NumPyClient):
                 total += labels.size(0)
                 correct += (predicted == labels).sum().item()
 
+        checkpoint = os.environ.get('FEDMED_LOCAL_CHECKPOINT')
+        if checkpoint:
+            path = Path(checkpoint)
+            path.parent.mkdir(parents=True, exist_ok=True)
+            temp = path.with_suffix('.tmp')
+            torch.save({key: value.detach().cpu() for key, value in self.model.state_dict().items()}, temp)
+            os.replace(temp, path)
+            emit('checkpoint_saved', eval_round, checkpoint=str(path))
+
         if total == 0:
             # A Dirichlet split can give a training client no local test images.
             # Report zero examples so sample-weighted evaluation ignores it.
             if not getattr(self, "_empty_test_warning_issued", False):
                 print(f"[Client {self.client_id}] No local test samples; skipping evaluation")
                 self._empty_test_warning_issued = True
-            return 0.0, 0, {"accuracy": 0.0}
+            emit('evaluation_skipped', eval_round, num_samples=0)
+            return 0.0, 0, {"accuracy": 0.0, "client_id": int(self.client_id)}
 
         avg_loss = total_loss / total
         accuracy = correct / total
@@ -906,7 +923,8 @@ class FedMedAIClient(fl.client.NumPyClient):
             f"loss={avg_loss:.4f} acc={accuracy:.4f}"
         )
 
-        return float(avg_loss), total, {"accuracy": float(accuracy)}
+        emit('evaluation_completed', eval_round, loss=float(avg_loss), accuracy=float(accuracy), num_samples=total)
+        return float(avg_loss), total, {"accuracy": float(accuracy), "client_id": int(self.client_id)}
 
 
 # ──────────────────────────────────────────────────────────────
@@ -1157,6 +1175,8 @@ def main():
     args = parser.parse_args()
 
     set_seed(args.seed)
+    if os.environ.get('FEDMED_CPU_THREADS'):
+        torch.set_num_threads(int(os.environ['FEDMED_CPU_THREADS']))
 
     # Resolve partition path
     if args.partition_path:

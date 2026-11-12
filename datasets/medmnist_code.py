@@ -1,9 +1,20 @@
 """Data loading and preprocessing utilities for MedMNIST datasets (BloodMNIST, PathMNIST, OrganAMNIST, DermaMNIST)."""
 
+import os
 import torch
 import torchvision.transforms as transforms
 from medmnist import INFO
 from torch.utils.data import DataLoader
+
+
+def get_evaluation_transform(dataset_name: str):
+    """The same deterministic transform for benchmark evaluation and local prediction."""
+    info = INFO[dataset_name.lower()]
+    operations = [transforms.ToTensor()]
+    if info.get('n_channels', 3) == 1:
+        operations.append(transforms.Lambda(lambda x: x.repeat(3, 1, 1)))
+    operations.append(transforms.Normalize(mean=[0.5]*3, std=[0.5]*3))
+    return transforms.Compose(operations)
 
 
 def get_medmnist_datasets(
@@ -44,11 +55,7 @@ def get_medmnist_datasets(
     DataClass = getattr(_medmnist, info['python_class'])
 
     # 1. Validation & Test transform: strictly deterministic (no augmentation)
-    val_test_list = [transforms.ToTensor()]
-    if n_channels == 1:
-        val_test_list.append(transforms.Lambda(lambda x: x.repeat(3, 1, 1)))
-    val_test_list.append(transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]))
-    val_test_transform = transforms.Compose(val_test_list)
+    val_test_transform = get_evaluation_transform(data_flag)
 
     # 2. Training transform: data augmentation (crop + flip) when enabled
     train_list = []
@@ -64,9 +71,13 @@ def get_medmnist_datasets(
     train_list.append(transforms.Normalize(mean=[0.5, 0.5, 0.5], std=[0.5, 0.5, 0.5]))
     train_transform = transforms.Compose(train_list)
 
-    train_dataset = DataClass(split='train', transform=train_transform, download=download, mmap_mode=mmap_mode)
-    val_dataset = DataClass(split='val', transform=val_test_transform, download=download, mmap_mode=mmap_mode) if load_val else None
-    test_dataset = DataClass(split='test', transform=val_test_transform, download=download, mmap_mode=mmap_mode)
+    # Optional portal environment overrides; ordinary CLI behavior is unchanged.
+    options = {'root': os.environ['FEDMED_DATA_ROOT']} if os.environ.get('FEDMED_DATA_ROOT') else {}
+    if os.environ.get('FEDMED_OFFLINE') == '1':
+        download = False
+    train_dataset = DataClass(split='train', transform=train_transform, download=download, mmap_mode=mmap_mode, **options)
+    val_dataset = DataClass(split='val', transform=val_test_transform, download=download, mmap_mode=mmap_mode, **options) if load_val else None
+    test_dataset = DataClass(split='test', transform=val_test_transform, download=download, mmap_mode=mmap_mode, **options)
 
     return train_dataset, val_dataset, test_dataset, num_classes
 

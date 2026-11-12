@@ -1,5 +1,12 @@
 # FedMedAI: Heterogeneous Edge-Device Federated Learning for Medical Image Classification
 
+## Web demonstration app
+
+The **FedMedAI portal** provides Coordinator and Institution workspaces for real
+Flower training, device pairing, experiment history, model verification, and local
+image prediction. Start with the [portal setup guide](portal/README.md) and
+[Vietnamese demo walkthrough](portal/DEMO_VI.md).
+
 FedMedAI is an enterprise-grade Federated Learning (FL) framework designed for medical imaging classification benchmarks under severe non-IID data distributions (Dirichlet, Pathological, and Practical cross-institution partitions). It provides seamless support for centralized baselines, distributed physical multi-device execution (PC server and NVIDIA Jetson Orin/Nano edge clients over LAN), and automated local multi-client simulation.
 
 The Flower `--strategies scr` option runs support-calibrated risk. See the

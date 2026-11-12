@@ -223,6 +223,8 @@ class FLMetricsRecorder:
         metrics_aggregated: Dict[str, Any],
     ):
         """Record per-client fit outputs and calculate round-level stats."""
+        if any(record['round'] == server_round for record in self.round_records):
+            return  # Repeated callbacks must not inflate rounds or communication totals.
         round_clients: List[Dict[str, Any]] = []
 
         for client_proxy, fit_res in results:
