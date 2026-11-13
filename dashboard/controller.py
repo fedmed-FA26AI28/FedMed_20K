@@ -22,7 +22,7 @@ from dashboard.system import endpoint, check_port_in_use, hardware
 ROOT = Path(__file__).resolve().parents[1]
 RUNS = ROOT / 'results' / 'dashboard'
 STRATEGIES = ['fedavg', 'fedprox', 'fednova', 'scaffold', 'fedbn', 'fedbns', 'scr', 'fedsld', 'fedsol', 'fedswitch']
-DATASETS = ['pathmnist', 'bloodmnist', 'organamnist', 'dermamnist']
+DATASETS = ['pathmnist', 'bloodmnist', 'organamnist']
 PARTITIONS = ['practical', 'pathological', 'dirichlet_0.1', 'dirichlet_0.3', 'dirichlet_1.0']
 MODES = {'server': 'FL Server', 'client': 'Local Client', 'simulation': 'Simulation'}
 ACTIVE = ('starting', 'running', 'stopping')

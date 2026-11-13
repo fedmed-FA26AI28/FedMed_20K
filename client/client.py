@@ -1330,7 +1330,7 @@ def main():
         help="Path to partition JSON. If None, auto-detect from data/partitions/",
     )
     parser.add_argument(
-        "--dataset", type=str, default=yaml_cfg.get("dataset", "bloodmnist"), help=f"Dataset name (bloodmnist, pathmnist, organamnist, dermamnist) (default: {yaml_cfg.get('dataset', 'bloodmnist')})"
+        "--dataset", type=str, default=yaml_cfg.get("dataset", "bloodmnist"), help=f"Dataset name (bloodmnist, pathmnist, organamnist) (default: {yaml_cfg.get('dataset', 'bloodmnist')})"
     )
     parser.add_argument(
         "--partition_mode", type=str, default=yaml_cfg.get("partition_mode", yaml_cfg.get("partition", "dirichlet_0.3")), help=f"Partition mode (default: {yaml_cfg.get('partition_mode', yaml_cfg.get('partition', 'dirichlet_0.3'))})"

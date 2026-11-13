@@ -466,7 +466,7 @@ def main():
         "--dataset",
         type=str,
         default=yaml_cfg.get("dataset", "bloodmnist"),
-        help=f"Dataset name (bloodmnist, pathmnist, organamnist, dermamnist) (default: {yaml_cfg.get('dataset', 'bloodmnist')})",
+        help=f"Dataset name (bloodmnist, pathmnist, organamnist) (default: {yaml_cfg.get('dataset', 'bloodmnist')})",
     )
     parser.add_argument("--partition_path", type=str,
                         default=yaml_cfg.get("partition_path"),

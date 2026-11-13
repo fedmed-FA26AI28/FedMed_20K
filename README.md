@@ -30,7 +30,6 @@ run on the `baseline_bn` CNN with 12 clients and zero weight decay.
   - `pathmnist`: Colon pathology (9 classes, 3 channels RGB, 28x28)
   - `bloodmnist`: Peripheral blood cell types (8 classes, 3 channels RGB, 28x28)
   - `organamnist`: Abdominal CT organ patches (11 classes, 1-to-3 channels, 28x28)
-  - `dermamnist`: Dermatoscopy pigmented skin lesions (7 classes, 3 channels RGB, 28x28)
 - **Aggregation Strategies**:
   - `fedavg`: Vanilla Federated Averaging (McMahan et al., 2017)
   - `fedprox`: Proximal regularization for system heterogeneity (Li et al., 2020)
@@ -129,8 +128,8 @@ Generate non-IID partition splits with paired local test sets:
 # Practical partition on PathMNIST for 12 clients
 python -m experiments.run_partition --dataset pathmnist --partition_mode practical --num_clients 12 --local_test
 
-# Pathological partition on DermaMNIST for 5 clients
-python -m experiments.run_partition --dataset dermamnist --partition_mode pathological --num_clients 5 --local_test
+# Pathological partition on BloodMNIST for 5 clients
+python -m experiments.run_partition --dataset bloodmnist --partition_mode pathological --num_clients 5 --local_test
 ```
 
 ### 4.4. Graphical Orchestration Dashboard (Desktop GUI)

@@ -166,7 +166,7 @@ Chọn **LAN Server** để nhận client thật qua mạng hoặc **Local Simul
 | --- | --- |
 | Bind IPv4 | `0.0.0.0` cho LAN; `127.0.0.1` cho cùng máy; có thể chọn IPv4 giao diện máy |
 | gRPC Port | Cổng Flower, mặc định `8081`; phải khác cổng web và chưa bị chiếm |
-| Dataset | `pathmnist`, `bloodmnist`, `organamnist`, `dermamnist` |
+| Dataset | `pathmnist`, `bloodmnist`, `organamnist` |
 | Model architecture | `Baseline` hoặc `BaselineBN`; tất cả máy phải dùng cùng kiến trúc |
 | Aggregation strategy | `FEDAVG`, `FEDPROX`, `FEDNOVA`, `SCAFFOLD`, `FEDBN`, `FEDBNS`, `FEDSLD`, `FEDSOL`, `FEDSWITCH` |
 | FedProx μ | Hệ số proximal, xuất hiện khi chọn FedProx |

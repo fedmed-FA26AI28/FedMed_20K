@@ -73,7 +73,7 @@ Artifacts are automatically saved to `results/centralized/<timestamp>/` (or `res
 | `--config` | `str` | `configs/experiment.yaml` | Path to YAML configuration file containing centralized settings (`centralized:` block). |
 | `--name`, `-n` | `str` | `None` | Designated run identifier for the output folder name (`results/centralized/<name>/`). |
 | `--output_dir`, `--save_dir` | `str` | `None` | Custom output directory to store centralized training artifacts. |
-| `--dataset` | `str` | `pathmnist` | Dataset name: `bloodmnist`, `pathmnist`, `organamnist`, `dermamnist`. |
+| `--dataset` | `str` | `pathmnist` | Dataset name: `bloodmnist`, `pathmnist`, `organamnist`. |
 | `--model` | `str` | `cnn` | Architecture: `cnn` (Modern CNN with BatchNorm) or `baseline` (FedSLD classic CNN). |
 | `--optimizer` | `str` | `adam` | Optimizer type: `adam`, `sgd`, or `adamw`. |
 | `--momentum` | `float` | `0.0` | Momentum factor when using `--optimizer sgd`. |
@@ -122,7 +122,7 @@ Generate non-IID partition splits with paired local test sets on the server (or 
   ```
 - **Pathological Non-IID** (Random class assignment, 12 clients):
   ```bash
-  python -m experiments.run_partition --num_clients 12 --dataset dermamnist --partition_mode pathological --seed 42 --local_test
+  python -m experiments.run_partition --num_clients 12 --dataset organamnist --partition_mode pathological --seed 42 --local_test
   ```
 
 Partition artifacts are saved to `data/partitions/`:
@@ -181,7 +181,7 @@ Run client instances on each physical machine pointing to the server address:
 | :--- | :---: | :---: | :--- |
 | `--config` | `str` | `configs/experiment.yaml` | Path to YAML experiment configuration file. |
 | `--strategy` | `str` | `fedbns` | Aggregation strategy: `fedavg`, `fedprox`, `fednova`, `fedbn`, `scaffold`, `fedbns`, `proposed`, `scr`, `fedsld`, `fedsol`, `fedswitch`. |
-| `--dataset` | `str` | `pathmnist` | Dataset name: `bloodmnist`, `pathmnist`, `organamnist`, `dermamnist`. |
+| `--dataset` | `str` | `pathmnist` | Dataset name: `bloodmnist`, `pathmnist`, `organamnist`. |
 | `--model` | `str` | `baseline_bn` | Model architecture: `baseline_bn` (with BN), `baseline` (without BN), or `cnn`. |
 | `--partition_mode` | `str` | `practical` | Partition mode (`practical`, `pathological`, `dirichlet_0.3`, etc.). |
 | `--partition_path` | `str` | `None` | Path to training partition JSON. If omitted, auto-resolved from dataset and partition mode. |
@@ -216,7 +216,7 @@ Run client instances on each physical machine pointing to the server address:
 | `--client_id` | `int` | *(Required)* | Unique client identifier integer (0, 1, 2, ...). |
 | `--server_address` | `str` | `127.0.0.1:8080` | Server LAN address in `<IP>:<PORT>` format (inherited from `server_address` in YAML). |
 | `--config` | `str` | `configs/experiment.yaml` | Path to YAML experiment configuration file. |
-| `--dataset` | `str` | `pathmnist` | Dataset name: `bloodmnist`, `pathmnist`, `organamnist`, `dermamnist`. |
+| `--dataset` | `str` | `pathmnist` | Dataset name: `bloodmnist`, `pathmnist`, `organamnist`. |
 | `--model` | `str` | `baseline_bn` | Model architecture: `baseline_bn`, `baseline`, or `cnn`. |
 | `--partition_mode` | `str` | `practical` | Partition mode (`practical`, `pathological`, `dirichlet_0.3`, etc.). |
 | `--partition_path` | `str` | `None` | Path to partition JSON. If omitted, auto-detected from `data/partitions/`. |
@@ -338,9 +338,9 @@ The simulation harness ([`experiments/run_simulation.py`](file:///D:/FPT/KLTN/FE
   ```bash
   python -m experiments.run_simulation --datasets pathmnist --partitions practical --strategies fedsol --model baseline_bn --optimizer adamw --clip_grad_norm 1.0 --rounds 40 --local_test
   ```
-- **Full Benchmark Suite on DermaMNIST**:
+- **Full Benchmark Suite on OrganAMNIST**:
   ```bash
-  python -m experiments.run_simulation --datasets dermamnist --partitions practical pathological --strategies fedavg fedprox fednova fedbn scaffold proposed --model cnn --rounds 40 --num_clients 12 --local_test
+  python -m experiments.run_simulation --datasets organamnist --partitions practical pathological --strategies fedavg fedprox fednova fedbn scaffold proposed --model cnn --rounds 40 --num_clients 12 --local_test
   ```
 
 ### 4.3. Simulation Output Structure
@@ -362,7 +362,7 @@ Simulation outputs are compiled in `results/simulation/<name_or_timestamp>/`:
 | :--- | :--- | :---: | :--- |
 | `--config` | *(file path)* | `configs/simulation.yaml` | Path to YAML simulation config. |
 | `--name`, `-n` | `name` | `None` | Custom output directory name (`results/simulation/<name>/`). |
-| `--datasets` | `datasets` | `[pathmnist]` | List of datasets: `bloodmnist`, `pathmnist`, `organamnist`, `dermamnist`. |
+| `--datasets` | `datasets` | `[pathmnist]` | List of datasets: `bloodmnist`, `pathmnist`, `organamnist`. |
 | `--partitions` | `partitions` | `[practical]` | List of partitions: `practical`, `pathological`, `dirichlet_0.3`, `dirichlet_0.1`, `dirichlet_1.0`. |
 | `--strategies` | `strategies` | `[proposed]` | List of strategies: `fedavg`, `fedprox`, `fednova`, `fedbn`, `scaffold`, `proposed`. |
 | `--num_clients` | `num_clients` | `12` | Number of simulated clients participating in the federation. |

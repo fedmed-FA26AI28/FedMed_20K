@@ -9,7 +9,7 @@ from typing import Dict, List, Tuple, Any, Optional
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 
-DATASETS = ["pathmnist", "bloodmnist", "organamnist", "dermamnist"]
+DATASETS = ["pathmnist", "bloodmnist", "organamnist"]
 STRATEGIES = [
     "fedbns",
     "fedavg",

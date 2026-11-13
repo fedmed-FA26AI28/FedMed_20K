@@ -1275,7 +1275,7 @@ def main():
     parser = argparse.ArgumentParser(description="FedMedAI Automated Multi-Strategy & Multi-Partition Simulation")
     parser.add_argument("--config", type=str, default="configs/simulation.yaml")
     parser.add_argument("--num_clients", type=int, default=None)
-    parser.add_argument("--datasets", type=str, nargs="+", default=None, help="Datasets to benchmark (e.g. bloodmnist pathmnist organamnist dermamnist)")
+    parser.add_argument("--datasets", type=str, nargs="+", default=None, help="Datasets to benchmark (e.g. bloodmnist pathmnist organamnist)")
     parser.add_argument("--partitions", type=str, nargs="+", default=None)
     parser.add_argument("--strategies", type=str, nargs="+", default=None)
     parser.add_argument("--rounds", type=int, default=None)

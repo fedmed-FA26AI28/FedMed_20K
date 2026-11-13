@@ -1,9 +1,11 @@
-"""Data loading and preprocessing utilities for MedMNIST datasets (BloodMNIST, PathMNIST, OrganAMNIST, DermaMNIST)."""
+"""Data loading and preprocessing utilities for MedMNIST datasets (BloodMNIST, PathMNIST, OrganAMNIST)."""
 
 import torch
 import torchvision.transforms as transforms
 from medmnist import INFO
 from torch.utils.data import DataLoader
+
+SUPPORTED_DATASETS = ("bloodmnist", "pathmnist", "organamnist")
 
 
 def get_medmnist_datasets(
@@ -19,7 +21,7 @@ def get_medmnist_datasets(
     """Load and return MedMNIST dataset splits.
 
     Args:
-        dataset_name (str): Name of the dataset (e.g. 'bloodmnist', 'pathmnist', 'organamnist', 'dermamnist').
+        dataset_name (str): Name of the dataset (e.g. 'bloodmnist', 'pathmnist', 'organamnist').
         download (bool): Automatically download data if not present locally.
         augment (bool): Master toggle for training set data augmentation (default: True).
         random_crop (bool): Apply RandomCrop with reflection padding to train set (default: True).
@@ -32,8 +34,10 @@ def get_medmnist_datasets(
         tuple: (train_dataset, val_dataset, test_dataset, num_classes)
     """
     data_flag = dataset_name.lower()
-    if data_flag not in INFO:
-        raise ValueError(f"Dataset {data_flag} not found in MedMNIST INFO.")
+    if data_flag not in SUPPORTED_DATASETS or data_flag not in INFO:
+        raise ValueError(
+            f"Dataset '{dataset_name}' is not supported. Supported datasets: {list(SUPPORTED_DATASETS)}"
+        )
         
     info = INFO[data_flag]
     num_classes = len(info['label'])
