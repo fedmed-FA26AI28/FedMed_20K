@@ -997,30 +997,42 @@ class FedMedAIClient(fl.client.NumPyClient):
         if not is_final_round and "total_rounds" in config:
             is_final_round = (server_round >= int(config["total_rounds"]))
 
+        # Build telemetry and performance metrics transmitted every round to server
+        return_metrics = {
+            "client_id": int(self.client_id),
+            "server_round": int(server_round),
+            "train_loss": float(metrics["train_loss"]),
+            "train_accuracy": float(metrics["train_accuracy"]),
+            "round_time": float(training_time),
+            "epoch_time_avg": float(metrics["epoch_time_avg"]),
+            "ping_ms": float(ping_ms) if ping_ms is not None else -1.0,
+            "weight_size_kb": float(weight_size_kb),
+            "num_samples": int(train_metrics["num_samples"]),
+            "device_ipv4": str(self.device_ipv4),
+            "device_type": str(self.device_type),
+        }
+        if self.eval_history:
+            return_metrics["eval_loss"] = float(self.eval_history[-1]["eval_loss"])
+            return_metrics["eval_accuracy"] = float(self.eval_history[-1]["eval_accuracy"])
+
+        if is_fedsol:
+            return_metrics["fedsol_active"] = True
+            return_metrics["fedsol_rho"] = fedsol_rho
+        if strategy == "scr":
+            return_metrics["scr_active"] = True
+            return_metrics["scr_gamma"] = float(config.get("scr_gamma", 1.0))
+            return_metrics["scr_head_lambda"] = scr_head_lambda
+        if is_fedsld:
+            return_metrics["fedsld_active"] = True
+            return_metrics["fedsld_epsilon"] = fedsld_epsilon
+
         if is_final_round:
             # Transmit accumulated multi-round metrics and class distribution once at training completion
-            return_metrics = dict(metrics)
+            return_metrics.update(dict(metrics))
             return_metrics["final_client_history_json"] = json.dumps(self.round_history)
             return_metrics["class_counts_json"] = json.dumps(self._class_counts_dict)
             return_metrics["eval_history_json"] = json.dumps(self.eval_history)
             print(f"[Client {self.client_id}] Final round reached -> Packaging and returning full training history & class distribution to server.")
-        else:
-            # Intermediate rounds: send only essential aggregation scalars to save network bandwidth
-            return_metrics = {
-                "client_id": self.client_id,
-                "train_loss": float(metrics["train_loss"]),
-                "train_accuracy": float(metrics["train_accuracy"]),
-            }
-            if is_fedsol:
-                return_metrics["fedsol_active"] = True
-                return_metrics["fedsol_rho"] = fedsol_rho
-            if strategy == "scr":
-                return_metrics["scr_active"] = True
-                return_metrics["scr_gamma"] = float(config.get("scr_gamma", 1.0))
-                return_metrics["scr_head_lambda"] = scr_head_lambda
-            if is_fedsld:
-                return_metrics["fedsld_active"] = True
-                return_metrics["fedsld_epsilon"] = fedsld_epsilon
 
         return return_parameters, train_metrics["num_samples"], return_metrics
 
