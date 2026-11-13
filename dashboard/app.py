@@ -10,6 +10,7 @@ import yaml
 
 from dashboard.controller import Controller, ROOT, ACTIVE, DATASETS, STRATEGIES, PARTITIONS, prepare_config
 from dashboard.system import lan_ips, port_owners, partition_data
+from dashboard.client_setup import remote_client_setup
 
 controller = Controller()
 CSS = '''
@@ -163,6 +164,14 @@ def index():
                             ui.label('Managed processes').classes('font-semibold')
                             jobs_table = table([('mode', 'Role'), ('id', 'Run'), ('pid', 'PID'), ('state', 'Status'), ('exit', 'Exit')])
             with ui.tab_panel(client_tab):
+                with ui.card().classes('p-4 w-full gap-3'):
+                    with ui.row().classes('w-full items-center gap-3'):
+                        ui.label('Client configuration').classes('font-semibold')
+                        remote_address = ui.input('Server IP:Port', value='').props('outlined dense').classes('w-64 max-w-full')
+                        remote_id = ui.number('Client ID', value=0, min=0, step=1).props('outlined dense').classes('w-32')
+                        ui.button('Download YAML', icon='download', on_click=lambda: export_client_yaml()).props('dense')
+                        ui.button('Copy command', icon='content_copy', on_click=lambda: copy_client_command()).props('outline dense')
+                    config_source = ui.label('Configuration source: server form').classes('muted')
                 with ui.element('div').classes('kpis'):
                     node_kpis = []
                     for title in ['CONFIGURED CLIENTS', 'CLIENTS OBSERVED', 'FIT REPORTS THIS ROUND', 'AWAITING FIT REPORT']:
@@ -277,6 +286,28 @@ def index():
         except (ValueError, TypeError) as exc:
             ui.notify(str(exc), type='negative')
 
+    def client_setup():
+        job = selected_job()
+        if job and job.mode != 'server':
+            raise ValueError('Select a LAN server run to configure remote clients.')
+        cfg = job.config if job else prepare_config('server', values(server_fields), controller.web_port)
+        return remote_client_setup(cfg, remote_address.value, remote_id.value)
+
+    def export_client_yaml():
+        try:
+            cfg, _ = client_setup()
+            ui.download(yaml.safe_dump(cfg, allow_unicode=True, sort_keys=False).encode(), 'client_dashboard.yaml')
+        except (ValueError, TypeError) as exc:
+            ui.notify(str(exc), type='negative')
+
+    def copy_client_command():
+        try:
+            _, command = client_setup()
+            ui.clipboard.write(command)
+            ui.notify('Client command copied.', type='positive')
+        except (ValueError, TypeError) as exc:
+            ui.notify(str(exc), type='negative')
+
     async def scan_partitions():
         paths = await asyncio.to_thread(lambda: sorted((ROOT / 'data' / 'partitions').glob('*.json')))
         partition_select.set_options([str(p.relative_to(ROOT)) for p in paths])
@@ -300,6 +331,10 @@ def index():
             web_address.text = f"WEB · {next((ip for ip in ips if not ip.startswith('127.')), '127.0.0.1')}:{controller.web_port}"
             active_server = next((j for j in reversed(list(controller.jobs.values())) if j.mode == 'server' and j.state in ACTIVE), None)
             cfg = active_server.config if active_server else values(server_fields)
+            if not remote_address.value:
+                bind = cfg['server_host']
+                lan_ip = next((ip for ip in ips if not ip.startswith('127.')), '127.0.0.1')
+                remote_address.value = f"{lan_ip if bind == '0.0.0.0' else bind}:{int(cfg['server_port'])}"
             port = int(cfg['server_port'])
             owners = await asyncio.to_thread(port_owners, port)
             port_value.text = f'gRPC :{port}'
@@ -312,6 +347,7 @@ def index():
         if list(job_select.options) != [j.id for j in jobs]:
             job_select.set_options({j.id: j.id for j in jobs}, value=job_select.value or (jobs[-1].id if jobs else None))
         job = selected_job()
+        config_source.text = f"Configuration source: {job.id if job else 'server form'}"
         servers = [j for j in jobs if j.mode != 'client']
         server = servers[-1] if servers else None
         server_badge.text = 'SERVER · ' + ({'failed': 'ERROR'}.get(server.state, server.state.upper()) if server else 'IDLE')

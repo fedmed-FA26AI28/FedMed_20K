@@ -27,6 +27,10 @@ If gRPC is busy, choose another port or stop the process using it.
    `Min Fit <= Min Available <= Total clients`. Start a LAN server or local
    simulation. Simulation runs separately and uses every client each round.
 2. **Client Nodes** monitors clients reporting to the selected server run. The
+   compact **Client configuration** form accepts the server IP:port and client ID,
+   downloads `client_dashboard.yaml`, and copies the CLI command. It uses the
+   selected LAN server run's configuration, or the server form when no run is selected.
+   Save the YAML as `configs/client_dashboard.yaml` on the remote device.
    table shows IP, device, round, report age, CPU/RAM, VRAM, ping, and metrics.
    Reports arrive at the end of rounds; this is not an online heartbeat.
    Summary cards show configured/observed clients, fit reports in the current
@@ -45,8 +49,7 @@ If gRPC is busy, choose another port or stop the process using it.
    Replace the address and assign a unique ID from 0 to total clients minus one.
    PyTorch on Jetson must match the installed JetPack version. Client machines
    need neither NiceGUI nor a dashboard process. Stop a client with Ctrl+C in its
-   terminal. The Client Nodes tab contains monitoring only; setup instructions
-   are maintained in this document.
+   terminal. Detailed setup instructions are maintained in this document.
 4. **Live Analytics**: train/test accuracy, BTA, MCTA, BMCTA, loss and round
    metrics. BMCTA is best mean client test accuracy. Missing values stay blank.
 5. **Live Terminal**: filter logs by run, level and keyword; clear the current
