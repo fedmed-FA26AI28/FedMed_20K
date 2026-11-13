@@ -20,6 +20,18 @@ import time
 from pathlib import Path
 from typing import Optional, Union, List, Dict, Any
 
+# Ensure stdout and stderr handle unicode characters safely across platforms/encodings
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -1282,7 +1294,7 @@ class FedMedAIClient(fl.client.NumPyClient):
             self.best_model_state = {k: v.cpu().clone() for k, v in self.model.state_dict().items()}
             self._save_checkpoint("best_model.pth", self.best_model_state)
             print(
-                f"[Client {self.client_id}] ★ New Best Local Test Accuracy: {accuracy*100:.2f}% "
+                f"[Client {self.client_id}] New Best Local Test Accuracy: {accuracy*100:.2f}% "
                 f"(Round {resolved_round}) -> Saved best_model.pth"
             )
 
