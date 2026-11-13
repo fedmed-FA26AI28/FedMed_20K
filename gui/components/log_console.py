@@ -9,6 +9,7 @@ class LiveLogConsole(ctk.CTkFrame):
     def __init__(self, master, title: str = "REAL-TIME LOG CONSOLE", **kwargs):
         super().__init__(master, fg_color="#102135", corner_radius=8, border_width=1, border_color="#1e2d42", **kwargs)
         self.autoscroll = tk.BooleanVar(value=True)
+        self.font_size = 10
 
         self._build_header(title)
         self._build_text_area()
@@ -48,6 +49,45 @@ class LiveLogConsole(ctk.CTkFrame):
         )
         btn_clear.pack(side="right", padx=6)
 
+        # Font zoom controls (A- / 10pt / A+)
+        font_box = ctk.CTkFrame(self.header_frame, fg_color="transparent")
+        font_box.pack(side="right", padx=(4, 6))
+
+        btn_zoom_out = ctk.CTkButton(
+            font_box,
+            text="A-",
+            width=26,
+            height=22,
+            font=ctk.CTkFont(size=10, weight="bold"),
+            fg_color="#1c334d",
+            hover_color="#223f5e",
+            text_color="#c7d4e0",
+            command=lambda: self.change_font_size(-1),
+        )
+        btn_zoom_out.pack(side="left", padx=1)
+
+        self.lbl_font_size = ctk.CTkLabel(
+            font_box,
+            text=f"{self.font_size}pt",
+            width=32,
+            font=ctk.CTkFont(family="monospace", size=9),
+            text_color="#94a3b8",
+        )
+        self.lbl_font_size.pack(side="left", padx=2)
+
+        btn_zoom_in = ctk.CTkButton(
+            font_box,
+            text="A+",
+            width=26,
+            height=22,
+            font=ctk.CTkFont(size=10, weight="bold"),
+            fg_color="#1c334d",
+            hover_color="#223f5e",
+            text_color="#c7d4e0",
+            command=lambda: self.change_font_size(1),
+        )
+        btn_zoom_in.pack(side="left", padx=1)
+
         # Autoscroll switch
         cb_auto = ctk.CTkCheckBox(
             self.header_frame,
@@ -60,7 +100,7 @@ class LiveLogConsole(ctk.CTkFrame):
             checkbox_width=18,
             checkbox_height=18,
         )
-        cb_auto.pack(side="right", padx=10)
+        cb_auto.pack(side="right", padx=8)
 
     def _build_text_area(self):
         # We use standard tk.Text with dark configuration for full control over tag coloring
@@ -70,7 +110,7 @@ class LiveLogConsole(ctk.CTkFrame):
             fg="#cbd5e1",
             insertbackground="#60a5fa",
             relief="flat",
-            font=("Consolas", 10),
+            font=("Consolas", self.font_size),
             wrap="word",
         )
         self.scrollbar = ctk.CTkScrollbar(self, command=self.textbox.yview)
@@ -86,6 +126,34 @@ class LiveLogConsole(ctk.CTkFrame):
         self.textbox.tag_config("error", foreground="#f87171")
         self.textbox.tag_config("clients", foreground="#a78bfa")
         self.textbox.tag_config("timestamp", foreground="#64748b")
+
+        # Zoom bindings (Ctrl + Scroll / Ctrl + +/-)
+        self._bind_zoom_shortcuts()
+
+    def _bind_zoom_shortcuts(self):
+        self.textbox.bind("<Control-MouseWheel>", self._on_ctrl_mousewheel)
+        self.textbox.bind("<Control-plus>", lambda e: (self.change_font_size(1), "break")[1])
+        self.textbox.bind("<Control-equal>", lambda e: (self.change_font_size(1), "break")[1])
+        self.textbox.bind("<Control-minus>", lambda e: (self.change_font_size(-1), "break")[1])
+        self.textbox.bind("<Control-0>", lambda e: (self.set_font_size(10), "break")[1])
+
+    def _on_ctrl_mousewheel(self, event):
+        if event.delta > 0:
+            self.change_font_size(1)
+        elif event.delta < 0:
+            self.change_font_size(-1)
+        return "break"
+
+    def change_font_size(self, delta: int):
+        """Increase or decrease console font size within [7, 24] pt."""
+        self.set_font_size(self.font_size + delta)
+
+    def set_font_size(self, size: int):
+        """Set exact console font size clamped within [7, 24] pt."""
+        self.font_size = max(7, min(24, size))
+        self.textbox.configure(font=("Consolas", self.font_size))
+        if hasattr(self, "lbl_font_size"):
+            self.lbl_font_size.configure(text=f"{self.font_size}pt")
 
     def append_log(self, text: str):
         """Thread-safe append of a log line with auto-formatting."""
