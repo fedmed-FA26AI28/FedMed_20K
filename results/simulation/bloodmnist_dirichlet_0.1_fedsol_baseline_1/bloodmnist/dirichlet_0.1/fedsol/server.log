@@ -1,0 +1,443 @@
+
+============================================================
+  FedMedAI FL Server
+  Config Source: configs/simulation.yaml
+  Dataset      : bloodmnist (Classes: 8)
+  Model        : BASELINE
+  Optimizer    : SGD (momentum=0.9)
+  Seed         : 42
+  Strategy     : FEDSOL
+  Server IPv4  : 10.10.102.172
+  Client Target: 10.10.102.172:42491
+  Rounds       : 80
+  Min Clients  : 12
+  Local Epochs : 5
+  LR Mode      : FIXED
+  Base LR      : 0.01
+  LR Policy    : Fixed constant learning rate across all rounds
+  FedSOL       : rho=2.0, target=head, loss_type=kl, T=3.0, adaptive=False
+  Early Stop   : Patience=0 (metric: accuracy)
+  Server Eval  : False
+  Local Test   : True
+  Listen       : 127.0.0.1:42491
+============================================================
+
+[92mINFO [0m:      [FedSOL] Initialized strategy with rho=2, target=head, loss_type=kl, temp=3, adaptive=False
+[Server] Strategy created: FedSOLStrategy
+[Server] Waiting for 12 clients on 127.0.0.1:42491 (Connect target: 10.10.102.172:42491)...
+
+[93mWARNING [0m:   DEPRECATED FEATURE: flwr.server.start_server() is deprecated.
+	Instead, use the `flower-superlink` CLI command to start a SuperLink as shown below:
+
+		$ flower-superlink --insecure
+
+	To view usage and all available options, run:
+
+		$ flower-superlink --help
+
+	Using `start_server()` is deprecated.
+
+            This is a deprecated feature. It will be removed
+            entirely in future versions of Flower.
+        
+[92mINFO [0m:      Starting Flower server, config: num_rounds=80, no round_timeout
+[92mINFO [0m:      Flower ECE: gRPC server running (80 rounds), SSL is disabled
+[92mINFO [0m:      [INIT]
+[92mINFO [0m:      Using initial global parameters provided by strategy
+[92mINFO [0m:      Starting evaluation of initial global parameters
+[92mINFO [0m:      Evaluation returned no results (`None`)
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 1]
+[92mINFO [0m:      [Server] Config for Round 1: strategy=FEDSOL, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 1 (IPv4: unknown, unknown) | Client 4 (IPv4: unknown, unknown) | Client 0 (IPv4: unknown, unknown) | Client 5 (IPv4: unknown, unknown) | Client 8 (IPv4: unknown, unknown) | Client 2 (IPv4: unknown, unknown) | Client 7 (IPv4: unknown, unknown) | Client 11 (IPv4: unknown, unknown) | Client 3 (IPv4: unknown, unknown) | Client 6 (IPv4: unknown, unknown) | Client 9 (IPv4: unknown, unknown) | Client 10 (IPv4: unknown, unknown)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSOL] Round 1 Eval | MCTA: 40.58% (BMCTA: 40.58% @ R1) | Combined: 37.53% (BTA: 37.53% @ R1)
+[92mINFO [0m:      [BestModel] Round 1: new best accuracy = 0.3753
+
+============================================================
+  [Server] Round 1 Distributed Client Evaluation
+  Loss: 2.0262 | Accuracy: 0.3753 (37.53%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 2]
+[92mINFO [0m:      [Server] Config for Round 2: strategy=FEDSOL, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 4 (IPv4: unknown, unknown) | Client 7 (IPv4: unknown, unknown) | Client 3 (IPv4: unknown, unknown) | Client 9 (IPv4: unknown, unknown) | Client 1 (IPv4: unknown, unknown) | Client 10 (IPv4: unknown, unknown) | Client 0 (IPv4: unknown, unknown) | Client 11 (IPv4: unknown, unknown) | Client 8 (IPv4: unknown, unknown) | Client 6 (IPv4: unknown, unknown) | Client 2 (IPv4: unknown, unknown) | Client 5 (IPv4: unknown, unknown)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSOL] Round 2 Eval | MCTA: 61.18% (BMCTA: 61.18% @ R2) | Combined: 57.09% (BTA: 57.09% @ R2)
+[92mINFO [0m:      [BestModel] Round 2: new best accuracy = 0.5709
+
+============================================================
+  [Server] Round 2 Distributed Client Evaluation
+  Loss: 1.8583 | Accuracy: 0.5709 (57.09%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 3]
+[92mINFO [0m:      [Server] Config for Round 3: strategy=FEDSOL, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 5 (IPv4: unknown, unknown) | Client 2 (IPv4: unknown, unknown) | Client 3 (IPv4: unknown, unknown) | Client 11 (IPv4: unknown, unknown) | Client 9 (IPv4: unknown, unknown) | Client 10 (IPv4: unknown, unknown) | Client 0 (IPv4: unknown, unknown) | Client 6 (IPv4: unknown, unknown) | Client 1 (IPv4: unknown, unknown) | Client 4 (IPv4: unknown, unknown) | Client 7 (IPv4: unknown, unknown) | Client 8 (IPv4: unknown, unknown)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSOL] Round 3 Eval | MCTA: 59.94% (BMCTA: 61.18% @ R2) | Combined: 54.98% (BTA: 57.09% @ R2)
+
+============================================================
+  [Server] Round 3 Distributed Client Evaluation
+  Loss: 1.7759 | Accuracy: 0.5498 (54.98%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 4]
+[92mINFO [0m:      [Server] Config for Round 4: strategy=FEDSOL, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 6 (IPv4: unknown, unknown) | Client 7 (IPv4: unknown, unknown) | Client 11 (IPv4: unknown, unknown) | Client 3 (IPv4: unknown, unknown) | Client 1 (IPv4: unknown, unknown) | Client 5 (IPv4: unknown, unknown) | Client 10 (IPv4: unknown, unknown) | Client 2 (IPv4: unknown, unknown) | Client 9 (IPv4: unknown, unknown) | Client 8 (IPv4: unknown, unknown) | Client 0 (IPv4: unknown, unknown) | Client 4 (IPv4: unknown, unknown)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSOL] Round 4 Eval | MCTA: 67.71% (BMCTA: 67.71% @ R4) | Combined: 64.16% (BTA: 64.16% @ R4)
+[92mINFO [0m:      [BestModel] Round 4: new best accuracy = 0.6416
+
+============================================================
+  [Server] Round 4 Distributed Client Evaluation
+  Loss: 1.4940 | Accuracy: 0.6416 (64.16%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 5]
+[92mINFO [0m:      [Server] Config for Round 5: strategy=FEDSOL, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 1 (IPv4: unknown, unknown) | Client 10 (IPv4: unknown, unknown) | Client 8 (IPv4: unknown, unknown) | Client 4 (IPv4: unknown, unknown) | Client 6 (IPv4: unknown, unknown) | Client 9 (IPv4: unknown, unknown) | Client 2 (IPv4: unknown, unknown) | Client 3 (IPv4: unknown, unknown) | Client 5 (IPv4: unknown, unknown) | Client 7 (IPv4: unknown, unknown) | Client 0 (IPv4: unknown, unknown) | Client 11 (IPv4: unknown, unknown)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSOL] Round 5 Eval | MCTA: 58.16% (BMCTA: 67.71% @ R4) | Combined: 53.99% (BTA: 64.16% @ R4)
+
+============================================================
+  [Server] Round 5 Distributed Client Evaluation
+  Loss: 1.5916 | Accuracy: 0.5399 (53.99%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 6]
+[92mINFO [0m:      [Server] Config for Round 6: strategy=FEDSOL, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 6 (IPv4: unknown, unknown) | Client 1 (IPv4: unknown, unknown) | Client 2 (IPv4: unknown, unknown) | Client 4 (IPv4: unknown, unknown) | Client 8 (IPv4: unknown, unknown) | Client 9 (IPv4: unknown, unknown) | Client 5 (IPv4: unknown, unknown) | Client 11 (IPv4: unknown, unknown) | Client 0 (IPv4: unknown, unknown) | Client 3 (IPv4: unknown, unknown) | Client 7 (IPv4: unknown, unknown) | Client 10 (IPv4: unknown, unknown)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSOL] Round 6 Eval | MCTA: 69.83% (BMCTA: 69.83% @ R6) | Combined: 67.29% (BTA: 67.29% @ R6)
+[92mINFO [0m:      [BestModel] Round 6: new best accuracy = 0.6729
+
+============================================================
+  [Server] Round 6 Distributed Client Evaluation
+  Loss: 1.2607 | Accuracy: 0.6729 (67.29%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 7]
+[92mINFO [0m:      [Server] Config for Round 7: strategy=FEDSOL, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 1 (IPv4: unknown, unknown) | Client 11 (IPv4: unknown, unknown) | Client 6 (IPv4: unknown, unknown) | Client 10 (IPv4: unknown, unknown) | Client 0 (IPv4: unknown, unknown) | Client 9 (IPv4: unknown, unknown) | Client 8 (IPv4: unknown, unknown) | Client 7 (IPv4: unknown, unknown) | Client 4 (IPv4: unknown, unknown) | Client 3 (IPv4: unknown, unknown) | Client 5 (IPv4: unknown, unknown) | Client 2 (IPv4: unknown, unknown)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSOL] Round 7 Eval | MCTA: 65.21% (BMCTA: 69.83% @ R6) | Combined: 62.53% (BTA: 67.29% @ R6)
+
+============================================================
+  [Server] Round 7 Distributed Client Evaluation
+  Loss: 1.5644 | Accuracy: 0.6253 (62.53%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 8]
+[92mINFO [0m:      [Server] Config for Round 8: strategy=FEDSOL, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 5 (IPv4: unknown, unknown) | Client 11 (IPv4: unknown, unknown) | Client 2 (IPv4: unknown, unknown) | Client 6 (IPv4: unknown, unknown) | Client 0 (IPv4: unknown, unknown) | Client 8 (IPv4: unknown, unknown) | Client 1 (IPv4: unknown, unknown) | Client 10 (IPv4: unknown, unknown) | Client 7 (IPv4: unknown, unknown) | Client 9 (IPv4: unknown, unknown) | Client 4 (IPv4: unknown, unknown) | Client 3 (IPv4: unknown, unknown)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSOL] Round 8 Eval | MCTA: 68.13% (BMCTA: 69.83% @ R6) | Combined: 66.33% (BTA: 67.29% @ R6)
+
+============================================================
+  [Server] Round 8 Distributed Client Evaluation
+  Loss: 1.1965 | Accuracy: 0.6633 (66.33%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 9]
+[92mINFO [0m:      [Server] Config for Round 9: strategy=FEDSOL, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 5 (IPv4: unknown, unknown) | Client 2 (IPv4: unknown, unknown) | Client 4 (IPv4: unknown, unknown) | Client 11 (IPv4: unknown, unknown) | Client 0 (IPv4: unknown, unknown) | Client 10 (IPv4: unknown, unknown) | Client 8 (IPv4: unknown, unknown) | Client 1 (IPv4: unknown, unknown) | Client 7 (IPv4: unknown, unknown) | Client 6 (IPv4: unknown, unknown) | Client 3 (IPv4: unknown, unknown) | Client 9 (IPv4: unknown, unknown)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSOL] Round 9 Eval | MCTA: 70.47% (BMCTA: 70.47% @ R9) | Combined: 69.22% (BTA: 69.22% @ R9)
+[92mINFO [0m:      [BestModel] Round 9: new best accuracy = 0.6922
+
+============================================================
+  [Server] Round 9 Distributed Client Evaluation
+  Loss: 1.0187 | Accuracy: 0.6922 (69.22%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 10]
+[92mINFO [0m:      [Server] Config for Round 10: strategy=FEDSOL, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 5 (IPv4: unknown, unknown) | Client 1 (IPv4: unknown, unknown) | Client 10 (IPv4: unknown, unknown) | Client 9 (IPv4: unknown, unknown) | Client 8 (IPv4: unknown, unknown) | Client 3 (IPv4: unknown, unknown) | Client 7 (IPv4: unknown, unknown) | Client 2 (IPv4: unknown, unknown) | Client 11 (IPv4: unknown, unknown) | Client 0 (IPv4: unknown, unknown) | Client 6 (IPv4: unknown, unknown) | Client 4 (IPv4: unknown, unknown)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSOL] Round 10 Eval | MCTA: 65.60% (BMCTA: 70.47% @ R9) | Combined: 62.29% (BTA: 69.22% @ R9)
+
+============================================================
+  [Server] Round 10 Distributed Client Evaluation
+  Loss: 1.5835 | Accuracy: 0.6229 (62.29%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 11]
+[92mINFO [0m:      [Server] Config for Round 11: strategy=FEDSOL, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 7 (IPv4: unknown, unknown) | Client 0 (IPv4: unknown, unknown) | Client 10 (IPv4: unknown, unknown) | Client 11 (IPv4: unknown, unknown) | Client 5 (IPv4: unknown, unknown) | Client 2 (IPv4: unknown, unknown) | Client 3 (IPv4: unknown, unknown) | Client 1 (IPv4: unknown, unknown) | Client 6 (IPv4: unknown, unknown) | Client 9 (IPv4: unknown, unknown) | Client 4 (IPv4: unknown, unknown) | Client 8 (IPv4: unknown, unknown)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSOL] Round 11 Eval | MCTA: 67.84% (BMCTA: 70.47% @ R9) | Combined: 66.03% (BTA: 69.22% @ R9)
+
+============================================================
+  [Server] Round 11 Distributed Client Evaluation
+  Loss: 1.2314 | Accuracy: 0.6603 (66.03%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 12]
+[92mINFO [0m:      [Server] Config for Round 12: strategy=FEDSOL, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 2 (IPv4: unknown, unknown) | Client 0 (IPv4: unknown, unknown) | Client 1 (IPv4: unknown, unknown) | Client 4 (IPv4: unknown, unknown) | Client 3 (IPv4: unknown, unknown) | Client 7 (IPv4: unknown, unknown) | Client 8 (IPv4: unknown, unknown) | Client 10 (IPv4: unknown, unknown) | Client 9 (IPv4: unknown, unknown) | Client 5 (IPv4: unknown, unknown) | Client 11 (IPv4: unknown, unknown) | Client 6 (IPv4: unknown, unknown)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSOL] Round 12 Eval | MCTA: 69.58% (BMCTA: 70.47% @ R9) | Combined: 69.16% (BTA: 69.22% @ R9)
+
+============================================================
+  [Server] Round 12 Distributed Client Evaluation
+  Loss: 0.9977 | Accuracy: 0.6916 (69.16%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 13]
+[92mINFO [0m:      [Server] Config for Round 13: strategy=FEDSOL, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 1 (IPv4: unknown, unknown) | Client 9 (IPv4: unknown, unknown) | Client 5 (IPv4: unknown, unknown) | Client 3 (IPv4: unknown, unknown) | Client 7 (IPv4: unknown, unknown) | Client 2 (IPv4: unknown, unknown) | Client 6 (IPv4: unknown, unknown) | Client 0 (IPv4: unknown, unknown) | Client 11 (IPv4: unknown, unknown) | Client 10 (IPv4: unknown, unknown) | Client 8 (IPv4: unknown, unknown) | Client 4 (IPv4: unknown, unknown)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSOL] Round 13 Eval | MCTA: 73.70% (BMCTA: 73.70% @ R13) | Combined: 72.46% (BTA: 72.46% @ R13)
+[92mINFO [0m:      [BestModel] Round 13: new best accuracy = 0.7246
+
+============================================================
+  [Server] Round 13 Distributed Client Evaluation
+  Loss: 0.8537 | Accuracy: 0.7246 (72.46%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 14]
+[92mINFO [0m:      [Server] Config for Round 14: strategy=FEDSOL, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 1 (IPv4: unknown, unknown) | Client 8 (IPv4: unknown, unknown) | Client 7 (IPv4: unknown, unknown) | Client 10 (IPv4: unknown, unknown) | Client 4 (IPv4: unknown, unknown) | Client 11 (IPv4: unknown, unknown) | Client 6 (IPv4: unknown, unknown) | Client 0 (IPv4: unknown, unknown) | Client 2 (IPv4: unknown, unknown) | Client 9 (IPv4: unknown, unknown) | Client 3 (IPv4: unknown, unknown) | Client 5 (IPv4: unknown, unknown)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSOL] Round 14 Eval | MCTA: 73.52% (BMCTA: 73.70% @ R13) | Combined: 71.88% (BTA: 72.46% @ R13)
+
+============================================================
+  [Server] Round 14 Distributed Client Evaluation
+  Loss: 0.8447 | Accuracy: 0.7188 (71.88%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 15]
+[92mINFO [0m:      [Server] Config for Round 15: strategy=FEDSOL, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 6 (IPv4: unknown, unknown) | Client 3 (IPv4: unknown, unknown) | Client 10 (IPv4: unknown, unknown) | Client 5 (IPv4: unknown, unknown) | Client 2 (IPv4: unknown, unknown) | Client 4 (IPv4: unknown, unknown) | Client 11 (IPv4: unknown, unknown) | Client 9 (IPv4: unknown, unknown) | Client 1 (IPv4: unknown, unknown) | Client 8 (IPv4: unknown, unknown) | Client 7 (IPv4: unknown, unknown) | Client 0 (IPv4: unknown, unknown)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSOL] Round 15 Eval | MCTA: 74.14% (BMCTA: 74.14% @ R15) | Combined: 73.84% (BTA: 73.84% @ R15)
+[92mINFO [0m:      [BestModel] Round 15: new best accuracy = 0.7384
+
+============================================================
+  [Server] Round 15 Distributed Client Evaluation
+  Loss: 0.8890 | Accuracy: 0.7384 (73.84%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 16]
+[92mINFO [0m:      [Server] Config for Round 16: strategy=FEDSOL, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 11 (IPv4: unknown, unknown) | Client 2 (IPv4: unknown, unknown) | Client 8 (IPv4: unknown, unknown) | Client 7 (IPv4: unknown, unknown) | Client 10 (IPv4: unknown, unknown) | Client 6 (IPv4: unknown, unknown) | Client 1 (IPv4: unknown, unknown) | Client 9 (IPv4: unknown, unknown) | Client 0 (IPv4: unknown, unknown) | Client 4 (IPv4: unknown, unknown) | Client 3 (IPv4: unknown, unknown) | Client 5 (IPv4: unknown, unknown)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSOL] Round 16 Eval | MCTA: 74.65% (BMCTA: 74.65% @ R16) | Combined: 73.60% (BTA: 73.84% @ R15)
+
+============================================================
+  [Server] Round 16 Distributed Client Evaluation
+  Loss: 0.7575 | Accuracy: 0.7360 (73.60%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 17]
+[92mINFO [0m:      [Server] Config for Round 17: strategy=FEDSOL, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 5 (IPv4: unknown, unknown) | Client 11 (IPv4: unknown, unknown) | Client 9 (IPv4: unknown, unknown) | Client 2 (IPv4: unknown, unknown) | Client 3 (IPv4: unknown, unknown) | Client 0 (IPv4: unknown, unknown) | Client 4 (IPv4: unknown, unknown) | Client 8 (IPv4: unknown, unknown) | Client 1 (IPv4: unknown, unknown) | Client 7 (IPv4: unknown, unknown) | Client 10 (IPv4: unknown, unknown) | Client 6 (IPv4: unknown, unknown)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSOL] Round 17 Eval | MCTA: 74.24% (BMCTA: 74.65% @ R16) | Combined: 72.55% (BTA: 73.84% @ R15)
+
+============================================================
+  [Server] Round 17 Distributed Client Evaluation
+  Loss: 0.8469 | Accuracy: 0.7255 (72.55%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 18]
+[92mINFO [0m:      [Server] Config for Round 18: strategy=FEDSOL, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 3 (IPv4: unknown, unknown) | Client 4 (IPv4: unknown, unknown) | Client 2 (IPv4: unknown, unknown) | Client 1 (IPv4: unknown, unknown) | Client 5 (IPv4: unknown, unknown) | Client 11 (IPv4: unknown, unknown) | Client 0 (IPv4: unknown, unknown) | Client 6 (IPv4: unknown, unknown) | Client 7 (IPv4: unknown, unknown) | Client 10 (IPv4: unknown, unknown) | Client 8 (IPv4: unknown, unknown) | Client 9 (IPv4: unknown, unknown)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSOL] Round 18 Eval | MCTA: 75.26% (BMCTA: 75.26% @ R18) | Combined: 74.07% (BTA: 74.07% @ R18)
+[92mINFO [0m:      [BestModel] Round 18: new best accuracy = 0.7407
+
+============================================================
+  [Server] Round 18 Distributed Client Evaluation
+  Loss: 0.7577 | Accuracy: 0.7407 (74.07%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 19]
+[92mINFO [0m:      [Server] Config for Round 19: strategy=FEDSOL, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 1 (IPv4: unknown, unknown) | Client 4 (IPv4: unknown, unknown) | Client 3 (IPv4: unknown, unknown) | Client 9 (IPv4: unknown, unknown) | Client 5 (IPv4: unknown, unknown) | Client 7 (IPv4: unknown, unknown) | Client 11 (IPv4: unknown, unknown) | Client 0 (IPv4: unknown, unknown) | Client 6 (IPv4: unknown, unknown) | Client 8 (IPv4: unknown, unknown) | Client 2 (IPv4: unknown, unknown) | Client 10 (IPv4: unknown, unknown)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSOL] Round 19 Eval | MCTA: 75.51% (BMCTA: 75.51% @ R19) | Combined: 74.89% (BTA: 74.89% @ R19)
+[92mINFO [0m:      [BestModel] Round 19: new best accuracy = 0.7489
+
+============================================================
+  [Server] Round 19 Distributed Client Evaluation
+  Loss: 0.7200 | Accuracy: 0.7489 (74.89%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 20]
+[92mINFO [0m:      [Server] Config for Round 20: strategy=FEDSOL, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 9 (IPv4: unknown, unknown) | Client 3 (IPv4: unknown, unknown) | Client 7 (IPv4: unknown, unknown) | Client 6 (IPv4: unknown, unknown) | Client 8 (IPv4: unknown, unknown) | Client 1 (IPv4: unknown, unknown) | Client 4 (IPv4: unknown, unknown) | Client 0 (IPv4: unknown, unknown) | Client 5 (IPv4: unknown, unknown) | Client 2 (IPv4: unknown, unknown) | Client 10 (IPv4: unknown, unknown) | Client 11 (IPv4: unknown, unknown)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSOL] Round 20 Eval | MCTA: 75.36% (BMCTA: 75.51% @ R19) | Combined: 74.83% (BTA: 74.89% @ R19)
+
+============================================================
+  [Server] Round 20 Distributed Client Evaluation
+  Loss: 0.7072 | Accuracy: 0.7483 (74.83%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 21]
+[92mINFO [0m:      [Server] Config for Round 21: strategy=FEDSOL, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 9 (IPv4: unknown, unknown) | Client 2 (IPv4: unknown, unknown) | Client 7 (IPv4: unknown, unknown) | Client 10 (IPv4: unknown, unknown) | Client 11 (IPv4: unknown, unknown) | Client 8 (IPv4: unknown, unknown) | Client 5 (IPv4: unknown, unknown) | Client 4 (IPv4: unknown, unknown) | Client 1 (IPv4: unknown, unknown) | Client 6 (IPv4: unknown, unknown) | Client 3 (IPv4: unknown, unknown) | Client 0 (IPv4: unknown, unknown)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSOL] Round 21 Eval | MCTA: 76.36% (BMCTA: 76.36% @ R21) | Combined: 75.59% (BTA: 75.59% @ R21)
+[92mINFO [0m:      [BestModel] Round 21: new best accuracy = 0.7559
+
+============================================================
+  [Server] Round 21 Distributed Client Evaluation
+  Loss: 0.7337 | Accuracy: 0.7559 (75.59%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 22]
+[92mINFO [0m:      [Server] Config for Round 22: strategy=FEDSOL, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 0 (IPv4: unknown, unknown) | Client 2 (IPv4: unknown, unknown) | Client 4 (IPv4: unknown, unknown) | Client 5 (IPv4: unknown, unknown) | Client 6 (IPv4: unknown, unknown) | Client 10 (IPv4: unknown, unknown) | Client 7 (IPv4: unknown, unknown) | Client 11 (IPv4: unknown, unknown) | Client 3 (IPv4: unknown, unknown) | Client 9 (IPv4: unknown, unknown) | Client 1 (IPv4: unknown, unknown) | Client 8 (IPv4: unknown, unknown)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSOL] Round 22 Eval | MCTA: 77.07% (BMCTA: 77.07% @ R22) | Combined: 76.70% (BTA: 76.70% @ R22)
+[92mINFO [0m:      [BestModel] Round 22: new best accuracy = 0.7670
+
+============================================================
+  [Server] Round 22 Distributed Client Evaluation
+  Loss: 0.6648 | Accuracy: 0.7670 (76.70%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 23]
+[92mINFO [0m:      [Server] Config for Round 23: strategy=FEDSOL, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 0 (IPv4: unknown, unknown) | Client 11 (IPv4: unknown, unknown) | Client 9 (IPv4: unknown, unknown) | Client 5 (IPv4: unknown, unknown) | Client 2 (IPv4: unknown, unknown) | Client 1 (IPv4: unknown, unknown) | Client 6 (IPv4: unknown, unknown) | Client 4 (IPv4: unknown, unknown) | Client 8 (IPv4: unknown, unknown) | Client 7 (IPv4: unknown, unknown) | Client 3 (IPv4: unknown, unknown) | Client 10 (IPv4: unknown, unknown)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSOL] Round 23 Eval | MCTA: 76.55% (BMCTA: 77.07% @ R22) | Combined: 76.70% (BTA: 76.70% @ R22)
+
+============================================================
+  [Server] Round 23 Distributed Client Evaluation
+  Loss: 0.6737 | Accuracy: 0.7670 (76.70%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 24]
+[92mINFO [0m:      [Server] Config for Round 24: strategy=FEDSOL, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 8 (IPv4: unknown, unknown) | Client 10 (IPv4: unknown, unknown) | Client 7 (IPv4: unknown, unknown) | Client 9 (IPv4: unknown, unknown) | Client 6 (IPv4: unknown, unknown) | Client 1 (IPv4: unknown, unknown) | Client 4 (IPv4: unknown, unknown) | Client 11 (IPv4: unknown, unknown) | Client 5 (IPv4: unknown, unknown) | Client 2 (IPv4: unknown, unknown) | Client 0 (IPv4: unknown, unknown) | Client 3 (IPv4: unknown, unknown)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSOL] Round 24 Eval | MCTA: 78.25% (BMCTA: 78.25% @ R24) | Combined: 77.70% (BTA: 77.70% @ R24)
+[92mINFO [0m:      [BestModel] Round 24: new best accuracy = 0.7770
+
+============================================================
+  [Server] Round 24 Distributed Client Evaluation
+  Loss: 0.6383 | Accuracy: 0.7770 (77.70%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 25]
+[92mINFO [0m:      [Server] Config for Round 25: strategy=FEDSOL, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 1 (IPv4: unknown, unknown) | Client 6 (IPv4: unknown, unknown) | Client 7 (IPv4: unknown, unknown) | Client 4 (IPv4: unknown, unknown) | Client 9 (IPv4: unknown, unknown) | Client 0 (IPv4: unknown, unknown) | Client 2 (IPv4: unknown, unknown) | Client 8 (IPv4: unknown, unknown) | Client 11 (IPv4: unknown, unknown) | Client 5 (IPv4: unknown, unknown) | Client 10 (IPv4: unknown, unknown) | Client 3 (IPv4: unknown, unknown)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_evaluate: received 12 results and 0 failures
+[92mINFO [0m:      [FedSOL] Round 25 Eval | MCTA: 79.41% (BMCTA: 79.41% @ R25) | Combined: 79.33% (BTA: 79.33% @ R25)
+[92mINFO [0m:      [BestModel] Round 25: new best accuracy = 0.7933
+
+============================================================
+  [Server] Round 25 Distributed Client Evaluation
+  Loss: 0.5937 | Accuracy: 0.7933 (79.33%)
+============================================================
+
+[92mINFO [0m:      
+[92mINFO [0m:      [ROUND 26]
+[92mINFO [0m:      [Server] Config for Round 26: strategy=FEDSOL, local_epochs=5, LR=0.010000 (fixed)
+[92mINFO [0m:      configure_fit: strategy sampled 12 clients (out of 12)
+[92mINFO [0m:      aggregate_fit: received 12 results and 0 failures
+[92mINFO [0m:      [Reporting Devices] Client 1 (IPv4: unknown, unknown) | Client 11 (IPv4: unknown, unknown) | Client 2 (IPv4: unknown, unknown) | Client 4 (IPv4: unknown, unknown) | Client 0 (IPv4: unknown, unknown) | Client 3 (IPv4: unknown, unknown) | Client 10 (IPv4: unknown, unknown) | Client 5 (IPv4: unknown, unknown) | Client 8 (IPv4: unknown, unknown) | Client 7 (IPv4: unknown, unknown) | Client 9 (IPv4: unknown, unknown) | Client 6 (IPv4: unknown, unknown)
+[92mINFO [0m:      configure_evaluate: strategy sampled 12 clients (out of 12)
