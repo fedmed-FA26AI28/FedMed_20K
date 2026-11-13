@@ -29,6 +29,18 @@ import datetime
 from logging import INFO, WARNING
 from typing import Dict, List, Optional, Tuple, Any
 
+# Ensure stdout and stderr handle unicode characters safely across platforms/encodings
+if hasattr(sys.stdout, "reconfigure"):
+    try:
+        sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+if hasattr(sys.stderr, "reconfigure"):
+    try:
+        sys.stderr.reconfigure(encoding="utf-8", errors="replace")
+    except Exception:
+        pass
+
 import numpy as np
 import torch
 import flwr as fl

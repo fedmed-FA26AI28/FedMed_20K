@@ -35,9 +35,11 @@ class SubprocessRunner:
         full_env = os.environ.copy()
         if env_vars:
             full_env.update(env_vars)
-        # Ensure PYTHONPATH includes project root
+        # Ensure PYTHONPATH includes project root and stdout/stderr UTF-8 encoding
         full_env["PYTHONPATH"] = str(PROJECT_ROOT)
         full_env["PYTHONUNBUFFERED"] = "1"
+        full_env["PYTHONIOENCODING"] = "utf-8"
+        full_env["PYTHONUTF8"] = "1"
 
         try:
             # On Windows, use CREATE_NEW_PROCESS_GROUP to allow graceful signal handling if needed
@@ -52,6 +54,8 @@ class SubprocessRunner:
                 stderr=subprocess.STDOUT,
                 env=full_env,
                 text=True,
+                encoding="utf-8",
+                errors="replace",
                 bufsize=1,
                 universal_newlines=True,
                 creationflags=creationflags,
