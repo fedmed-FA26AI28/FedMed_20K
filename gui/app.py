@@ -238,6 +238,9 @@ class FLOrchestratorDashboard(ctk.CTk):
         self._build_server_workspace()
         self._build_client_workspace()
 
+        # Bind reactive listeners to input fields for instant KPI updates
+        self._bind_kpi_reactive_inputs()
+
         # Initial view
         self._switch_view("server")
 
@@ -364,9 +367,9 @@ class FLOrchestratorDashboard(ctk.CTk):
 
         # 4 Metric Cards
         self.kpi_card_1 = self._create_kpi_card("PORT STATUS / TARGET", "Port 8080 Ready", "192.168.1.10 Bound", "#0c8c80")
-        self.kpi_card_2 = self._create_kpi_card("FL ROUNDS PROGRESS", "Round 0 / 40", "Local Epochs: 5 · Batch: 16", "#2563eb")
+        self.kpi_card_2 = self._create_kpi_card("FL ROUNDS PROGRESS", "Round 0 / 40", "Local Epochs: 5 · Min Clients: 12", "#2563eb")
         self.kpi_card_3 = self._create_kpi_card("BEST TEST ACCURACY (BTA)", "0.00 %", "Current TA: 0.00%", "#0b8a5a")
-        self.kpi_card_4 = self._create_kpi_card("CURRENT TRAIN LOSS", "0.0000", "Eval Loss: —", "#d79338")
+        self.kpi_card_4 = self._create_kpi_card("CURRENT LOSS", "0.0000", "Eval Loss: —", "#d79338")
 
     def _create_kpi_card(self, title: str, default_val: str, default_sub: str, accent_color: str):
         card = ctk.CTkFrame(self.kpi_frame, fg_color="#ffffff", corner_radius=8, border_width=1, border_color="#e8edf2")
@@ -387,9 +390,42 @@ class FLOrchestratorDashboard(ctk.CTk):
         lbl_sub.pack(anchor="w", padx=14, pady=(0, 6))
 
         # Store labels on card object for dynamic updates
+        card.lbl_title = lbl_title
         card.lbl_val = lbl_val
         card.lbl_sub = lbl_sub
         return card
+
+    def _bind_kpi_reactive_inputs(self):
+        """Bind dynamic text changes in Server and Client forms to update KPI cards immediately."""
+        for key in ("rounds", "local_epochs", "min_clients"):
+            widget = self.server_ctrl.fields.get(key)
+            if widget and hasattr(widget, "bind"):
+                widget.bind("<KeyRelease>", self._sync_kpi_display)
+
+        for key in ("local_epochs", "client_id"):
+            widget = self.client_ctrl.fields.get(key)
+            if widget and hasattr(widget, "bind"):
+                widget.bind("<KeyRelease>", self._sync_kpi_display)
+
+    def _sync_kpi_display(self, event=None):
+        """Synchronize KPI cards with active view parameters and running state."""
+        if self.active_view == "server":
+            self.kpi_card_4.lbl_title.configure(text="CURRENT LOSS")
+            if not self.server_runner.is_running():
+                rounds_val = self.server_ctrl.fields.get("rounds").get().strip() or "40"
+                epochs_val = self.server_ctrl.fields.get("local_epochs").get().strip() or "5"
+                min_c_val = self.server_ctrl.fields.get("min_clients").get().strip() or "12"
+                self.kpi_card_2.lbl_title.configure(text="FL ROUNDS PROGRESS")
+                self.kpi_card_2.lbl_val.configure(text=f"Round 0 / {rounds_val}")
+                self.kpi_card_2.lbl_sub.configure(text=f"Local Epochs: {epochs_val} · Min Clients: {min_c_val}")
+        else:
+            self.kpi_card_4.lbl_title.configure(text="CURRENT TRAIN LOSS")
+            if not self.client_runner.is_running():
+                epochs_val = self.client_ctrl.fields.get("local_epochs").get().strip() or "5"
+                cid_val = self.client_ctrl.fields.get("client_id").get().strip() or "0"
+                self.kpi_card_2.lbl_title.configure(text="CLIENT TRAINING PROGRESS")
+                self.kpi_card_2.lbl_val.configure(text=f"Client Node #{cid_val}")
+                self.kpi_card_2.lbl_sub.configure(text=f"Local Epochs: {epochs_val}")
 
     # --- WORKSPACES ---
 
@@ -470,6 +506,8 @@ class FLOrchestratorDashboard(ctk.CTk):
             self.kpi_card_1.lbl_val.configure(text="Client Node")
             self.kpi_card_1.lbl_sub.configure(text=f"Target: {addr}")
 
+        self._sync_kpi_display()
+
     # --- TOPBAR ACTIONS ---
 
     def _copy_server_address(self):
@@ -547,6 +585,7 @@ class FLOrchestratorDashboard(ctk.CTk):
         self.server_console.append_log("[SERVER KILL] Terminating server process tree...\n")
         self.server_runner.stop()
         self.server_ctrl.set_running_state(False)
+        self.after(0, self._sync_kpi_display)
 
     def _export_server_results(self):
         self.server_plot.export_plot_image()
@@ -557,7 +596,7 @@ class FLOrchestratorDashboard(ctk.CTk):
 
     def _on_server_exit(self, code: int):
         self.server_console.append_log(f"\n[SERVER TERMINATED] Process exited with code {code}.\n")
-        self.after(0, lambda: self.server_ctrl.set_running_state(False))
+        self.after(0, lambda: (self.server_ctrl.set_running_state(False), self._sync_kpi_display()))
 
         # Check if client_full_histories.json was saved in the latest results directory
         try:
@@ -605,6 +644,7 @@ class FLOrchestratorDashboard(ctk.CTk):
         self.client_console.append_log("[CLIENT KILL] Terminating client process tree...\n")
         self.client_runner.stop()
         self.client_ctrl.set_running_state(False)
+        self.after(0, self._sync_kpi_display)
 
     def _clear_client_plot(self):
         self.client_plot.clear()
@@ -615,7 +655,7 @@ class FLOrchestratorDashboard(ctk.CTk):
 
     def _on_client_exit(self, code: int):
         self.client_console.append_log(f"\n[CLIENT TERMINATED] Process exited with code {code}.\n")
-        self.after(0, lambda: self.client_ctrl.set_running_state(False))
+        self.after(0, lambda: (self.client_ctrl.set_running_state(False), self._sync_kpi_display()))
 
     def _on_metric_event(self, source: str, payload: Dict[str, Any]):
         """Dispatched from metric_parser when new metrics are extracted from stdout."""
