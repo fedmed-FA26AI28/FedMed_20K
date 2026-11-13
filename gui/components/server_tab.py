@@ -1,3 +1,4 @@
+from gui import theme as T
 import copy
 import tkinter as tk
 import customtkinter as ctk
@@ -39,14 +40,14 @@ class ServerTab(ctk.CTkFrame):
 
     def _build_form(self):
         """Builds scrollable configuration form on the left with rock-solid row alignment."""
-        self.scroll = ctk.CTkScrollableFrame(self, fg_color="#ffffff", corner_radius=8, border_width=1, border_color="#e8edf2", width=380)
+        self.scroll = ctk.CTkScrollableFrame(self, fg_color=T.PANEL, corner_radius=12, border_width=1, border_color=T.BORDER, width=300)
         self.scroll.pack(fill="both", expand=True, padx=4, pady=4)
 
         title = ctk.CTkLabel(
             self.scroll,
-            text="⚙️ SERVER PARAMETER CONFIGURATION",
-            font=ctk.CTkFont(size=12, weight="bold"),
-            text_color="#162d43",
+            text="02 / Federation configuration",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color=T.TEXT,
         )
         title.pack(anchor="w", padx=12, pady=(10, 14))
 
@@ -62,16 +63,16 @@ class ServerTab(ctk.CTkFrame):
                 row,
                 text=label_text,
                 font=ctk.CTkFont(size=11, weight="bold"),
-                text_color="#475569",
-                width=140,
+                text_color=T.MUTED,
+                width=120,
                 anchor="w",
             )
             lbl.pack(side="left", padx=(4, 8))
 
             # Crucial: widget master is row, NOT self.scroll!
-            kwargs.setdefault("fg_color", "#ffffff")
-            kwargs.setdefault("border_color", "#dce3eb")
-            kwargs.setdefault("text_color", "#162d43")
+            kwargs.setdefault("fg_color", T.PANEL)
+            kwargs.setdefault("border_color", T.BORDER)
+            kwargs.setdefault("text_color", T.TEXT)
             widget = widget_cls(row, **kwargs)
             widget.pack(side="right", fill="x", expand=True, padx=(0, 4))
             return widget
@@ -156,12 +157,12 @@ class ServerTab(ctk.CTkFrame):
             self.scroll,
             text="⚙  Open Advanced Configuration...",
             height=34,
-            font=ctk.CTkFont(size=12, weight="bold"),
-            fg_color="#f1f5f9",
-            hover_color="#e2e8f0",
-            text_color="#162d43",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color=T.SURFACE,
+            hover_color=T.BORDER,
+            text_color=T.TEXT,
             border_width=1,
-            border_color="#dfe6ed",
+            border_color=T.BORDER,
             command=self._open_advanced_dialog,
         )
         self.btn_open_adv.pack(fill="x", padx=10, pady=(14, 4))
@@ -170,42 +171,44 @@ class ServerTab(ctk.CTkFrame):
             self.scroll,
             text="● Standard Defaults Active",
             font=ctk.CTkFont(size=11, weight="bold"),
-            text_color="#64748b",
+            text_color=T.MUTED,
             anchor="center",
         )
         self.lbl_adv_status.pack(fill="x", padx=10, pady=(0, 6))
 
         # Backward compatibility placeholders
-        self.adv_container = ctk.CTkFrame(self.scroll, fg_color="#f8fafc", corner_radius=6)
+        self.adv_container = ctk.CTkFrame(self.scroll, fg_color=T.SURFACE, corner_radius=6)
         self.btn_toggle_adv = self.btn_open_adv
 
         # --- ACTION BUTTONS ---
-        btn_box = ctk.CTkFrame(self.scroll, fg_color="transparent")
-        btn_box.pack(fill="x", padx=10, pady=(18, 12))
+        self.scroll.pack_forget()
+        btn_box = ctk.CTkFrame(self, fg_color=T.PANEL, corner_radius=12, border_width=1, border_color=T.BORDER)
+        btn_box.pack(side="bottom", fill="x", padx=4, pady=(8, 4))
+        self.scroll.pack(fill="both", expand=True, padx=4, pady=4)
 
         self.btn_start = ctk.CTkButton(
             btn_box,
             text="▶ START FL SERVER",
             height=44,
-            font=ctk.CTkFont(size=12, weight="bold"),
-            fg_color="#0c8c80",
-            hover_color="#087b70",
-            text_color="#ffffff",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color=T.PRIMARY,
+            hover_color=T.PRIMARY_HOVER,
+            text_color=T.ON_ACCENT,
             command=self._on_start_click,
         )
-        self.btn_start.pack(fill="x", pady=(0, 8))
+        self.btn_start.pack(fill="x", padx=12, pady=(10, 8))
 
         sub_btns = ctk.CTkFrame(btn_box, fg_color="transparent")
-        sub_btns.pack(fill="x")
+        sub_btns.pack(fill="x", padx=12, pady=(0, 10))
 
         self.btn_stop = ctk.CTkButton(
             sub_btns,
             text="■ STOP SERVER",
             height=34,
             font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color="#ba4c4c",
-            hover_color="#991b1b",
-            text_color="#ffffff",
+            fg_color=T.ERROR,
+            hover_color=T.DANGER_HOVER,
+            text_color=T.ON_ACCENT,
             command=self._on_stop_click,
         )
         self.btn_stop.pack(side="left", fill="x", expand=True, padx=(0, 4))
@@ -215,11 +218,11 @@ class ServerTab(ctk.CTkFrame):
             text="📊 Export Results",
             height=34,
             font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color="#ffffff",
-            hover_color="#f3f7fa",
-            text_color="#42566b",
+            fg_color=T.PANEL,
+            hover_color=T.SURFACE,
+            text_color=T.TEXT,
             border_width=1,
-            border_color="#dfe6ed",
+            border_color=T.BORDER,
             command=self._on_export_click,
         )
         self.btn_export.pack(side="right", fill="x", expand=True, padx=(4, 0))
@@ -245,15 +248,15 @@ class ServerTab(ctk.CTkFrame):
         if overrides > 0:
             self.lbl_adv_status.configure(
                 text=f"● {overrides} Custom Overrides Active",
-                text_color="#0c8c80",
+                text_color=T.ACCENT,
             )
-            self.btn_open_adv.configure(border_color="#0c8c80")
+            self.btn_open_adv.configure(border_color=T.ACCENT)
         else:
             self.lbl_adv_status.configure(
                 text="● Standard Defaults Active",
-                text_color="#64748b",
+                text_color=T.MUTED,
             )
-            self.btn_open_adv.configure(border_color="#dfe6ed")
+            self.btn_open_adv.configure(border_color=T.BORDER)
 
     def _toggle_advanced(self):
         """Backward compatibility helper for headless test suites."""
@@ -371,8 +374,8 @@ class ServerTab(ctk.CTkFrame):
 
     def set_running_state(self, running: bool):
         if running:
-            self.btn_start.configure(state="disabled", fg_color="#374151")
-            self.btn_stop.configure(state="normal", fg_color="#dc2626")
+            self.btn_start.configure(state="disabled", fg_color=T.BORDER)
+            self.btn_stop.configure(state="normal", fg_color=T.DANGER)
         else:
-            self.btn_start.configure(state="normal", fg_color="#059669")
-            self.btn_stop.configure(state="disabled", fg_color="#374151")
+            self.btn_start.configure(state="normal", fg_color=T.PRIMARY)
+            self.btn_stop.configure(state="disabled", fg_color=T.BORDER)

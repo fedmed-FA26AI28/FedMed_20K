@@ -1,3 +1,4 @@
+from gui import theme as T
 import tkinter as tk
 import customtkinter as ctk
 from typing import Dict, Any, Optional
@@ -7,7 +8,7 @@ class LiveLogConsole(ctk.CTkFrame):
     """Real-time scrolling terminal output console with syntax highlighting and hardware telemetry."""
 
     def __init__(self, master, title: str = "REAL-TIME LOG CONSOLE", **kwargs):
-        super().__init__(master, fg_color="#102135", corner_radius=8, border_width=1, border_color="#1e2d42", **kwargs)
+        super().__init__(master, fg_color=T.SIDEBAR, corner_radius=12, border_width=1, border_color=T.BORDER, **kwargs)
         self.autoscroll = tk.BooleanVar(value=True)
         self.font_size = 10
 
@@ -15,42 +16,48 @@ class LiveLogConsole(ctk.CTkFrame):
         self._build_text_area()
 
     def _build_header(self, title: str):
-        self.header_frame = ctk.CTkFrame(self, fg_color="#16273b", height=32, corner_radius=6)
+        self.header_frame = ctk.CTkFrame(self, fg_color=T.SURFACE, height=32, corner_radius=6)
         self.header_frame.pack(fill="x", padx=8, pady=(8, 4))
 
+        title_row = ctk.CTkFrame(self.header_frame, fg_color="transparent")
+        title_row.pack(fill="x", padx=4, pady=(4, 0))
+        telemetry_row = ctk.CTkFrame(self.header_frame, fg_color="transparent")
+        telemetry_row.pack(fill="x", padx=4)
+        controls = ctk.CTkFrame(self.header_frame, fg_color="transparent")
+        controls.pack(fill="x", padx=4, pady=(0, 6))
         lbl = ctk.CTkLabel(
-            self.header_frame,
+            title_row,
             text=f"📟 {title}",
             font=ctk.CTkFont(size=11, weight="bold"),
-            text_color="#e2e8f0",
+            text_color=T.TEXT,
         )
         lbl.pack(side="left", padx=10)
 
         # Telemetry badge
         self.lbl_telemetry = ctk.CTkLabel(
-            self.header_frame,
+            telemetry_row,
             text="GPU: Scanning... | VRAM: 0.0 GB",
             font=ctk.CTkFont(family="monospace", size=10, weight="bold"),
-            text_color="#2caa9f",
+            text_color=T.ACCENT,
         )
         self.lbl_telemetry.pack(side="left", padx=15)
 
         # Clear button
         btn_clear = ctk.CTkButton(
-            self.header_frame,
+            controls,
             text="Clear Logs",
             width=70,
             height=22,
             font=ctk.CTkFont(size=10, weight="bold"),
-            fg_color="#1c334d",
-            hover_color="#223f5e",
-            text_color="#c7d4e0",
+            fg_color=T.BORDER,
+            hover_color=T.SURFACE,
+            text_color=T.TEXT,
             command=self.clear,
         )
         btn_clear.pack(side="right", padx=6)
 
         # Font zoom controls (A- / 10pt / A+)
-        font_box = ctk.CTkFrame(self.header_frame, fg_color="transparent")
+        font_box = ctk.CTkFrame(controls, fg_color="transparent")
         font_box.pack(side="right", padx=(4, 6))
 
         btn_zoom_out = ctk.CTkButton(
@@ -59,9 +66,9 @@ class LiveLogConsole(ctk.CTkFrame):
             width=26,
             height=22,
             font=ctk.CTkFont(size=10, weight="bold"),
-            fg_color="#1c334d",
-            hover_color="#223f5e",
-            text_color="#c7d4e0",
+            fg_color=T.BORDER,
+            hover_color=T.SURFACE,
+            text_color=T.TEXT,
             command=lambda: self.change_font_size(-1),
         )
         btn_zoom_out.pack(side="left", padx=1)
@@ -71,7 +78,7 @@ class LiveLogConsole(ctk.CTkFrame):
             text=f"{self.font_size}pt",
             width=32,
             font=ctk.CTkFont(family="monospace", size=9),
-            text_color="#94a3b8",
+            text_color=T.MUTED,
         )
         self.lbl_font_size.pack(side="left", padx=2)
 
@@ -81,22 +88,22 @@ class LiveLogConsole(ctk.CTkFrame):
             width=26,
             height=22,
             font=ctk.CTkFont(size=10, weight="bold"),
-            fg_color="#1c334d",
-            hover_color="#223f5e",
-            text_color="#c7d4e0",
+            fg_color=T.BORDER,
+            hover_color=T.SURFACE,
+            text_color=T.TEXT,
             command=lambda: self.change_font_size(1),
         )
         btn_zoom_in.pack(side="left", padx=1)
 
         # Autoscroll switch
         cb_auto = ctk.CTkCheckBox(
-            self.header_frame,
+            controls,
             text="Autoscroll",
             variable=self.autoscroll,
             font=ctk.CTkFont(size=10),
-            text_color="#94a3b8",
-            fg_color="#1c334d",
-            checkmark_color="#0c8c80",
+            text_color=T.MUTED,
+            fg_color=T.BORDER,
+            checkmark_color=T.PRIMARY,
             checkbox_width=18,
             checkbox_height=18,
         )
@@ -106,9 +113,9 @@ class LiveLogConsole(ctk.CTkFrame):
         # We use standard tk.Text with dark configuration for full control over tag coloring
         self.textbox = tk.Text(
             self,
-            bg="#0d1726",
-            fg="#cbd5e1",
-            insertbackground="#60a5fa",
+            bg=T.resolve(T.TERMINAL),
+            fg=T.resolve(T.MUTED),
+            insertbackground=T.resolve(T.BLUE),
             relief="flat",
             font=("Consolas", self.font_size),
             wrap="word",
@@ -119,16 +126,20 @@ class LiveLogConsole(ctk.CTkFrame):
         self.scrollbar.pack(side="right", fill="y", padx=(0, 6), pady=(0, 6))
         self.textbox.pack(side="left", fill="both", expand=True, padx=(8, 0), pady=(0, 6))
 
-        # Setup highlight tags
-        self.textbox.tag_config("info", foreground="#60a5fa")
-        self.textbox.tag_config("metrics", foreground="#34d399")
-        self.textbox.tag_config("round", foreground="#fbbf24")
-        self.textbox.tag_config("error", foreground="#f87171")
-        self.textbox.tag_config("clients", foreground="#a78bfa")
-        self.textbox.tag_config("timestamp", foreground="#64748b")
-
-        # Zoom bindings (Ctrl + Scroll / Ctrl + +/-)
+        self._apply_text_theme()
         self._bind_zoom_shortcuts()
+
+    def _set_appearance_mode(self, mode):
+        super()._set_appearance_mode(mode)
+        if hasattr(self, "textbox"):
+            self._apply_text_theme()
+
+    def _apply_text_theme(self):
+        self.textbox.configure(bg=T.resolve(T.TERMINAL), fg=T.resolve(T.TEXT),
+                               insertbackground=T.resolve(T.BLUE))
+        for tag, color in {"info": T.BLUE, "metrics": T.SUCCESS, "round": T.WARNING,
+                           "error": T.ERROR, "clients": T.PURPLE, "timestamp": T.MUTED}.items():
+            self.textbox.tag_config(tag, foreground=T.resolve(color))
 
     def _bind_zoom_shortcuts(self):
         self.textbox.bind("<Control-MouseWheel>", self._on_ctrl_mousewheel)

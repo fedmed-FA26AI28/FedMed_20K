@@ -8,6 +8,8 @@ evaluation routines, hardware data loaders, and partition path overrides.
 
 from __future__ import annotations
 
+from gui import theme as T
+
 import copy
 import tkinter as tk
 from pathlib import Path
@@ -121,7 +123,7 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
         self.title(f"{title_tag} — Advanced Configuration & Hyperparameters")
         self.geometry("1060x780")
         self.minsize(920, 640)
-        self.configure(fg_color="#f5f7fa")
+        self.configure(fg_color=T.BACKGROUND)
 
         # Make modal & stay on top
         self.transient(parent)
@@ -143,19 +145,19 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
         self.protocol("WM_DELETE_WINDOW", self._on_cancel)
 
     def _build_ui(self):
-        # 1. HEADER BAR (White with clinical teal accent)
-        header = ctk.CTkFrame(self, height=72, corner_radius=0, fg_color="#ffffff")
+        # 1. Header with clinical teal accent
+        header = ctk.CTkFrame(self, height=72, corner_radius=0, fg_color=T.PANEL)
         header.pack(fill="x")
         header.pack_propagate(False)
 
-        header_border = ctk.CTkFrame(self, height=1, corner_radius=0, fg_color="#e8edf2")
+        header_border = ctk.CTkFrame(self, height=1, corner_radius=0, fg_color=T.BORDER)
         header_border.pack(fill="x")
 
         title_container = ctk.CTkFrame(header, fg_color="transparent")
         title_container.pack(side="left", padx=20, pady=12)
 
         pill_accent = ctk.CTkFrame(
-            title_container, width=4, height=40, corner_radius=2, fg_color="#0c8c80"
+            title_container, width=4, height=40, corner_radius=2, fg_color=T.PRIMARY
         )
         pill_accent.pack(side="left", padx=(0, 12))
 
@@ -177,7 +179,7 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
             text_box,
             text=title_text,
             font=ctk.CTkFont(size=15, weight="bold"),
-            text_color="#102135",
+            text_color=T.SIDEBAR,
         )
         lbl_t.pack(anchor="w")
 
@@ -185,7 +187,7 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
             text_box,
             text=sub_text,
             font=ctk.CTkFont(size=11),
-            text_color="#64748b",
+            text_color=T.MUTED,
         )
         lbl_s.pack(anchor="w")
 
@@ -195,9 +197,9 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
             width=34,
             height=34,
             font=ctk.CTkFont(size=13, weight="bold"),
-            fg_color="#f1f5f9",
-            hover_color="#e2e8f0",
-            text_color="#64748b",
+            fg_color=T.SURFACE,
+            hover_color=T.BORDER,
+            text_color=T.MUTED,
             command=self._on_cancel,
         )
         btn_close_top.pack(side="right", padx=20)
@@ -223,10 +225,10 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
         self._build_card_system(cards_grid, row=1, col=1)
 
         # 3. BOTTOM ACTION BAR (White with hairline top border)
-        footer_border = ctk.CTkFrame(self, height=1, corner_radius=0, fg_color="#e8edf2")
+        footer_border = ctk.CTkFrame(self, height=1, corner_radius=0, fg_color=T.BORDER)
         footer_border.pack(fill="x")
 
-        footer = ctk.CTkFrame(self, height=58, corner_radius=0, fg_color="#ffffff")
+        footer = ctk.CTkFrame(self, height=58, corner_radius=0, fg_color=T.PANEL)
         footer.pack(fill="x")
         footer.pack_propagate(False)
 
@@ -236,11 +238,11 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
             width=150,
             height=34,
             font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color="#f8fafc",
-            hover_color="#f1f5f9",
-            text_color="#475569",
+            fg_color=T.SURFACE,
+            hover_color=T.SURFACE,
+            text_color=T.MUTED,
             border_width=1,
-            border_color="#dce3eb",
+            border_color=T.BORDER,
             command=self._on_restore_defaults,
         )
         btn_reset.pack(side="left", padx=20, pady=12)
@@ -249,7 +251,7 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
             footer,
             text="",
             font=ctk.CTkFont(size=11, weight="bold"),
-            text_color="#ba4c4c",
+            text_color=T.ERROR,
         )
         self.lbl_status.pack(side="left", padx=10)
 
@@ -259,9 +261,9 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
             width=140,
             height=34,
             font=ctk.CTkFont(size=12, weight="bold"),
-            fg_color="#0c8c80",
-            hover_color="#087b70",
-            text_color="#ffffff",
+            fg_color=T.PRIMARY,
+            hover_color=T.PRIMARY_HOVER,
+            text_color=T.ON_ACCENT,
             command=self._on_save_clicked,
         )
         btn_save.pack(side="right", padx=20, pady=12)
@@ -272,11 +274,11 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
             width=95,
             height=34,
             font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color="#ffffff",
-            hover_color="#f8fafc",
-            text_color="#475569",
+            fg_color=T.PANEL,
+            hover_color=T.SURFACE,
+            text_color=T.MUTED,
             border_width=1,
-            border_color="#dce3eb",
+            border_color=T.BORDER,
             command=self._on_cancel,
         )
         btn_cancel.pack(side="right", padx=(0, 6), pady=12)
@@ -286,14 +288,14 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
     def _create_card(self, parent, title: str, icon: str, tag: str, row: int, col: int) -> ctk.CTkFrame:
         card = ctk.CTkFrame(
             parent,
-            fg_color="#ffffff",
-            corner_radius=8,
+            fg_color=T.PANEL,
+            corner_radius=12,
             border_width=1,
-            border_color="#e8edf2",
+            border_color=T.BORDER,
         )
         card.grid(row=row, column=col, sticky="nsew", padx=6, pady=6)
 
-        c_header = ctk.CTkFrame(card, height=40, corner_radius=8, fg_color="#fafbfc")
+        c_header = ctk.CTkFrame(card, height=40, corner_radius=12, fg_color=T.SURFACE)
         c_header.pack(fill="x")
         c_header.pack_propagate(False)
 
@@ -301,7 +303,7 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
             c_header,
             text=f"{icon}  {title}",
             font=ctk.CTkFont(size=12, weight="bold"),
-            text_color="#162d43",
+            text_color=T.TEXT,
         )
         lbl.pack(side="left", padx=12)
 
@@ -309,15 +311,15 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
             c_header,
             text=tag,
             font=ctk.CTkFont(size=10, weight="bold"),
-            text_color="#0c8c80",
-            fg_color="#e6f7f5",
+            text_color=T.ACCENT,
+            fg_color=T.SELECTED,
             corner_radius=4,
             padx=9,
             pady=3,
         )
         tag_badge.pack(side="right", padx=12)
 
-        sep = ctk.CTkFrame(card, height=1, fg_color="#eef2f6")
+        sep = ctk.CTkFrame(card, height=1, fg_color=T.BORDER)
         sep.pack(fill="x")
 
         c_body = ctk.CTkFrame(card, fg_color="transparent")
@@ -340,7 +342,7 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
             r,
             text=label_text,
             font=ctk.CTkFont(size=11, weight="bold" if is_highlight else "normal"),
-            text_color="#0c8c80" if is_highlight else "#475569",
+            text_color=T.ACCENT if is_highlight else T.MUTED,
             width=180,
             anchor="w",
         )
@@ -350,9 +352,9 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
             r,
             height=26,
             font=ctk.CTkFont(size=11),
-            fg_color="#ffffff",
-            border_color="#0c8c80" if is_highlight else "#dce3eb",
-            text_color="#162d43",
+            fg_color=T.PANEL,
+            border_color=T.ACCENT if is_highlight else T.BORDER,
+            text_color=T.TEXT,
         )
         entry.insert(0, str(self.config_data.get(field_key, default_val)))
         entry.pack(side="right", fill="x", expand=True, padx=(4, 2))
@@ -375,7 +377,7 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
             r,
             text=label_text,
             font=ctk.CTkFont(size=11),
-            text_color="#475569",
+            text_color=T.MUTED,
             width=180,
             anchor="w",
         )
@@ -386,9 +388,9 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
             values=values,
             height=26,
             font=ctk.CTkFont(size=11),
-            fg_color="#ffffff",
-            border_color="#dce3eb",
-            text_color="#162d43",
+            fg_color=T.PANEL,
+            border_color=T.BORDER,
+            text_color=T.TEXT,
         )
         curr = str(self.config_data.get(field_key, default_val))
         cmb.set(curr if curr in values else default_val)
@@ -411,11 +413,11 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
             box,
             text=label_text,
             font=ctk.CTkFont(size=11, weight="bold"),
-            text_color="#162d43",
-            checkmark_color="#ffffff",
-            fg_color="#0c8c80",
-            hover_color="#087b70",
-            border_color="#cbd5e1",
+            text_color=T.TEXT,
+            checkmark_color=T.PANEL,
+            fg_color=T.PRIMARY,
+            hover_color=T.PRIMARY_HOVER,
+            border_color=T.MUTED,
         )
         if self.config_data.get(field_key, default_checked):
             cb.select()
@@ -428,7 +430,7 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
                 box,
                 text=subtext,
                 font=ctk.CTkFont(size=10),
-                text_color="#8293a4",
+                text_color=T.MUTED,
             )
             lbl_sub.pack(anchor="w", padx=(26, 0), pady=(0, 2))
 
@@ -458,7 +460,7 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
             body,
             text=f"Active Strategy: {self.active_strategy.upper()}",
             font=ctk.CTkFont(size=11, weight="bold"),
-            text_color="#0c8c80",
+            text_color=T.ACCENT,
         )
         note.pack(anchor="w", padx=2, pady=(0, 6))
 
@@ -639,7 +641,7 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
             r_part,
             text="Partition Path Override:",
             font=ctk.CTkFont(size=11),
-            text_color="#475569",
+            text_color=T.MUTED,
             width=180,
             anchor="w",
         )
@@ -649,9 +651,9 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
             r_part,
             height=26,
             font=ctk.CTkFont(family="monospace", size=10),
-            fg_color="#ffffff",
-            border_color="#dce3eb",
-            text_color="#162d43",
+            fg_color=T.PANEL,
+            border_color=T.BORDER,
+            text_color=T.TEXT,
             placeholder_text="data/partitions/... (Optional)",
         )
         curr_part = str(self.config_data.get("partition_path", ""))
@@ -666,11 +668,11 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
             width=70,
             height=26,
             font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color="#ffffff",
-            hover_color="#f8fafc",
-            text_color="#475569",
+            fg_color=T.PANEL,
+            hover_color=T.SURFACE,
+            text_color=T.MUTED,
             border_width=1,
-            border_color="#dce3eb",
+            border_color=T.BORDER,
             command=lambda: self._browse_file(e_part, "Select Partition JSON", "*.json"),
         )
         btn_browse_part.pack(side="right", padx=(2, 2))
@@ -687,7 +689,7 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
             r_dir,
             text=dir_label,
             font=ctk.CTkFont(size=11),
-            text_color="#475569",
+            text_color=T.MUTED,
             width=180,
             anchor="w",
         )
@@ -697,9 +699,9 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
             r_dir,
             height=26,
             font=ctk.CTkFont(family="monospace", size=10),
-            fg_color="#ffffff",
-            border_color="#dce3eb",
-            text_color="#162d43",
+            fg_color=T.PANEL,
+            border_color=T.BORDER,
+            text_color=T.TEXT,
             placeholder_text="results/federated/... (Optional)",
         )
         curr_dir = str(self.config_data.get(dir_key, ""))
@@ -714,11 +716,11 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
             width=70,
             height=26,
             font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color="#ffffff",
-            hover_color="#f8fafc",
-            text_color="#475569",
+            fg_color=T.PANEL,
+            hover_color=T.SURFACE,
+            text_color=T.MUTED,
             border_width=1,
-            border_color="#dce3eb",
+            border_color=T.BORDER,
             command=lambda: self._browse_dir(e_dir, "Select Output Directory"),
         )
         btn_browse_dir.pack(side="right", padx=(2, 2))
@@ -783,7 +785,7 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
                     widget.select()
                 else:
                     widget.deselect()
-        self.lbl_status.configure(text="Restored all parameters to standard defaults.", text_color="#0c8c80")
+        self.lbl_status.configure(text="Restored all parameters to standard defaults.", text_color=T.ACCENT)
 
     def _on_cancel(self):
         self.grab_release()
@@ -840,7 +842,7 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
 
         if errors:
             self.lbl_status.configure(
-                text=f"Validation Error: {errors[0]}", text_color="#ba4c4c"
+                text=f"Validation Error: {errors[0]}", text_color=T.ERROR
             )
             return
 

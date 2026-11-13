@@ -1,3 +1,4 @@
+from gui import theme as T
 import os
 import sys
 import customtkinter as ctk
@@ -14,7 +15,7 @@ class VenvDiagnosticModal(ctk.CTkToplevel):
         self.title("Environment Health Diagnostic")
         self.geometry("560x420")
         self.resizable(False, False)
-        self.configure(fg_color="#0f172a")
+        self.configure(fg_color=T.SIDEBAR)
 
         self.transient(master)
         self.grab_set()
@@ -24,7 +25,7 @@ class VenvDiagnosticModal(ctk.CTkToplevel):
             self,
             text="🔍 Virtual Environment Diagnostics",
             font=ctk.CTkFont(size=16, weight="bold"),
-            text_color="#60a5fa",
+            text_color=T.BLUE,
         )
         lbl_hdr.pack(pady=(16, 4))
 
@@ -32,12 +33,12 @@ class VenvDiagnosticModal(ctk.CTkToplevel):
             self,
             text=f"Probing: {python_exe}",
             font=ctk.CTkFont(family="monospace", size=10),
-            text_color="#94a3b8",
+            text_color=T.MUTED,
         )
         lbl_path.pack(pady=(0, 14))
 
         # Checklist Container
-        self.box = ctk.CTkFrame(self, fg_color="#1e293b", corner_radius=8)
+        self.box = ctk.CTkFrame(self, fg_color=T.PANEL, corner_radius=12)
         self.box.pack(fill="both", expand=True, padx=20, pady=(0, 16))
 
         # Run Probe
@@ -50,8 +51,8 @@ class VenvDiagnosticModal(ctk.CTkToplevel):
             text="Close",
             width=120,
             command=self.destroy,
-            fg_color="#334155",
-            hover_color="#475569",
+            fg_color=T.BORDER,
+            hover_color=T.MUTED,
         )
         btn_close.pack(pady=(0, 16))
 
@@ -90,7 +91,7 @@ class VenvDiagnosticModal(ctk.CTkToplevel):
             row.pack(fill="x", padx=16, pady=6)
 
             icon = "✓" if is_ok else "✗"
-            icon_color = "#34d399" if is_ok else "#f87171"
+            icon_color = T.SUCCESS if is_ok else T.ERROR
 
             lbl_icon = ctk.CTkLabel(
                 row,
@@ -105,7 +106,7 @@ class VenvDiagnosticModal(ctk.CTkToplevel):
                 row,
                 text=title,
                 font=ctk.CTkFont(size=12, weight="bold"),
-                text_color="#f1f5f9",
+                text_color=T.SURFACE,
             )
             lbl_title.pack(side="left", padx=6)
 
@@ -113,7 +114,7 @@ class VenvDiagnosticModal(ctk.CTkToplevel):
                 row,
                 text=detail,
                 font=ctk.CTkFont(size=11),
-                text_color="#94a3b8",
+                text_color=T.MUTED,
             )
             lbl_detail.pack(side="right")
 
@@ -122,7 +123,7 @@ class VenvDiagnosticModal(ctk.CTkToplevel):
                 self.box,
                 text=f"Notice: {diag['error']}",
                 font=ctk.CTkFont(size=10),
-                text_color="#f87171",
+                text_color=T.ERROR,
                 wraplength=480,
             )
             err_box.pack(pady=8)
@@ -132,7 +133,7 @@ class EnvBanner(ctk.CTkFrame):
     """Top environment banner showing current python interpreter, status badge, and control buttons."""
 
     def __init__(self, master, on_venv_changed: Optional[Callable[[str], None]] = None, **kwargs):
-        super().__init__(master, fg_color="#ffffff", corner_radius=8, border_width=1, border_color="#e8edf2", height=52, **kwargs)
+        super().__init__(master, fg_color=T.PANEL, corner_radius=12, border_width=1, border_color=T.BORDER, height=52, **kwargs)
         self.on_venv_changed = on_venv_changed
         self.active_venv = get_default_venv_path()
 
@@ -148,7 +149,7 @@ class EnvBanner(ctk.CTkFrame):
             left_box,
             text="FL Orchestrator & Live Monitor",
             font=ctk.CTkFont(size=14, weight="bold"),
-            text_color="#162d43",
+            text_color=T.TEXT,
         )
         title.pack(anchor="w")
 
@@ -159,7 +160,7 @@ class EnvBanner(ctk.CTkFrame):
             left_box,
             text=f"Active Venv: {short_path}",
             font=ctk.CTkFont(family="monospace", size=10),
-            text_color="#78889b",
+            text_color=T.MUTED,
         )
         self.lbl_path.pack(anchor="w")
 
@@ -173,11 +174,11 @@ class EnvBanner(ctk.CTkFrame):
             width=120,
             height=30,
             font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color="#ffffff",
-            hover_color="#f3f7fa",
-            text_color="#42566b",
+            fg_color=T.PANEL,
+            hover_color=T.SURFACE,
+            text_color=T.TEXT,
             border_width=1,
-            border_color="#dfe6ed",
+            border_color=T.BORDER,
             command=self._change_venv,
         )
         self.btn_change.pack(side="right", padx=6)
@@ -188,9 +189,9 @@ class EnvBanner(ctk.CTkFrame):
             width=100,
             height=30,
             font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color="#0c8c80",
-            hover_color="#087b70",
-            text_color="#ffffff",
+            fg_color=T.PRIMARY,
+            hover_color=T.PRIMARY_HOVER,
+            text_color=T.ON_ACCENT,
             command=self._test_venv,
         )
         self.btn_test.pack(side="right", padx=6)
@@ -200,8 +201,8 @@ class EnvBanner(ctk.CTkFrame):
             self,
             text="● Checking Venv...",
             font=ctk.CTkFont(size=10, weight="bold"),
-            text_color="#0c8c80",
-            fg_color="#e6f7f5",
+            text_color=T.ACCENT,
+            fg_color=T.SELECTED,
             corner_radius=12,
             padx=12,
             pady=4,
@@ -213,9 +214,9 @@ class EnvBanner(ctk.CTkFrame):
         if diag.get("torch") and diag.get("flower"):
             dev = "CUDA OK" if diag.get("cuda_available") else "CPU"
             text = f"● VENV READY: PyTorch {diag.get('torch_version')} | {dev} | Flower {diag.get('flower_version')}"
-            self.lbl_status.configure(text=text, fg_color="#064e3b", text_color="#34d399")
+            self.lbl_status.configure(text=text, fg_color=T.SUCCESS_SURFACE, text_color=T.SUCCESS)
         else:
-            self.lbl_status.configure(text="● VENV WARNING: Missing PyTorch/Flower", fg_color="#7f1d1d", text_color="#fca5a5")
+            self.lbl_status.configure(text="● VENV WARNING: Missing PyTorch/Flower", fg_color=T.ERROR_SURFACE, text_color=T.ERROR)
 
     def _test_venv(self):
         VenvDiagnosticModal(self, self.active_venv)

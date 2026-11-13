@@ -11,6 +11,7 @@ PROJECT_ROOT = Path(__file__).resolve().parent.parent
 if str(PROJECT_ROOT) not in sys.path:
     sys.path.insert(0, str(PROJECT_ROOT))
 
+from gui import theme as T
 from gui.components.server_tab import ServerTab
 from gui.components.client_tab import ClientTab
 from gui.components.plot_canvas import DualMetricPlotCanvas
@@ -20,6 +21,7 @@ from gui.runners.metric_parser import MetricStreamParser
 from gui.telemetry import HardwareTelemetryMonitor, ping_server
 from gui.config_manager import get_local_ip_addresses, check_port_in_use, kill_processes_on_port, get_default_venv_path
 from gui.components.env_banner import VenvDiagnosticModal
+from gui.components.icons import sidebar_icon
 
 
 class FLOrchestratorDashboard(ctk.CTk):
@@ -27,18 +29,20 @@ class FLOrchestratorDashboard(ctk.CTk):
 
     def __init__(self):
         super().__init__()
-        ctk.set_appearance_mode("Light")
+        ctk.set_appearance_mode("Dark")
 
-        self.title("FL Orchestrator & Live Monitor")
-        self.geometry("1400x900")
-        self.minsize(1180, 760)
-        self.configure(fg_color="#f5f7fa")
+        self.title("FL Orchestrator | Federated Learning Operations")
+        self.geometry("1480x940")
+        self.minsize(1180, 780)
+        self.configure(fg_color=T.BACKGROUND)
 
         # Active Virtual Environment Interpreter
         self.active_venv = get_default_venv_path()
 
         # Active Navigation View: "server" or "client"
         self.active_view = "server"
+        self._sidebar_visible = True
+        self._role_metrics = {"server": {}, "client": {}}
 
         # Initialize Runners & Parsers
         self.metric_parser = MetricStreamParser(on_metric_callback=self._on_metric_event)
@@ -60,84 +64,98 @@ class FLOrchestratorDashboard(ctk.CTk):
         # Intercept window close
         self.protocol("WM_DELETE_WINDOW", self._on_close)
 
+    def _toggle_theme(self):
+        """Recolor existing widgets without replacing forms, logs or live run state."""
+        ctk.set_appearance_mode("Light" if ctk.get_appearance_mode() == "Dark" else "Dark")
+
+    def _toggle_sidebar(self):
+        """Give the active workspace more room without rebuilding its contents."""
+        self._sidebar_visible = not self._sidebar_visible
+        if self._sidebar_visible:
+            self.sidebar.pack(side="left", fill="y", before=self.main_container)
+            self.btn_sidebar_reopen.pack_forget()
+        else:
+            self.sidebar.pack_forget()
+            self.btn_sidebar_reopen.pack(side="left", padx=(14, 0), before=self.lbl_breadcrumb)
+
     def _build_layout(self):
-        # 1. FIXED LEFT SIDEBAR (Width: 230px, Deep Navy: #102135)
-        self.sidebar = ctk.CTkFrame(self, width=230, corner_radius=0, fg_color="#102135")
+        # 1. Fixed navigation sidebar
+        self.sidebar = ctk.CTkFrame(self, width=210, corner_radius=0, fg_color=T.SIDEBAR)
         self.sidebar.pack(side="left", fill="y")
         self.sidebar.pack_propagate(False)
 
         # Brand Header
         brand_frame = ctk.CTkFrame(self.sidebar, fg_color="transparent")
-        brand_frame.pack(fill="x", padx=16, pady=(20, 14))
+        brand_frame.pack(fill="x", padx=14, pady=(14, 12))
 
         brand_top = ctk.CTkFrame(brand_frame, fg_color="transparent")
         brand_top.pack(fill="x")
 
-        lbl_icon = ctk.CTkLabel(
-            brand_top,
-            text="⚕",
-            font=ctk.CTkFont(size=20, weight="bold"),
-            text_color="#63c7bb",
-            width=28,
+        self._sidebar_icon = sidebar_icon()
+        self.btn_sidebar_toggle = ctk.CTkButton(
+            brand_top, text="", image=self._sidebar_icon,
+            width=26, height=26, corner_radius=6, border_spacing=0,
+            fg_color=T.SURFACE, hover_color=T.BORDER,
+            command=self._toggle_sidebar,
         )
-        lbl_icon.pack(side="left", padx=(0, 4))
+        self.btn_sidebar_toggle.pack(side="left", padx=(0, 8))
 
         lbl_brand_fl = ctk.CTkLabel(
             brand_top,
             text="FL",
-            font=ctk.CTkFont(size=20, weight="bold"),
-            text_color="#ffffff",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=T.TEXT,
         )
         lbl_brand_fl.pack(side="left")
 
         lbl_brand_orch = ctk.CTkLabel(
             brand_top,
-            text="Orchestrator",
-            font=ctk.CTkFont(size=20, weight="bold"),
-            text_color="#63c7bb",
+            text="Orchestrater",
+            font=ctk.CTkFont(size=16, weight="bold"),
+            text_color=T.ACCENT,
         )
-        lbl_brand_orch.pack(side="left", padx=(2, 0))
+        lbl_brand_orch.pack(side="left", padx=(3, 0))
 
         lbl_subtitle = ctk.CTkLabel(
             brand_frame,
-            text="MEDICAL RESEARCH PLATFORM",
+            text="FEDERATED LEARNING",
             font=ctk.CTkFont(size=9, weight="bold"),
-            text_color="#617890",
+            text_color=T.MUTED,
         )
-        lbl_subtitle.pack(anchor="w", padx=(32, 0), pady=(2, 0))
+        lbl_subtitle.pack(anchor="w", padx=(38, 0), pady=(3, 0))
 
         # Navigation Label
         lbl_nav = ctk.CTkLabel(
             self.sidebar,
-            text="NAVIGATION",
+            text="WORKSPACES",
             font=ctk.CTkFont(size=9, weight="bold"),
-            text_color="#617890",
+            text_color=T.MUTED,
         )
-        lbl_nav.pack(anchor="w", padx=20, pady=(16, 6))
+        lbl_nav.pack(anchor="w", padx=16, pady=(18, 6))
 
         # Navigation Buttons
         self.btn_nav_server = ctk.CTkButton(
             self.sidebar,
-            text="  🖥️  FL Server Control",
+            text="  FL Server",
             height=38,
             anchor="w",
             font=ctk.CTkFont(size=12, weight="bold"),
-            fg_color="#1a3c48",
-            hover_color="#1b3149",
-            text_color="#a7e6d9",
+            fg_color=T.SELECTED,
+            hover_color=T.SURFACE,
+            text_color=T.SELECTED_TEXT,
             command=lambda: self._switch_view("server"),
         )
         self.btn_nav_server.pack(fill="x", padx=12, pady=3)
 
         self.btn_nav_client = ctk.CTkButton(
             self.sidebar,
-            text="  📱  FL Client Node",
+            text="  Client Node",
             height=38,
             anchor="w",
             font=ctk.CTkFont(size=12, weight="bold"),
             fg_color="transparent",
-            hover_color="#1b3149",
-            text_color="#96aabe",
+            hover_color=T.SURFACE,
+            text_color=T.MUTED,
             command=lambda: self._switch_view("client"),
         )
         self.btn_nav_client.pack(fill="x", padx=12, pady=3)
@@ -146,30 +164,16 @@ class FLOrchestratorDashboard(ctk.CTk):
         bottom_box = ctk.CTkFrame(self.sidebar, fg_color="transparent")
         bottom_box.pack(side="bottom", fill="x", padx=14, pady=16)
 
-        sep = ctk.CTkFrame(bottom_box, height=1, fg_color="#25394e")
+        sep = ctk.CTkFrame(bottom_box, height=1, fg_color=T.BORDER)
         sep.pack(fill="x", pady=(0, 10))
-
-        status_row = ctk.CTkFrame(bottom_box, fg_color="transparent")
-        status_row.pack(fill="x")
-
-        lbl_dot = ctk.CTkLabel(status_row, text="●", font=ctk.CTkFont(size=12, weight="bold"), text_color="#39ad8a", width=16)
-        lbl_dot.pack(side="left")
-
-        self.lbl_sidebar_cluster = ctk.CTkLabel(
-            status_row,
-            text="Flower 1.37 · PyTorch 2.14",
-            font=ctk.CTkFont(size=10, weight="bold"),
-            text_color="#c7d4e0",
-        )
-        self.lbl_sidebar_cluster.pack(side="left", padx=4)
 
         self.lbl_sidebar_telemetry = ctk.CTkLabel(
             bottom_box,
-            text="CPU: Scanning... | RAM: ... GB",
+            text="CPU: 0.0% | RAM: 0.0 GB",
             font=ctk.CTkFont(family="monospace", size=9),
-            text_color="#71879e",
+            text_color=T.MUTED,
         )
-        self.lbl_sidebar_telemetry.pack(anchor="w", padx=20, pady=(4, 8))
+        self.lbl_sidebar_telemetry.pack(anchor="w", padx=2, pady=(0, 8))
 
         # Change/Test Venv Buttons
         venv_btns = ctk.CTkFrame(bottom_box, fg_color="transparent")
@@ -180,9 +184,9 @@ class FLOrchestratorDashboard(ctk.CTk):
             text="Change Venv",
             height=26,
             font=ctk.CTkFont(size=10, weight="bold"),
-            fg_color="#1c334d",
-            hover_color="#223f5e",
-            text_color="#c7d4e0",
+            fg_color=T.BORDER,
+            hover_color=T.SURFACE,
+            text_color=T.TEXT,
             command=self._change_venv,
         )
         btn_ch_venv.pack(side="left", fill="x", expand=True, padx=(0, 3))
@@ -193,40 +197,64 @@ class FLOrchestratorDashboard(ctk.CTk):
             height=26,
             width=50,
             font=ctk.CTkFont(size=10, weight="bold"),
-            fg_color="#0c8c80",
-            hover_color="#087b70",
-            text_color="#ffffff",
+            fg_color=T.PRIMARY,
+            hover_color=T.PRIMARY_HOVER,
+            text_color=T.ON_ACCENT,
             command=self._test_venv,
         )
         btn_t_venv.pack(side="right", padx=(3, 0))
 
-        # 2. MAIN WORKSPACE CONTAINER (Right side on #f5f7fa)
-        self.main_container = ctk.CTkFrame(self, fg_color="#f5f7fa", corner_radius=0)
+        # 2. Main workspace
+        self.main_container = ctk.CTkFrame(self, fg_color=T.BACKGROUND, corner_radius=0)
         self.main_container.pack(side="right", fill="both", expand=True)
 
-        # 2A. TOPBAR (White #ffffff, height 54px, border bottom #e8edf2)
-        self.topbar = ctk.CTkFrame(self.main_container, height=54, corner_radius=0, fg_color="#ffffff")
+        # 2A. Breadcrumb and network controls (Single compact row matching reference)
+        self.topbar = ctk.CTkFrame(self.main_container, height=52, corner_radius=0, fg_color=T.PANEL)
         self.topbar.pack(fill="x")
         self.topbar.pack_propagate(False)
 
-        topbar_border = ctk.CTkFrame(self.main_container, height=1, corner_radius=0, fg_color="#e8edf2")
+        topbar_border = ctk.CTkFrame(self.main_container, height=1, corner_radius=0, fg_color=T.BORDER)
         topbar_border.pack(fill="x")
+
+        self.btn_sidebar_reopen = ctk.CTkButton(
+            self.topbar, text="", image=self._sidebar_icon,
+            width=26, height=26, corner_radius=6, border_spacing=0,
+            fg_color=T.SURFACE, hover_color=T.BORDER,
+            command=self._toggle_sidebar,
+        )
 
         # Topbar Left: Breadcrumb
         self.lbl_breadcrumb = ctk.CTkLabel(
             self.topbar,
             text="FL Platform  ›  FL Server  ›  FL Server Control & Live Monitor",
             font=ctk.CTkFont(size=11),
-            text_color="#4c6176",
+            text_color=T.MUTED,
         )
-        self.lbl_breadcrumb.pack(side="left", padx=20)
+        self.lbl_breadcrumb.pack(side="left", padx=16)
+
+        # Topbar Right: Theme button & Quick Stop
+        self.theme_button = ctk.CTkButton(
+            self.topbar, text="◐", width=28, height=28, corner_radius=14,
+            font=ctk.CTkFont(family="Segoe UI Symbol", size=18),
+            fg_color="transparent", hover_color=T.SURFACE, text_color=T.TEXT,
+            command=self._toggle_theme,
+        )
+        self.theme_button.pack(side="right", padx=(4, 16))
+
+        self.btn_quick_stop = ctk.CTkButton(
+            self.topbar, text="Stop Server", width=90, height=28,
+            font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color=T.DANGER, hover_color=T.DANGER_HOVER, text_color=T.ON_ACCENT,
+            command=self._stop_active_role, state="disabled",
+        )
+        self.btn_quick_stop.pack(side="right", padx=4)
 
         # Topbar Right: Dynamic Host / Target Ribbon
         self.ribbon_frame = ctk.CTkFrame(self.topbar, fg_color="transparent")
-        self.ribbon_frame.pack(side="right", padx=16)
+        self.ribbon_frame.pack(side="right", padx=(0, 8))
 
-        self._build_server_topbar_ribbon()
-        self._build_client_topbar_ribbon()
+        self._build_server_topbar_ribbon(self.ribbon_frame)
+        self._build_client_topbar_ribbon(self.ribbon_frame)
 
         # 2B. 4-CARD KPI METRICS ROW
         self._build_kpi_row()
@@ -243,13 +271,14 @@ class FLOrchestratorDashboard(ctk.CTk):
 
         # Initial view
         self._switch_view("server")
+        self._refresh_workspace_state()
 
     # --- TOPBAR RIBBONS ---
 
-    def _build_server_topbar_ribbon(self):
-        self.server_ribbon = ctk.CTkFrame(self.ribbon_frame, fg_color="transparent")
+    def _build_server_topbar_ribbon(self, parent):
+        self.server_ribbon = ctk.CTkFrame(parent, fg_color="transparent")
 
-        lbl = ctk.CTkLabel(self.server_ribbon, text="Host IP:", font=ctk.CTkFont(size=11, weight="bold"), text_color="#78889b")
+        lbl = ctk.CTkLabel(self.server_ribbon, text="Host IP:", font=ctk.CTkFont(size=11, weight="bold"), text_color=T.MUTED)
         lbl.pack(side="left", padx=(4, 4))
 
         self.server_ip_list = get_local_ip_addresses()
@@ -260,13 +289,13 @@ class FLOrchestratorDashboard(ctk.CTk):
             width=210,
             height=28,
             font=ctk.CTkFont(size=11),
-            fg_color="#ffffff",
-            border_color="#dce3eb",
-            text_color="#162d43",
+            fg_color=T.PANEL,
+            border_color=T.BORDER,
+            text_color=T.TEXT,
         )
         self.cmb_server_ip.pack(side="left", padx=4)
 
-        lbl_port = ctk.CTkLabel(self.server_ribbon, text="Port:", font=ctk.CTkFont(size=11, weight="bold"), text_color="#78889b")
+        lbl_port = ctk.CTkLabel(self.server_ribbon, text="Port:", font=ctk.CTkFont(size=11, weight="bold"), text_color=T.MUTED)
         lbl_port.pack(side="left", padx=(6, 2))
 
         self.entry_server_port = ctk.CTkEntry(
@@ -274,9 +303,9 @@ class FLOrchestratorDashboard(ctk.CTk):
             width=60,
             height=28,
             font=ctk.CTkFont(family="monospace", size=11),
-            fg_color="#ffffff",
-            border_color="#dce3eb",
-            text_color="#162d43",
+            fg_color=T.PANEL,
+            border_color=T.BORDER,
+            text_color=T.TEXT,
         )
         self.entry_server_port.insert(0, "8080")
         self.entry_server_port.pack(side="left", padx=4)
@@ -287,11 +316,11 @@ class FLOrchestratorDashboard(ctk.CTk):
             width=70,
             height=28,
             font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color="#ffffff",
-            hover_color="#f3f7fa",
-            text_color="#42566b",
+            fg_color=T.PANEL,
+            hover_color=T.SURFACE,
+            text_color=T.TEXT,
             border_width=1,
-            border_color="#dfe6ed",
+            border_color=T.BORDER,
             command=self._copy_server_address,
         )
         btn_copy.pack(side="left", padx=6)
@@ -300,7 +329,7 @@ class FLOrchestratorDashboard(ctk.CTk):
             self.server_ribbon,
             text="● Port 8080 Ready",
             font=ctk.CTkFont(size=11, weight="bold"),
-            text_color="#0b8a5a",
+            text_color=T.SUCCESS,
         )
         self.lbl_server_port_status.pack(side="left", padx=6)
 
@@ -310,19 +339,19 @@ class FLOrchestratorDashboard(ctk.CTk):
             width=75,
             height=26,
             font=ctk.CTkFont(size=10, weight="bold"),
-            fg_color="#ffffff",
-            hover_color="#fdf2f2",
-            text_color="#ba4c4c",
+            fg_color=T.PANEL,
+            hover_color=T.DANGER_HOVER,
+            text_color=T.ERROR,
             border_width=1,
-            border_color="#fecaca",
+            border_color=T.DANGER,
             command=self._clean_server_port,
         )
         btn_clean_port.pack(side="left", padx=(6, 0))
 
-    def _build_client_topbar_ribbon(self):
-        self.client_ribbon = ctk.CTkFrame(self.ribbon_frame, fg_color="transparent")
+    def _build_client_topbar_ribbon(self, parent):
+        self.client_ribbon = ctk.CTkFrame(parent, fg_color="transparent")
 
-        lbl = ctk.CTkLabel(self.client_ribbon, text="Target Server Address:", font=ctk.CTkFont(size=11, weight="bold"), text_color="#78889b")
+        lbl = ctk.CTkLabel(self.client_ribbon, text="Target Server Address:", font=ctk.CTkFont(size=11, weight="bold"), text_color=T.MUTED)
         lbl.pack(side="left", padx=(4, 4))
 
         self.entry_client_server_addr = ctk.CTkEntry(
@@ -330,9 +359,9 @@ class FLOrchestratorDashboard(ctk.CTk):
             width=200,
             height=28,
             font=ctk.CTkFont(family="monospace", size=11),
-            fg_color="#ffffff",
-            border_color="#dce3eb",
-            text_color="#162d43",
+            fg_color=T.PANEL,
+            border_color=T.BORDER,
+            text_color=T.TEXT,
         )
         self.entry_client_server_addr.insert(0, "127.0.0.1:8080")
         self.entry_client_server_addr.pack(side="left", padx=4)
@@ -343,9 +372,9 @@ class FLOrchestratorDashboard(ctk.CTk):
             width=95,
             height=28,
             font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color="#0c8c80",
-            hover_color="#087b70",
-            text_color="#ffffff",
+            fg_color=T.PRIMARY,
+            hover_color=T.PRIMARY_HOVER,
+            text_color=T.ON_ACCENT,
             command=self._ping_client_server,
         )
         btn_ping.pack(side="left", padx=6)
@@ -354,39 +383,44 @@ class FLOrchestratorDashboard(ctk.CTk):
             self.client_ribbon,
             text="● Not checked",
             font=ctk.CTkFont(size=11, weight="bold"),
-            text_color="#78889b",
+            text_color=T.MUTED,
         )
         self.lbl_client_ping_status.pack(side="left", padx=6)
 
     # --- 4x KPI METRIC CARDS ROW ---
 
     def _build_kpi_row(self):
-        self.kpi_frame = ctk.CTkFrame(self.main_container, fg_color="transparent", height=86)
-        self.kpi_frame.pack(fill="x", padx=16, pady=(12, 10))
-        self.kpi_frame.pack_propagate(False)
+        self.kpi_frame = ctk.CTkFrame(self.main_container, fg_color="transparent", height=116)
+        self.kpi_frame.pack(fill="x", padx=20, pady=(14, 16))
+        self.kpi_frame.grid_propagate(False)
+
+        self.kpi_frame.grid_rowconfigure(0, weight=1)
+        self.kpi_frame.grid_columnconfigure((0, 1, 2, 3), weight=1, uniform="kpi")
+        self._kpi_column = 0
 
         # 4 Metric Cards
-        self.kpi_card_1 = self._create_kpi_card("PORT STATUS / TARGET", "Port 8080 Ready", "192.168.1.10 Bound", "#0c8c80")
-        self.kpi_card_2 = self._create_kpi_card("FL ROUNDS PROGRESS", "Round 0 / 40", "Local Epochs: 5 · Min Clients: 12", "#2563eb")
-        self.kpi_card_3 = self._create_kpi_card("BEST TEST ACCURACY (BTA)", "0.00 %", "Current TA: 0.00%", "#0b8a5a")
-        self.kpi_card_4 = self._create_kpi_card("CURRENT LOSS", "0.0000", "Eval Loss: —", "#d79338")
+        self.kpi_card_1 = self._create_kpi_card("NETWORK / TARGET", "Not checked", "Select a host address", T.PRIMARY)
+        self.kpi_card_2 = self._create_kpi_card("FL ROUNDS PROGRESS", "Round 0 / 40", "Local Epochs: 5 · Min Clients: 12", T.BLUE)
+        self.kpi_card_3 = self._create_kpi_card("BEST TEST ACCURACY (BTA)", "—", "Waiting for evaluation", T.SUCCESS)
+        self.kpi_card_4 = self._create_kpi_card("CURRENT LOSS", "—", "Waiting for metrics", T.WARNING)
 
     def _create_kpi_card(self, title: str, default_val: str, default_sub: str, accent_color: str):
-        card = ctk.CTkFrame(self.kpi_frame, fg_color="#ffffff", corner_radius=8, border_width=1, border_color="#e8edf2")
-        card.pack(side="left", fill="both", expand=True, padx=4)
+        card = ctk.CTkFrame(self.kpi_frame, fg_color=T.PANEL, corner_radius=12, border_width=1, border_color=T.BORDER)
+        card.grid(row=0, column=self._kpi_column, sticky="nsew", padx=4)
+        self._kpi_column += 1
 
         # Accent top bar
         bar = ctk.CTkFrame(card, height=3, corner_radius=1, fg_color=accent_color)
-        bar.pack(anchor="w", padx=14, pady=(6, 2))
+        bar.pack(anchor="w", padx=16, pady=(12, 2))
         bar.configure(width=36)
 
-        lbl_title = ctk.CTkLabel(card, text=title, font=ctk.CTkFont(size=9, weight="bold"), text_color="#8293a4")
+        lbl_title = ctk.CTkLabel(card, text=title, font=ctk.CTkFont(size=10, weight="bold"), text_color=T.ACCENT)
         lbl_title.pack(anchor="w", padx=14, pady=(2, 0))
 
-        lbl_val = ctk.CTkLabel(card, text=default_val, font=ctk.CTkFont(size=18, weight="bold"), text_color="#162d43")
+        lbl_val = ctk.CTkLabel(card, text=default_val, font=ctk.CTkFont(size=22, weight="bold"), text_color=T.TEXT)
         lbl_val.pack(anchor="w", padx=14, pady=(0, 0))
 
-        lbl_sub = ctk.CTkLabel(card, text=default_sub, font=ctk.CTkFont(size=10), text_color="#78889b")
+        lbl_sub = ctk.CTkLabel(card, text=default_sub, font=ctk.CTkFont(size=10), text_color=T.MUTED)
         lbl_sub.pack(anchor="w", padx=14, pady=(0, 6))
 
         # Store labels on card object for dynamic updates
@@ -408,105 +442,128 @@ class FLOrchestratorDashboard(ctk.CTk):
                 widget.bind("<KeyRelease>", self._sync_kpi_display)
 
     def _sync_kpi_display(self, event=None):
-        """Synchronize KPI cards with active view parameters and running state."""
-        if self.active_view == "server":
-            self.kpi_card_4.lbl_title.configure(text="CURRENT LOSS")
-            if not self.server_runner.is_running():
-                rounds_val = self.server_ctrl.fields.get("rounds").get().strip() or "40"
-                epochs_val = self.server_ctrl.fields.get("local_epochs").get().strip() or "5"
-                min_c_val = self.server_ctrl.fields.get("min_clients").get().strip() or "12"
-                self.kpi_card_2.lbl_title.configure(text="FL ROUNDS PROGRESS")
-                self.kpi_card_2.lbl_val.configure(text=f"Round 0 / {rounds_val}")
-                self.kpi_card_2.lbl_sub.configure(text=f"Local Epochs: {epochs_val} · Min Clients: {min_c_val}")
-        else:
-            self.kpi_card_4.lbl_title.configure(text="CURRENT TRAIN LOSS")
-            if not self.client_runner.is_running():
-                epochs_val = self.client_ctrl.fields.get("local_epochs").get().strip() or "5"
-                cid_val = self.client_ctrl.fields.get("client_id").get().strip() or "0"
-                self.kpi_card_2.lbl_title.configure(text="CLIENT TRAINING PROGRESS")
-                self.kpi_card_2.lbl_val.configure(text=f"Client Node #{cid_val}")
-                self.kpi_card_2.lbl_sub.configure(text=f"Local Epochs: {epochs_val}")
+        """Keep each role's summary independent when navigation changes."""
+        mode = self.active_view
+        ctrl = self.server_ctrl if mode == "server" else self.client_ctrl
+        metrics = self._role_metrics[mode]
+        running = getattr(self, mode + "_runner").is_running()
+        self.btn_quick_stop.configure(text="Stop Server" if mode == "server" else "Stop Client",
+                                      state="normal" if running else "disabled")
+        value = lambda key, default: ctrl.fields[key].get().strip() or default
+        round_number = metrics.get("round", 0)
+        self.kpi_card_2.lbl_title.configure(text="FL ROUNDS PROGRESS" if mode == "server" else "CLIENT TRAINING PROGRESS")
+        progress = f"Round {round_number} / {value('rounds', '40')}" if mode == "server" else f"Round {round_number}"
+        self.kpi_card_2.lbl_val.configure(text=progress)
+        self.kpi_card_2.lbl_sub.configure(text=f"Local epochs: {value('local_epochs', '5')}")
+        self.kpi_card_3.lbl_title.configure(text="BEST TEST ACCURACY" if mode == "server" else "CLIENT TRAIN ACCURACY")
+        accuracy = metrics.get("bta" if mode == "server" else "train_acc")
+        self.kpi_card_3.lbl_val.configure(text="—" if accuracy is None else f"{accuracy * 100 if accuracy <= 1 else accuracy:.2f} %")
+        ta = metrics.get("ta")
+        self.kpi_card_3.lbl_sub.configure(text="Waiting for evaluation" if ta is None else f"Test accuracy: {ta * 100 if ta <= 1 else ta:.2f}%")
+        loss = metrics.get("loss")
+        self.kpi_card_4.lbl_title.configure(text="GLOBAL LOSS" if mode == "server" else "CLIENT TRAIN LOSS")
+        self.kpi_card_4.lbl_val.configure(text="—" if loss is None else f"{loss:.4f}")
+        self.kpi_card_4.lbl_sub.configure(text="Waiting for metrics" if loss is None else f"Latest report · Round {round_number}")
+        self.kpi_card_1.lbl_title.configure(text="NETWORK / TARGET")
+        self.kpi_card_1.lbl_val.configure(text=f"Port {self.entry_server_port.get().strip() or '8080'}" if mode == "server" else f"Client #{value('client_id', '0')}")
+        address = self.cmb_server_ip.get() if mode == "server" else self.entry_client_server_addr.get()
+        self.kpi_card_1.lbl_sub.configure(text=address, wraplength=195)
 
     # --- WORKSPACES ---
 
     def _build_server_workspace(self):
         self.workspace_server = ctk.CTkFrame(self.workspace_body, fg_color="transparent")
-
-        # Left Column: Server Parameter Configuration Form (width 390)
-        self.server_ctrl = ServerTab(
-            self.workspace_server,
-            width=390,
-            on_start=self._start_server,
-            on_stop=self._stop_server,
-            on_export=self._export_server_results,
-        )
-        self.server_ctrl.pack(side="left", fill="both", padx=(0, 6), pady=0)
-
-        # Right Column: Visualizer (Top) + Log Console (Bottom)
-        right_col = ctk.CTkFrame(self.workspace_server, fg_color="transparent")
-        right_col.pack(side="right", fill="both", expand=True, padx=(6, 0), pady=0)
-
-        self.server_plot = DualMetricPlotCanvas(right_col, mode="server")
-        self.server_plot.pack(fill="both", expand=True, pady=(0, 6))
-
-        self.server_console = LiveLogConsole(right_col, title="SERVER LIVE LOG CONSOLE")
-        self.server_console.pack(fill="both", expand=True, pady=(6, 0))
+        self.server_monitor = self._build_monitor(self.workspace_server)
+        form_parent, analytics = self._build_configuration(self.server_monitor)
+        self.server_ctrl = ServerTab(form_parent, on_start=self._start_server,
+                                     on_stop=self._stop_server, on_export=self._export_server_results)
+        self.server_ctrl.pack(fill="both", expand=True)
+        self.server_ctrl.set_running_state(False)
+        self.server_plot = DualMetricPlotCanvas(analytics, mode="server")
+        self.server_plot.pack(fill="both", expand=True)
+        self.server_console = LiveLogConsole(self.server_monitor.tab("Live Terminal"), title="SERVER LIVE TERMINAL")
+        self.server_console.pack(fill="both", expand=True)
 
     def _build_client_workspace(self):
         self.workspace_client = ctk.CTkFrame(self.workspace_body, fg_color="transparent")
+        self.client_monitor = self._build_monitor(self.workspace_client)
+        form_parent, analytics = self._build_configuration(self.client_monitor)
+        self.client_ctrl = ClientTab(form_parent, on_start=self._start_client,
+                                     on_stop=self._stop_client, on_clear=self._clear_client_plot,
+                                     get_python_exe=lambda: self.active_venv)
+        self.client_ctrl.pack(fill="both", expand=True)
+        self.client_ctrl.set_running_state(False)
+        self.client_plot = DualMetricPlotCanvas(analytics, mode="client")
+        self.client_plot.pack(fill="both", expand=True)
+        self.client_console = LiveLogConsole(self.client_monitor.tab("Live Terminal"), title="CLIENT LIVE TERMINAL")
+        self.client_console.pack(fill="both", expand=True)
 
-        # Left Column: Client Parameters & Partition Inspector (width 390)
-        self.client_ctrl = ClientTab(
-            self.workspace_client,
-            width=390,
-            on_start=self._start_client,
-            on_stop=self._stop_client,
-            on_clear=self._clear_client_plot,
-            get_python_exe=lambda: self.active_venv,
+    def _build_configuration(self, monitor):
+        page = monitor.tab("Configuration & Analytics")
+        columns = ctk.CTkFrame(page, fg_color="transparent")
+        columns.pack(fill="both", expand=True)
+        columns.grid_columnconfigure(0, weight=0, minsize=350)
+        columns.grid_columnconfigure(1, weight=1)
+        columns.grid_rowconfigure(0, weight=1)
+        form = ctk.CTkFrame(columns, width=350, fg_color="transparent")
+        form.grid(row=0, column=0, sticky="nsew", padx=(0, 10))
+        form.pack_propagate(False)
+        analytics = ctk.CTkFrame(columns, fg_color="transparent")
+        analytics.grid(row=0, column=1, sticky="nsew")
+        return form, analytics
+
+    def _refresh_workspace_state(self):
+        self._sync_kpi_display()
+        self._on_workspace_tab_changed()
+        self._workspace_refresh_id = self.after(1000, self._refresh_workspace_state)
+
+    def _build_monitor(self, parent):
+        monitor = ctk.CTkTabview(
+            parent, fg_color="transparent", corner_radius=12, anchor="w",
+            segmented_button_fg_color=T.SURFACE,
+            segmented_button_selected_color=T.PRIMARY,
+            segmented_button_selected_hover_color=T.PRIMARY_HOVER,
+            segmented_button_unselected_color=T.SURFACE,
+            segmented_button_unselected_hover_color=T.BORDER,
+            text_color=T.TEXT, command=self._on_workspace_tab_changed,
         )
-        self.client_ctrl.pack(side="left", fill="both", padx=(0, 6), pady=0)
+        monitor.pack(fill="both", expand=True)
+        names = ("Configuration & Analytics", "Live Terminal")
+        for name in names:
+            monitor.add(name)
+        return monitor
 
-        # Right Column: Client Visualizer (Top) + Client Console (Bottom)
-        right_col = ctk.CTkFrame(self.workspace_client, fg_color="transparent")
-        right_col.pack(side="right", fill="both", expand=True, padx=(6, 0), pady=0)
-
-        self.client_plot = DualMetricPlotCanvas(right_col, mode="client")
-        self.client_plot.pack(fill="both", expand=True, pady=(0, 6))
-
-        self.client_console = LiveLogConsole(right_col, title="CLIENT LIVE LOG CONSOLE")
-        self.client_console.pack(fill="both", expand=True, pady=(6, 0))
+    def _on_workspace_tab_changed(self):
+        tab = getattr(self, self.active_view + "_monitor").get()
+        role = "FL Server" if self.active_view == "server" else "Client Node"
+        role_label = "FL Server Control & Live Monitor" if self.active_view == "server" else "Client Node Execution & Analytics"
+        self.lbl_breadcrumb.configure(text=f"FL Platform  ›  {role}  ›  {role_label}")
 
     def _switch_view(self, mode: str):
         self.active_view = mode
-        if mode == "server":
-            self.btn_nav_server.configure(fg_color="#1a3c48", text_color="#a7e6d9")
-            self.btn_nav_client.configure(fg_color="transparent", text_color="#96aabe")
-            self.lbl_breadcrumb.configure(text="FL Platform  ›  FL Server  ›  FL Server Control & Live Monitor")
-
-            self.client_ribbon.pack_forget()
-            self.server_ribbon.pack(side="right")
-
-            self.workspace_client.pack_forget()
-            self.workspace_server.pack(fill="both", expand=True)
-
-            self.kpi_card_1.lbl_val.configure(text="Port 8080 Ready")
-            self.kpi_card_1.lbl_sub.configure(text="Server IP: " + (self.cmb_server_ip.get().split("(")[-1].replace(")", "") if "(" in self.cmb_server_ip.get() else self.cmb_server_ip.get()))
-        else:
-            self.btn_nav_client.configure(fg_color="#1a3c48", text_color="#a7e6d9")
-            self.btn_nav_server.configure(fg_color="transparent", text_color="#96aabe")
-            self.lbl_breadcrumb.configure(text="FL Platform  ›  FL Client  ›  FL Client Node & Live Monitor")
-
-            self.server_ribbon.pack_forget()
-            self.client_ribbon.pack(side="right")
-
-            self.workspace_server.pack_forget()
-            self.workspace_client.pack(fill="both", expand=True)
-
-            addr = self.entry_client_server_addr.get().strip() or "127.0.0.1:8080"
-            self.kpi_card_1.lbl_val.configure(text="Client Node")
-            self.kpi_card_1.lbl_sub.configure(text=f"Target: {addr}")
-
+        for role in ("server", "client"):
+            selected = role == mode
+            getattr(self, "btn_nav_" + role).configure(
+                fg_color=T.SELECTED if selected else "transparent",
+                text_color=T.SELECTED_TEXT if selected else T.MUTED)
+            ribbon = getattr(self, role + "_ribbon")
+            if selected:
+                ribbon.pack(side="left")
+            else:
+                ribbon.pack_forget()
+            workspace = getattr(self, "workspace_" + role)
+            if selected:
+                workspace.pack(fill="both", expand=True)
+            else:
+                workspace.pack_forget()
         self._sync_kpi_display()
+        self._on_workspace_tab_changed()
+
+    def _stop_active_role(self):
+        if self.active_view == "server":
+            self._stop_server()
+        else:
+            self._stop_client()
 
     # --- TOPBAR ACTIONS ---
 
@@ -517,18 +574,18 @@ class FLOrchestratorDashboard(ctk.CTk):
         addr = f"{ip}:{port}"
         self.clipboard_clear()
         self.clipboard_append(addr)
-        self.lbl_server_port_status.configure(text=f"Copied: {addr}", text_color="#0c8c80")
+        self.lbl_server_port_status.configure(text=f"Copied: {addr}", text_color=T.ACCENT)
 
     def _clean_server_port(self):
         try:
             port = int(self.entry_server_port.get().strip())
             killed = kill_processes_on_port(port)
             if killed:
-                self.lbl_server_port_status.configure(text=f"Killed PIDs: {killed}", text_color="#0b8a5a")
+                self.lbl_server_port_status.configure(text=f"Killed PIDs: {killed}", text_color=T.SUCCESS)
             else:
-                self.lbl_server_port_status.configure(text="Port is free", text_color="#0b8a5a")
+                self.lbl_server_port_status.configure(text="Port is free", text_color=T.SUCCESS)
         except Exception as e:
-            self.lbl_server_port_status.configure(text=f"Error: {e}", text_color="#ba4c4c")
+            self.lbl_server_port_status.configure(text=f"Error: {e}", text_color=T.ERROR)
 
     def _ping_client_server(self):
         addr = self.entry_client_server_addr.get().strip()
@@ -546,9 +603,9 @@ class FLOrchestratorDashboard(ctk.CTk):
 
         res = ping_server(host, port)
         if res["success"]:
-            self.lbl_client_ping_status.configure(text=f"● {res['message']}", text_color="#0b8a5a")
+            self.lbl_client_ping_status.configure(text=f"● {res['message']}", text_color=T.SUCCESS)
         else:
-            self.lbl_client_ping_status.configure(text=f"● {res['message']}", text_color="#ba4c4c")
+            self.lbl_client_ping_status.configure(text=f"● {res['message']}", text_color=T.ERROR)
 
     # --- VENV MANAGEMENT ---
 
@@ -574,6 +631,7 @@ class FLOrchestratorDashboard(ctk.CTk):
         cmd = self.server_ctrl.build_command(python_exe, port=port)
         self.server_console.append_log(f"\n[SERVER LAUNCH] Invoking command:\n{' '.join(cmd)}\n\n")
         self.server_plot.clear()
+        self._role_metrics["server"].clear()
 
         ok = self.server_runner.start(cmd)
         if ok:
@@ -633,6 +691,7 @@ class FLOrchestratorDashboard(ctk.CTk):
         cmd = self.client_ctrl.build_command(python_exe, server_address=server_addr)
         self.client_console.append_log(f"\n[CLIENT LAUNCH] Invoking command:\n{' '.join(cmd)}\n\n")
         self.client_plot.clear()
+        self._role_metrics["client"].clear()
 
         ok = self.client_runner.start(cmd)
         if ok:
@@ -648,6 +707,7 @@ class FLOrchestratorDashboard(ctk.CTk):
 
     def _clear_client_plot(self):
         self.client_plot.clear()
+        self._role_metrics["client"].clear()
 
     def _on_client_log(self, line: str):
         self.client_console.append_log(line)
@@ -658,63 +718,40 @@ class FLOrchestratorDashboard(ctk.CTk):
         self.after(0, lambda: (self.client_ctrl.set_running_state(False), self._sync_kpi_display()))
 
     def _on_metric_event(self, source: str, payload: Dict[str, Any]):
-        """Dispatched from metric_parser when new metrics are extracted from stdout."""
+        """Dispatch worker metrics to Tk before updating the active role's summary."""
+        self.after(0, self._apply_metric_event, source, payload)
+
+    def _apply_metric_event(self, source, payload):
+        if source == "server_client_bundle":
+            self.server_plot.add_client_package(payload)
+            return
+        mode = "server" if source == "server" else "client"
+        metrics = self._role_metrics[mode]
+        r = payload.get("round", metrics.get("round", 1))
         if source == "server":
-            r = payload.get("round", 1)
-            loss = payload.get("loss")
-            bta = payload.get("bta")
-            bmcta = payload.get("bmcta")
-            ta = payload.get("ta")
-            mcta = payload.get("mcta")
-            self.after(0, lambda: self.server_plot.update_server_metrics(r, loss, bta, bmcta, ta, mcta))
-
-            # Dynamic KPI updates
-            rounds_cfg = self.server_ctrl.fields.get("rounds")
-            total_r = rounds_cfg.get().strip() if rounds_cfg else "40"
-            self.after(0, lambda: self.kpi_card_2.lbl_val.configure(text=f"Round {r} / {total_r}"))
-            if bta is not None:
-                bta_pct = bta * 100 if bta <= 1.0 else bta
-                self.after(0, lambda: self.kpi_card_3.lbl_val.configure(text=f"{bta_pct:.2f} %"))
-            if ta is not None:
-                ta_pct = ta * 100 if ta <= 1.0 else ta
-                self.after(0, lambda: self.kpi_card_3.lbl_sub.configure(text=f"Current TA: {ta_pct:.2f}%"))
-            if loss is not None:
-                self.after(0, lambda: self.kpi_card_4.lbl_val.configure(text=f"{loss:.4f}"))
-
-        elif source == "server_client_bundle":
-            self.after(0, lambda: self.server_plot.add_client_package(payload))
-
+            keys = ("loss", "bta", "ta")
+            self.server_plot.update_server_metrics(r, payload.get("loss"), payload.get("bta"),
+                                                   payload.get("bmcta"), payload.get("ta"), payload.get("mcta"))
+            metrics.update({key: payload[key] for key in keys if payload.get(key) is not None})
+            metrics["round"] = r
         elif source == "client_round_done":
-            r = payload.get("round", 1)
-            loss = payload.get("train_loss")
-            acc = payload.get("train_acc")
-            self.after(0, lambda: self.client_plot.update_client_round(r, train_loss=loss, train_acc=acc))
-
-            # Dynamic KPI updates for client
-            self.after(0, lambda: self.kpi_card_2.lbl_val.configure(text=f"Round {r}"))
-            if acc is not None:
-                acc_pct = acc * 100 if acc <= 1.0 else acc
-                self.after(0, lambda: self.kpi_card_3.lbl_val.configure(text=f"{acc_pct:.2f} %"))
-            if loss is not None:
-                self.after(0, lambda: self.kpi_card_4.lbl_val.configure(text=f"{loss:.4f}"))
-
+            self.client_plot.update_client_round(r, train_loss=payload.get("train_loss"), train_acc=payload.get("train_acc"))
+            for key, source_key in (("loss", "train_loss"), ("train_acc", "train_acc")):
+                if payload.get(source_key) is not None:
+                    metrics[key] = payload[source_key]
+            metrics["round"] = r
         elif source == "client_epoch":
             epoch = payload.get("epoch", 1)
-            loss = payload.get("train_loss")
-            acc = payload.get("train_acc")
-            is_reset = payload.get("is_new_round", False) or (epoch == 1)
-            self.after(0, lambda: self.client_plot.update_client_epoch(epoch, loss, acc, is_new_round=is_reset))
-
-        elif source == "client_eval_done":
-            acc = payload.get("accuracy")
-            r = self.client_plot.client_round_data["rounds"][-1] if self.client_plot.client_round_data["rounds"] else 1
-            self.after(0, lambda: self.client_plot.update_client_round(r, ta=acc))
-
-        elif source == "client_eval":
-            ta = payload.get("ta")
-            bta = payload.get("bta")
-            r = self.client_plot.client_round_data["rounds"][-1] if self.client_plot.client_round_data["rounds"] else 1
-            self.after(0, lambda: self.client_plot.update_client_round(r, ta=ta, bta=bta))
+            self.client_plot.update_client_epoch(epoch, payload.get("train_loss"), payload.get("train_acc"),
+                                                 is_new_round=payload.get("is_new_round", False) or epoch == 1)
+        elif source in ("client_eval_done", "client_eval"):
+            rounds = self.client_plot.client_round_data["rounds"]
+            r = rounds[-1] if rounds else 1
+            ta = payload.get("accuracy") if source == "client_eval_done" else payload.get("ta")
+            self.client_plot.update_client_round(r, ta=ta, bta=payload.get("bta"))
+            if ta is not None:
+                metrics["ta"] = ta
+        self._sync_kpi_display()
 
     def _on_telemetry_update(self, info: Dict[str, Any]):
         cpu = info.get("cpu_percent", 0.0)
@@ -725,6 +762,8 @@ class FLOrchestratorDashboard(ctk.CTk):
 
     def _on_close(self):
         """Cleanup processes and stop telemetry before quitting."""
+        if hasattr(self, "_workspace_refresh_id"):
+            self.after_cancel(self._workspace_refresh_id)
         self.telemetry.stop()
         self.server_runner.stop()
         self.client_runner.stop()
