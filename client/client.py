@@ -1132,7 +1132,59 @@ class FedMedAIClient(fl.client.NumPyClient):
             f"| weights={weight_size_kb:.1f}KB"
         )
 
-        return return_parameters, train_metrics["num_samples"], metrics
+        # Check if this is the final round
+        is_final_round = bool(config.get("is_final_round", False))
+        if not is_final_round and "total_rounds" in config:
+            is_final_round = (server_round >= int(config["total_rounds"]))
+
+        if is_final_round:
+            # Transmit accumulated multi-round metrics and class distribution once at training completion
+            return_metrics = dict(metrics)
+            return_metrics["final_client_history_json"] = json.dumps(self.round_history)
+            return_metrics["class_counts_json"] = json.dumps(self._class_counts_dict)
+            return_metrics["eval_history_json"] = json.dumps(self.eval_history)
+            print(f"[Client {self.client_id}] Final round reached -> Packaging and returning full training history & class distribution to server.")
+        else:
+            # Intermediate rounds: send only essential aggregation scalars to save network bandwidth
+            return_metrics = {
+                "client_id": self.client_id,
+                "train_loss": float(metrics["train_loss"]),
+                "train_accuracy": float(metrics["train_accuracy"]),
+            }
+            if is_fedsol:
+                return_metrics["fedsol_active"] = True
+                return_metrics["fedsol_rho"] = fedsol_rho
+            if strategy == "scr":
+                return_metrics["scr_active"] = True
+                return_metrics["scr_gamma"] = float(config.get("scr_gamma", 1.0))
+                return_metrics["scr_head_lambda"] = scr_head_lambda
+            if is_fedsld:
+                return_metrics["fedsld_active"] = True
+                return_metrics["fedsld_epsilon"] = fedsld_epsilon
+
+        # Round-level scalars allow the server dashboard to observe remote nodes.
+        from monitoring.stream import NODE_FIELDS, emit_event
+        for key in NODE_FIELDS:
+            return_metrics[key] = metrics[key]
+        emit_event('node', round=server_round, metrics={key: metrics[key] for key in NODE_FIELDS})
+        return return_parameters, train_metrics["num_samples"], return_metrics
+
+    def _save_checkpoint(self, filename: str, state_dict: Optional[dict] = None) -> Optional[Path]:
+        """Save model checkpoint to client directory."""
+        if not self.save_local_metrics:
+            return None
+        try:
+            self.client_dir.mkdir(parents=True, exist_ok=True)
+            save_path = self.client_dir / filename
+            if state_dict is None:
+                state_dict = {k: v.cpu().clone() for k, v in self.model.state_dict().items()}
+            torch.save(state_dict, save_path)
+            pth_size = save_path.stat().st_size / 1024.0
+            print(f"[Client {self.client_id}] Checkpoint Saved: {filename} ({pth_size:.1f} KB)")
+            return save_path
+        except Exception as e:
+            print(f"[Client {self.client_id}] Warning: Could not save checkpoint {filename}: {e}")
+            return None
 
     def _save_client_csvs(self):
         """Export local client CSV metrics for on-device inspection."""
@@ -1216,7 +1268,7 @@ class FedMedAIClient(fl.client.NumPyClient):
             f"loss={avg_loss:.4f} acc={accuracy:.4f}"
         )
 
-        return float(avg_loss), total, {"accuracy": float(accuracy)}
+        return float(avg_loss), total, {"accuracy": float(accuracy), "client_id": int(self.client_id)}
 
 
 # ──────────────────────────────────────────────────────────────
@@ -1237,6 +1289,8 @@ def load_yaml_config(config_path: str = "configs/experiment.yaml") -> dict:
 
 
 def main():
+    from monitoring.stream import install_interrupt_handler
+    install_interrupt_handler()
     pre_parser = argparse.ArgumentParser(add_help=False)
     pre_parser.add_argument(
         "--config",
@@ -1705,7 +1759,11 @@ def main():
         )
     except KeyboardInterrupt:
         print(f"\n[Client {args.client_id}] Interrupted by user (Ctrl+C). Exiting...")
-        sys.exit(0)
+    except Exception as e:
+        print(f"\n[Client {args.client_id}] Session ended: {e}")
+        raise
+    finally:
+        client.save_artifacts()
 
 
 if __name__ == "__main__":

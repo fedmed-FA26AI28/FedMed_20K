@@ -439,6 +439,8 @@ def _evaluate_metrics_aggregation_fn(
 # ──────────────────────────────────────────────────────────────
 
 def main():
+    from monitoring.stream import install_interrupt_handler
+    install_interrupt_handler()
     pre_parser = argparse.ArgumentParser(add_help=False)
     pre_parser.add_argument(
         "--config",
@@ -824,7 +826,23 @@ def main():
         default=None,
         help="Custom directory path to save FL artifacts (default: results/federated/<strategy>/<name_or_timestamp>)",
     )
+    # Preserve legacy --min_clients as the population size unless the new
+    # independent sampling configuration is explicitly used.
+    population_default = yaml_cfg.get('num_clients') if any(
+        key in yaml_cfg for key in ('min_fit_clients', 'min_available_clients')
+    ) else None
+    parser.add_argument('--num_clients', type=int, default=population_default)
+    parser.add_argument('--min_fit_clients', type=int, default=yaml_cfg.get('min_fit_clients'))
+    parser.add_argument('--min_available_clients', type=int, default=yaml_cfg.get('min_available_clients'))
+    parser.add_argument('--fraction_fit', type=float, default=yaml_cfg.get('fraction_fit', 1.0))
     args = parser.parse_args()
+    args.num_clients = args.num_clients if args.num_clients is not None else args.min_clients
+    args.min_fit_clients = args.min_fit_clients if args.min_fit_clients is not None else args.min_clients
+    args.min_available_clients = args.min_available_clients if args.min_available_clients is not None else args.min_clients
+    if not (1 <= args.min_fit_clients <= args.min_available_clients <= args.num_clients):
+        parser.error('Require 1 <= min_fit_clients <= min_available_clients <= num_clients')
+    if not 0 < args.fraction_fit <= 1:
+        parser.error('fraction_fit must be in (0, 1]')
 
     set_seed(args.seed)
 
@@ -834,7 +852,7 @@ def main():
             dataset_name=args.dataset,
             partition_mode=args.partition_mode,
             seed=args.seed,
-            num_clients=args.min_clients,
+            num_clients=args.num_clients,
             local_test=args.local_test,
         )
         if candidate_p.exists():
@@ -849,7 +867,7 @@ def main():
                     run_one(
                         dataset_name=args.dataset,
                         partition_mode=args.partition_mode,
-                        num_clients=args.min_clients,
+                        num_clients=args.num_clients,
                         seed=args.seed,
                         local_test=args.local_test,
                     )
@@ -925,9 +943,10 @@ def main():
     )
 
     strategy_kwargs = {
-        "min_fit_clients": args.min_clients,
-        "min_evaluate_clients": args.min_clients,
-        "min_available_clients": args.min_clients,
+        "min_fit_clients": args.min_fit_clients,
+        "min_evaluate_clients": args.min_fit_clients,
+        "min_available_clients": args.min_available_clients,
+        "fraction_fit": args.fraction_fit,
         "initial_parameters": initial_params,
         "metrics_recorder": recorder,
         "local_test": args.local_test,
@@ -999,7 +1018,7 @@ def main():
         strategy_kwargs.update({
             "model": initial_model,
             "partition_path": args.partition_path,
-            "num_total_clients": args.min_clients,
+            "num_total_clients": args.num_clients,
             "scr_gamma": args.scr_gamma,
             "scr_head_lambda": args.scr_head_lambda,
         })
@@ -1025,7 +1044,7 @@ def main():
             "model": initial_model,
             "partition_path": args.partition_path,
             "num_classes": num_classes,
-            "num_total_clients": args.min_clients,
+            "num_total_clients": args.num_clients,
             "switch_round": args.switch_round,
             "weighting_mode": args.fedswitch_weighting_mode,
             "total_rounds": args.rounds,
@@ -1059,13 +1078,13 @@ def main():
         "fedbn_scaffold", "bn_scaffold", "scaffold_fedbn",
         "proposed", "fedbns",
     ):
-        strategy_kwargs["num_total_clients"] = args.min_clients
+        strategy_kwargs["num_total_clients"] = args.num_clients
         strategy_kwargs["model"] = initial_model
 
     strategy = get_strategy(args.strategy, **strategy_kwargs)
 
     print(f"[Server] Strategy created: {type(strategy).__name__}")
-    print(f"[Server] Waiting for {args.min_clients} clients on {args.host}:{args.port} (Connect target: {server_ipv4}:{args.port})...\n")
+    print(f"[Server] Waiting for {args.min_available_clients} clients on {args.host}:{args.port} (Connect target: {server_ipv4}:{args.port})...\n")
 
     # Instantiate custom server with early stopping halt capability and interruptible client manager
     server = FedMedAIServer(
@@ -1144,6 +1163,10 @@ def main():
         "seed": args.seed,
         "num_rounds_requested": args.rounds,
         "min_clients": args.min_clients,
+        "num_clients": args.num_clients,
+        "min_fit_clients": args.min_fit_clients,
+        "min_available_clients": args.min_available_clients,
+        "fraction_fit": args.fraction_fit,
         "local_epochs": args.local_epochs,
         "initial_learning_rate": args.learning_rate,
         "lr_decay_steps": args.lr_decay_steps,

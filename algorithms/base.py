@@ -27,6 +27,7 @@ from flwr.server.client_proxy import ClientProxy
 from flwr.server.strategy import FedAvg as FlwrFedAvg
 
 from monitoring.metrics import FLMetricsRecorder
+from monitoring.stream import NODE_FIELDS, emit_event
 
 
 def _weighted_average_metrics(
@@ -228,6 +229,7 @@ class FedStrategyBase(FlwrFedAvg):
         self._round_start = time.time()
         self._current_global_params = parameters
         self.recorder.record_round_start(server_round)
+        emit_event('round', round=server_round)
         return super().configure_fit(server_round, parameters, client_manager)
 
     def _finalize_fit_aggregation(
@@ -266,6 +268,11 @@ class FedStrategyBase(FlwrFedAvg):
         )
 
         dev_str = _format_device_details(results)
+        emit_event('fit', round=server_round, metrics=metrics_aggregated)
+        for _, fit_res in results:
+            node_metrics = {key: value for key, value in fit_res.metrics.items()
+                            if key in NODE_FIELDS}
+            emit_event('node', round=server_round, metrics=node_metrics)
         if dev_str:
             log(INFO, "[Reporting Devices] %s", dev_str)
 
@@ -370,6 +377,19 @@ class FedStrategyBase(FlwrFedAvg):
                 parameters=self.latest_parameters,
             )
 
+        if loss_aggregated is not None:
+            for _, eval_res in results:
+                if eval_res.metrics.get('client_id') is not None and eval_res.num_examples > 0:
+                    emit_event('node', round=server_round, metrics={
+                        'client_id': eval_res.metrics['client_id'],
+                        'test_accuracy': eval_res.metrics.get('accuracy'),
+                        'test_loss': eval_res.loss, 'test_samples': eval_res.num_examples})
+            event_metrics = {'test_loss': loss_aggregated,
+                             'test_accuracy': (metrics_aggregated or {}).get('accuracy')}
+            if self.local_test:
+                event_metrics.update(mcta=self.recorder.mcta_history.get(server_round),
+                                     bmcta=self.recorder.bmcta, bta=self.recorder.bta)
+            emit_event('evaluation', round=server_round, metrics=event_metrics)
         return loss_aggregated, metrics_aggregated
 
     def get_summary(self) -> Dict[str, Any]:

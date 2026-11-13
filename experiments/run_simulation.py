@@ -414,6 +414,7 @@ def run_single_experiment(
         "--seed", str(seed),
         "--rounds", str(rounds),
         "--min_clients", str(num_clients),
+        "--num_clients", str(num_clients),
         "--local_epochs", str(local_epochs),
         "--learning_rate", str(learning_rate),
         "--lr_mode", lr_mode,
@@ -677,6 +678,10 @@ def run_single_experiment(
                         clean_line = re.sub(r'\x1b\[[0-9;]*m', '', line).strip()
                         clean_line = re.sub(r'^(INFO|WARNING|ERROR)\s*:\s*', '', clean_line).strip()
                         if not clean_line:
+                            continue
+
+                        if '[METRIC]' in clean_line:
+                            print(clean_line, flush=True)
                             continue
 
                         # Round header: [ROUND X]
@@ -1265,6 +1270,8 @@ def generate_markdown_report(
 # ──────────────────────────────────────────────────────────────────────────────
 
 def main():
+    from monitoring.stream import install_interrupt_handler
+    install_interrupt_handler()
     parser = argparse.ArgumentParser(description="FedMedAI Automated Multi-Strategy & Multi-Partition Simulation")
     parser.add_argument("--config", type=str, default="configs/simulation.yaml")
     parser.add_argument("--num_clients", type=int, default=None)

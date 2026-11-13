@@ -1,5 +1,21 @@
 # FedMedAI: Heterogeneous Edge-Device Federated Learning for Medical Image Classification
 
+## NiceGUI web dashboard
+
+Run the dashboard on the **server only**. Remote PC/Jetson clients run
+`python -m client.client` and do not need NiceGUI. Install their dependencies with
+`python -m pip install -r requirements-client.txt`. The **Client Nodes** tab monitors
+remote client reports. See [client setup instructions](dashboard/README.md).
+
+Run `python -m pip install -r requirements-dashboard.txt`, then
+`python app_nicegui.py` and open **http://localhost:8080** (LAN enabled).
+The gRPC server defaults to **8081** to avoid sharing the web port.
+The five-tab console supports concurrent server/local clients, simulation,
+live metric curves and filtered logs, host/node telemetry, Non-IID partition
+charts and YAML export.
+See [dashboard setup and usage](dashboard/README.md). The existing desktop launcher
+`run_dashboard.py` remains available.
+
 FedMedAI is an enterprise-grade Federated Learning (FL) framework designed for medical imaging classification benchmarks under severe non-IID data distributions (Dirichlet, Pathological, and Practical cross-institution partitions). It provides seamless support for centralized baselines, distributed physical multi-device execution (PC server and NVIDIA Jetson Orin/Nano edge clients over LAN), and automated local multi-client simulation.
 
 The Flower `--strategies scr` option runs support-calibrated risk. See the
