@@ -1,3 +1,4 @@
+from gui import theme as T
 import os
 import customtkinter as ctk
 import matplotlib
@@ -12,7 +13,7 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
     """Dual/Triple-panel live Matplotlib canvas with legend header ribbon, client inspection, and epoch reset."""
 
     def __init__(self, master, mode: str = "server", **kwargs):
-        super().__init__(master, fg_color="#ffffff", corner_radius=8, border_width=1, border_color="#e8edf2", **kwargs)
+        super().__init__(master, fg_color=T.PANEL, corner_radius=12, border_width=1, border_color=T.BORDER, **kwargs)
         self.mode = mode  # "server" or "client"
 
         # Server Global state storage
@@ -47,16 +48,17 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
 
     def _build_legend_ribbon(self):
         """Dedicated top legend frame outside plot axes with interactive view controls."""
-        self.legend_frame = ctk.CTkFrame(self, fg_color="#f8fafc", height=34, corner_radius=6, border_width=1, border_color="#e8edf2")
+        self.legend_frame = ctk.CTkFrame(self, fg_color=T.SURFACE, height=36, corner_radius=6, border_width=1, border_color=T.BORDER)
         self.legend_frame.pack(fill="x", padx=10, pady=(8, 4))
+        self.legend_frame.pack_propagate(False)
 
         if self.mode == "server":
             # Server Mode: Dropdown to pick between Global view and individual clients
             self.lbl_server_title = ctk.CTkLabel(
                 self.legend_frame,
-                text="📈 SERVER:",
+                text="📊 SERVER:",
                 font=ctk.CTkFont(size=11, weight="bold"),
-                text_color="#162d43",
+                text_color=T.TEXT,
             )
             self.lbl_server_title.pack(side="left", padx=(10, 4))
 
@@ -64,13 +66,13 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
                 self.legend_frame,
                 values=["🌍 Global Server Metrics"],
                 width=190,
-                height=24,
+                height=26,
                 font=ctk.CTkFont(size=10, weight="bold"),
-                fg_color="#ffffff",
-                border_color="#dce3eb",
-                text_color="#162d43",
-                button_color="#0c8c80",
-                button_hover_color="#087b70",
+                fg_color=T.PANEL,
+                border_color=T.BORDER,
+                text_color=T.TEXT,
+                button_color=T.PRIMARY,
+                button_hover_color=T.PRIMARY_HOVER,
                 command=self._on_server_view_changed,
             )
             self.cmb_server_view.pack(side="left", padx=4)
@@ -79,19 +81,19 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
                 self.legend_frame,
                 text="",
                 font=ctk.CTkFont(size=10, weight="bold"),
-                text_color="#0c8c80",
+                text_color=T.ACCENT,
             )
-            self.lbl_client_summary.pack(side="left", padx=8)
+            self.lbl_client_summary.pack(side="left", padx=6)
 
             # Global badges container (hidden when viewing a specific client)
             self.badge_box = ctk.CTkFrame(self.legend_frame, fg_color="transparent")
             self.badge_box.pack(side="left", padx=6)
             badges = [
-                ("● BTA", "#0c8c80"),
-                ("● BMCTA", "#3972b8"),
-                ("● TA", "#0b8a5a"),
-                ("● MCTA", "#8070c8"),
-                ("● Loss", "#d79338"),
+                ("● BTA", T.PRIMARY),
+                ("● BMCTA", T.BLUE),
+                ("● TA", T.SUCCESS),
+                ("● MCTA", T.PURPLE),
+                ("● Loss", T.WARNING),
             ]
             for text, color in badges:
                 chip = ctk.CTkLabel(
@@ -108,21 +110,21 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
                 self.legend_frame,
                 text="📈 CLIENT:",
                 font=ctk.CTkFont(size=11, weight="bold"),
-                text_color="#162d43",
+                text_color=T.TEXT,
             )
             title_lbl.pack(side="left", padx=(10, 4))
 
             self.seg_client_view = ctk.CTkSegmentedButton(
                 self.legend_frame,
                 values=["🔁 Round Progress", "⚡ Current Epochs"],
-                height=24,
+                height=26,
                 font=ctk.CTkFont(size=10, weight="bold"),
-                fg_color="#e2e8f0",
-                selected_color="#0c8c80",
-                selected_hover_color="#087b70",
-                unselected_color="#ffffff",
-                unselected_hover_color="#f1f5f9",
-                text_color="#162d43",
+                fg_color=T.BORDER,
+                selected_color=T.PRIMARY,
+                selected_hover_color=T.PRIMARY_HOVER,
+                unselected_color=T.PANEL,
+                unselected_hover_color=T.SURFACE,
+                text_color=T.TEXT,
                 command=self._on_client_view_mode_changed,
             )
             self.seg_client_view.set("🔁 Round Progress")
@@ -136,14 +138,14 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         btn_save = ctk.CTkButton(
             self.legend_frame,
             text="📷 Save Plot",
-            width=80,
-            height=22,
+            width=84,
+            height=26,
             font=ctk.CTkFont(size=10, weight="bold"),
-            fg_color="#ffffff",
-            hover_color="#f3f7fa",
-            text_color="#42566b",
+            fg_color=T.PANEL,
+            hover_color=T.SURFACE,
+            text_color=T.TEXT,
             border_width=1,
-            border_color="#dfe6ed",
+            border_color=T.BORDER,
             command=self.export_plot_image,
         )
         btn_save.pack(side="right", padx=8)
@@ -155,16 +157,16 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
 
         if self.client_view_mode == "round":
             badges = [
-                ("● Train Loss", "#d79338"),
-                ("● Train Acc", "#3972b8"),
-                ("● Test TA", "#0c8c80"),
-                ("● Best TA", "#0b8a5a"),
+                ("● Train Loss", T.WARNING),
+                ("● Train Acc", T.BLUE),
+                ("● Test TA", T.PRIMARY),
+                ("● Best TA", T.SUCCESS),
             ]
         else:
             badges = [
-                ("● Epoch Loss", "#d79338"),
-                ("● Epoch Acc", "#0c8c80"),
-                ("(Auto-resets each round)", "#78889b"),
+                ("● Epoch Loss", T.WARNING),
+                ("● Epoch Acc", T.PRIMARY),
+                ("(Auto-resets each round)", T.MUTED),
             ]
         for text, color in badges:
             chip = ctk.CTkLabel(
@@ -212,6 +214,12 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
             c_options = ["🌍 Global Server Metrics"] + [f"👤 Client {c}" for c in sorted(self.client_packages.keys())]
             self.cmb_server_view.configure(values=c_options)
 
+    def _set_appearance_mode(self, mode):
+        super()._set_appearance_mode(mode)
+        if hasattr(self, "fig") and hasattr(self, "canvas"):
+            self.fig.set_facecolor(T.resolve(T.PANEL))
+            self._refresh_plots()
+
     def _build_figure(self):
         """Create Matplotlib figure layout (2 panels for global/client, 3 panels for client inspection)."""
         if hasattr(self, "canvas") and self.canvas is not None:
@@ -219,7 +227,7 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
 
         if self.mode == "server" and self.server_active_view.startswith("client_"):
             # 3 Panels: Loss, Accuracy, and Data Distribution
-            self.fig = Figure(figsize=(8.8, 3.2), dpi=100, facecolor="#ffffff", constrained_layout=True)
+            self.fig = Figure(figsize=(8.8, 3.2), dpi=100, facecolor=T.resolve(T.PANEL), constrained_layout=True)
             self.ax_loss = self.fig.add_subplot(1, 3, 1)
             self.ax_acc = self.fig.add_subplot(1, 3, 2)
             self.ax_dist = self.fig.add_subplot(1, 3, 3)
@@ -228,7 +236,7 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
             self._style_axis(self.ax_dist, "Data Distribution", "Class Label", "Sample Count")
         else:
             # Standard 2 Panels
-            self.fig = Figure(figsize=(7.5, 3.2), dpi=100, facecolor="#ffffff", constrained_layout=True)
+            self.fig = Figure(figsize=(7.5, 3.2), dpi=100, facecolor=T.resolve(T.PANEL), constrained_layout=True)
             self.ax_loss = self.fig.add_subplot(1, 2, 1)
             self.ax_acc = self.fig.add_subplot(1, 2, 2)
             self.ax_dist = None
@@ -247,16 +255,16 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         self.canvas.get_tk_widget().pack(fill="both", expand=True, padx=8, pady=(0, 8))
 
     def _style_axis(self, ax, title: str, xlabel: str, ylabel: str):
-        ax.set_facecolor("#fcfdfe")
-        ax.set_title(title, color="#162d43", fontsize=9.5, fontweight="bold", pad=5)
-        ax.set_xlabel(xlabel, color="#78889b", fontsize=8)
-        ax.set_ylabel(ylabel, color="#78889b", fontsize=8)
-        ax.grid(True, linestyle="--", alpha=0.6, color="#edf2f7")
-        ax.tick_params(colors="#64748b", labelsize=7.5)
+        ax.set_facecolor(T.resolve(T.PANEL))
+        ax.set_title(title, color=T.resolve(T.TEXT), fontsize=9.5, fontweight="bold", pad=5)
+        ax.set_xlabel(xlabel, color=T.resolve(T.MUTED), fontsize=8)
+        ax.set_ylabel(ylabel, color=T.resolve(T.MUTED), fontsize=8)
+        ax.grid(True, linestyle="--", alpha=0.6, color=T.resolve(T.BORDER))
+        ax.tick_params(colors=T.resolve(T.MUTED), labelsize=7.5)
         if "bottom" in ax.spines:
-            ax.spines["bottom"].set_color("#cbd5e1")
+            ax.spines["bottom"].set_color(T.resolve(T.MUTED))
         if "left" in ax.spines:
-            ax.spines["left"].set_color("#cbd5e1")
+            ax.spines["left"].set_color(T.resolve(T.MUTED))
         if "top" in ax.spines:
             ax.spines["top"].set_visible(False)
         if "right" in ax.spines:
@@ -341,26 +349,26 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
 
         if self.losses and self.rounds:
             x_l = self.rounds[:len(self.losses)]
-            self.ax_loss.plot(x_l, self.losses, color="#d79338", lw=2, marker="o", markersize=3)
+            self.ax_loss.plot(x_l, self.losses, color=T.resolve(T.WARNING), lw=2, marker="o", markersize=3)
             self._set_axis_limits(self.ax_loss, x_l, self.losses)
 
         all_accs = []
         if self.rounds:
             if self.btas:
                 x = self.rounds[:len(self.btas)]
-                self.ax_acc.plot(x, self.btas, color="#0c8c80", lw=2, label="BTA")
+                self.ax_acc.plot(x, self.btas, color=T.resolve(T.ACCENT), lw=2, label="BTA")
                 all_accs.extend(self.btas)
             if self.bmctas:
                 x = self.rounds[:len(self.bmctas)]
-                self.ax_acc.plot(x, self.bmctas, color="#3972b8", lw=2, label="BMCTA")
+                self.ax_acc.plot(x, self.bmctas, color=T.resolve(T.BLUE), lw=2, label="BMCTA")
                 all_accs.extend(self.bmctas)
             if self.tas:
                 x = self.rounds[:len(self.tas)]
-                self.ax_acc.plot(x, self.tas, color="#0b8a5a", lw=1.2, linestyle=":", label="TA")
+                self.ax_acc.plot(x, self.tas, color=T.resolve(T.SUCCESS), lw=1.2, linestyle=":", label="TA")
                 all_accs.extend(self.tas)
             if self.mctas:
                 x = self.rounds[:len(self.mctas)]
-                self.ax_acc.plot(x, self.mctas, color="#8070c8", lw=1.2, linestyle="--", label="MCTA")
+                self.ax_acc.plot(x, self.mctas, color=T.resolve(T.PURPLE), lw=1.2, linestyle="--", label="MCTA")
                 all_accs.extend(self.mctas)
             if all_accs:
                 self._set_axis_limits(self.ax_acc, self.rounds, all_accs, is_acc=True)
@@ -381,27 +389,27 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         rounds_h = [h.get("round", i + 1) for i, h in enumerate(history)]
         losses_h = [h.get("train_loss", 0.0) for h in history]
         if rounds_h and losses_h:
-            self.ax_loss.plot(rounds_h, losses_h, color="#d79338", lw=2, marker="o", markersize=3, label="Train Loss")
+            self.ax_loss.plot(rounds_h, losses_h, color=T.resolve(T.WARNING), lw=2, marker="o", markersize=3, label="Train Loss")
         eval_rounds = [e.get("server_round", i + 1) for i, e in enumerate(eval_history)]
         eval_losses = [e.get("eval_loss", 0.0) for e in eval_history if e.get("eval_loss") is not None]
         if eval_rounds and eval_losses:
-            self.ax_loss.plot(eval_rounds[:len(eval_losses)], eval_losses, color="#de7373", lw=2, marker="s", markersize=3, label="Test Loss")
+            self.ax_loss.plot(eval_rounds[:len(eval_losses)], eval_losses, color=T.resolve(T.ERROR), lw=2, marker="s", markersize=3, label="Test Loss")
         if losses_h or eval_losses:
             all_l = losses_h + eval_losses
             self._set_axis_limits(self.ax_loss, rounds_h or eval_rounds, all_l)
-            self.ax_loss.legend(facecolor="#ffffff", edgecolor="#e2e8f0", labelcolor="#162d43", fontsize=7.5)
+            self.ax_loss.legend(facecolor=T.resolve(T.PANEL), edgecolor=T.resolve(T.BORDER), labelcolor=T.resolve(T.TEXT), fontsize=7.5)
 
         # 2. Accuracy Panel
         accs_h = [h.get("train_accuracy", 0.0) * 100 for h in history]
         if rounds_h and accs_h:
-            self.ax_acc.plot(rounds_h, accs_h, color="#3972b8", lw=2, marker="o", markersize=3, label="Train Acc")
+            self.ax_acc.plot(rounds_h, accs_h, color=T.resolve(T.BLUE), lw=2, marker="o", markersize=3, label="Train Acc")
         eval_accs = [e.get("eval_accuracy", 0.0) * 100 for e in eval_history]
         if eval_rounds and eval_accs:
-            self.ax_acc.plot(eval_rounds, eval_accs, color="#0c8c80", lw=2, marker="s", markersize=3, label="Test TA")
+            self.ax_acc.plot(eval_rounds, eval_accs, color=T.resolve(T.ACCENT), lw=2, marker="s", markersize=3, label="Test TA")
         if accs_h or eval_accs:
             all_a = accs_h + eval_accs
             self._set_axis_limits(self.ax_acc, rounds_h or eval_rounds, all_a, is_acc=True, max_val_100=True)
-            self.ax_acc.legend(facecolor="#ffffff", edgecolor="#e2e8f0", labelcolor="#162d43", fontsize=7.5)
+            self.ax_acc.legend(facecolor=T.resolve(T.PANEL), edgecolor=T.resolve(T.BORDER), labelcolor=T.resolve(T.TEXT), fontsize=7.5)
 
         # 3. Data Distribution Panel
         if self.ax_dist is not None and dist_dict:
@@ -412,10 +420,10 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
             counts = [int(dist_dict[c]) for c in classes]
             x_labels = [f"C{c}" for c in classes]
 
-            base_colors = ["#0c8c80", "#3972b8", "#8070c8", "#d79338", "#de7373", "#0b8a5a", "#2563eb", "#d97706"]
+            base_colors = [T.resolve(T.PRIMARY), T.resolve(T.BLUE), T.resolve(T.PURPLE), T.resolve(T.WARNING), T.resolve(T.ERROR), T.resolve(T.SUCCESS), T.resolve(T.BLUE), T.resolve(T.WARNING_ACTION)]
             bar_colors = [base_colors[i % len(base_colors)] for i in range(len(classes))]
 
-            bars = self.ax_dist.bar(x_labels, counts, color=bar_colors, alpha=0.85, edgecolor="#cbd5e1")
+            bars = self.ax_dist.bar(x_labels, counts, color=bar_colors, alpha=0.85, edgecolor=T.resolve(T.MUTED))
             max_c = max(counts) if counts else 1
             self.ax_dist.set_ylim(0, max_c * 1.18 + 1)
 
@@ -430,7 +438,7 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
                     va="bottom",
                     fontsize=7,
                     fontweight="bold",
-                    color="#162d43",
+                    color=T.resolve(T.TEXT),
                 )
 
     def _render_client_round(self):
@@ -442,22 +450,22 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         rounds = r_data["rounds"]
         if rounds and r_data["losses"]:
             x = rounds[:len(r_data["losses"])]
-            self.ax_loss.plot(x, r_data["losses"], color="#d79338", lw=2, marker="o", markersize=3)
+            self.ax_loss.plot(x, r_data["losses"], color=T.resolve(T.WARNING), lw=2, marker="o", markersize=3)
             self._set_axis_limits(self.ax_loss, x, r_data["losses"])
 
         all_accs = []
         if rounds:
             if r_data["train_accs"]:
                 x = rounds[:len(r_data["train_accs"])]
-                self.ax_acc.plot(x, r_data["train_accs"], color="#3972b8", lw=2, label="Train Acc")
+                self.ax_acc.plot(x, r_data["train_accs"], color=T.resolve(T.BLUE), lw=2, label="Train Acc")
                 all_accs.extend(r_data["train_accs"])
             if r_data["tas"]:
                 x = rounds[:len(r_data["tas"])]
-                self.ax_acc.plot(x, r_data["tas"], color="#0c8c80", lw=2, label="Local TA")
+                self.ax_acc.plot(x, r_data["tas"], color=T.resolve(T.ACCENT), lw=2, label="Local TA")
                 all_accs.extend(r_data["tas"])
             if r_data["btas"]:
                 x = rounds[:len(r_data["btas"])]
-                self.ax_acc.plot(x, r_data["btas"], color="#0b8a5a", lw=1.5, linestyle=":", label="Best TA")
+                self.ax_acc.plot(x, r_data["btas"], color=T.resolve(T.SUCCESS), lw=1.5, linestyle=":", label="Best TA")
                 all_accs.extend(r_data["btas"])
             if all_accs:
                 self._set_axis_limits(self.ax_acc, rounds, all_accs, is_acc=True)
@@ -470,11 +478,11 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         e_data = self.client_epoch_data
         epochs = e_data["epochs"]
         if epochs and e_data["losses"]:
-            self.ax_loss.plot(epochs, e_data["losses"], color="#d79338", lw=2, marker="o", markersize=4)
+            self.ax_loss.plot(epochs, e_data["losses"], color=T.resolve(T.WARNING), lw=2, marker="o", markersize=4)
             self._set_axis_limits(self.ax_loss, epochs, e_data["losses"])
 
         if epochs and e_data["train_accs"]:
-            self.ax_acc.plot(epochs, e_data["train_accs"], color="#0c8c80", lw=2, marker="o", markersize=4)
+            self.ax_acc.plot(epochs, e_data["train_accs"], color=T.resolve(T.ACCENT), lw=2, marker="o", markersize=4)
             self._set_axis_limits(self.ax_acc, epochs, e_data["train_accs"], is_acc=True)
 
     def _set_axis_limits(self, ax, x_vals, y_vals, is_acc: bool = False, max_val_100: bool = False):
