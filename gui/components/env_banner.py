@@ -23,7 +23,7 @@ class VenvDiagnosticModal(ctk.CTkToplevel):
         # Header
         lbl_hdr = ctk.CTkLabel(
             self,
-            text="🔍 Virtual Environment Diagnostics",
+            text="Virtual Environment Diagnostics",
             font=ctk.CTkFont(size=16, weight="bold"),
             text_color=T.BLUE,
         )
@@ -90,15 +90,15 @@ class VenvDiagnosticModal(ctk.CTkToplevel):
             row = ctk.CTkFrame(self.box, fg_color="transparent")
             row.pack(fill="x", padx=16, pady=6)
 
-            icon = "✓" if is_ok else "✗"
+            icon = "OK" if is_ok else "X"
             icon_color = T.SUCCESS if is_ok else T.ERROR
 
             lbl_icon = ctk.CTkLabel(
                 row,
                 text=f"[{icon}]",
-                font=ctk.CTkFont(family="monospace", size=14, weight="bold"),
+                font=ctk.CTkFont(family="monospace", size=11, weight="bold"),
                 text_color=icon_color,
-                width=30,
+                width=35,
             )
             lbl_icon.pack(side="left")
 
@@ -170,7 +170,7 @@ class EnvBanner(ctk.CTkFrame):
 
         self.btn_change = ctk.CTkButton(
             btn_box,
-            text="📁 Change Venv...",
+            text="Change Venv...",
             width=120,
             height=30,
             font=ctk.CTkFont(size=11, weight="bold"),
@@ -185,7 +185,7 @@ class EnvBanner(ctk.CTkFrame):
 
         self.btn_test = ctk.CTkButton(
             btn_box,
-            text="🔍 Test Venv",
+            text="Test Venv",
             width=100,
             height=30,
             font=ctk.CTkFont(size=11, weight="bold"),
@@ -199,7 +199,7 @@ class EnvBanner(ctk.CTkFrame):
         # Center: Status Badge
         self.lbl_status = ctk.CTkLabel(
             self,
-            text="● Checking Venv...",
+            text="[Checking Venv...]",
             font=ctk.CTkFont(size=10, weight="bold"),
             text_color=T.ACCENT,
             fg_color=T.SELECTED,
@@ -213,10 +213,10 @@ class EnvBanner(ctk.CTkFrame):
         diag = test_venv_environment(self.active_venv)
         if diag.get("torch") and diag.get("flower"):
             dev = "CUDA OK" if diag.get("cuda_available") else "CPU"
-            text = f"● VENV READY: PyTorch {diag.get('torch_version')} | {dev} | Flower {diag.get('flower_version')}"
+            text = f"[VENV READY]: PyTorch {diag.get('torch_version')} | {dev} | Flower {diag.get('flower_version')}"
             self.lbl_status.configure(text=text, fg_color=T.SUCCESS_SURFACE, text_color=T.SUCCESS)
         else:
-            self.lbl_status.configure(text="● VENV WARNING: Missing PyTorch/Flower", fg_color=T.ERROR_SURFACE, text_color=T.ERROR)
+            self.lbl_status.configure(text="[VENV WARNING]: Missing PyTorch/Flower", fg_color=T.ERROR_SURFACE, text_color=T.ERROR)
 
     def _test_venv(self):
         VenvDiagnosticModal(self, self.active_venv)

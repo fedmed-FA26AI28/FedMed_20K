@@ -1,6 +1,19 @@
 """Native (light, dark) color pairs shared by the desktop dashboard."""
 
+import platform
 import customtkinter as ctk
+
+# Cross-platform font family resolution
+SYSTEM_OS = platform.system()
+if SYSTEM_OS == "Windows":
+    MONO_FONT = "Consolas"
+    UI_FONT = "Segoe UI"
+elif SYSTEM_OS == "Darwin":
+    MONO_FONT = "Menlo"
+    UI_FONT = "SF Pro Text"
+else:
+    MONO_FONT = "DejaVu Sans Mono"
+    UI_FONT = "DejaVu Sans"
 
 BACKGROUND = ("#f1f5f9", "#0b1220")
 SIDEBAR = ("#e8eef5", "#0f172a")
