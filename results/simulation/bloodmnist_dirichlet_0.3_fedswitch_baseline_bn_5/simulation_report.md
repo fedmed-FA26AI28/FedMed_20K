@@ -1,0 +1,18 @@
+# FedMedAI Simulation Benchmark Report
+
+**Generated At:** 2026-11-14 17:43:17  
+**Run Name:** `bloodmnist_dirichlet_0.3_fedswitch_baseline_bn_5` | **Model:** `baseline_bn` | **Seed:** `46` | **Rounds:** 80 | **Clients:** 12 | **Local Epochs:** 5 | **LR Mode:** `fixed` | **Local Test:** `Enabled`  
+
+---
+
+## 1. Executive Summary
+
+### Dataset: **BLOODMNIST**
+- **Partition = dirichlet_0.3:** **[BEST] FEDSWITCH** achieved **93.16%** accuracy in Round 75 (runtime: 162.6s).
+
+---
+## 2. Full Simulation Results Matrix
+
+| Dataset | Model | Params | Weight | Opt | Aug | Strategy | Partition | Final Acc (%) | Best Acc (%) | BMCTA (%) | BMCTA Loss | BTA (%) | Best Round | Final Loss | Total Time |
+| :--- | :---: | :---: | :---: | :---: | :---: | :--- | :--- | :---: | :---: | :---: | :---: | :---: | :---: | :---: | :---: |
+| **bloodmnist** | `baseline_bn` | 570,396 | 2228.1 KB | `sgd` | No | **FEDSWITCH** | `dirichlet_0.3` | 92.17% | **93.16%** | **93.58%** (R75) | 0.1952 | **93.16%** (R75) | R75 | 0.2425 | 162.6s |
