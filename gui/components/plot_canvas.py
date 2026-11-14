@@ -56,18 +56,18 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
             # Server Mode: Dropdown to pick between Global view and individual clients
             self.lbl_server_title = ctk.CTkLabel(
                 self.legend_frame,
-                text="📊 SERVER:",
-                font=ctk.CTkFont(size=11, weight="bold"),
+                text="SERVER METRICS:",
+                font=ctk.CTkFont(size=12, weight="bold"),
                 text_color=T.TEXT,
             )
             self.lbl_server_title.pack(side="left", padx=(10, 4))
 
             self.cmb_server_view = ctk.CTkComboBox(
                 self.legend_frame,
-                values=["🌍 Global Server Metrics"],
-                width=190,
-                height=26,
-                font=ctk.CTkFont(size=10, weight="bold"),
+                values=["Global Server Metrics"],
+                width=200,
+                height=28,
+                font=ctk.CTkFont(size=11, weight="bold"),
                 fg_color=T.PANEL,
                 border_color=T.BORDER,
                 text_color=T.TEXT,
@@ -80,7 +80,7 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
             self.lbl_client_summary = ctk.CTkLabel(
                 self.legend_frame,
                 text="",
-                font=ctk.CTkFont(size=10, weight="bold"),
+                font=ctk.CTkFont(size=11, weight="bold"),
                 text_color=T.ACCENT,
             )
             self.lbl_client_summary.pack(side="left", padx=6)
@@ -99,7 +99,7 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
                 chip = ctk.CTkLabel(
                     self.badge_box,
                     text=text,
-                    font=ctk.CTkFont(size=10, weight="bold"),
+                    font=ctk.CTkFont(size=11, weight="bold"),
                     text_color=color,
                 )
                 chip.pack(side="left", padx=4)
@@ -108,17 +108,17 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
             # Client Mode: Segmented View Switcher between Round-Level and Current Epochs
             title_lbl = ctk.CTkLabel(
                 self.legend_frame,
-                text="📈 CLIENT:",
-                font=ctk.CTkFont(size=11, weight="bold"),
+                text="CLIENT METRICS:",
+                font=ctk.CTkFont(size=12, weight="bold"),
                 text_color=T.TEXT,
             )
             title_lbl.pack(side="left", padx=(10, 4))
 
             self.seg_client_view = ctk.CTkSegmentedButton(
                 self.legend_frame,
-                values=["🔁 Round Progress", "⚡ Current Epochs"],
-                height=26,
-                font=ctk.CTkFont(size=10, weight="bold"),
+                values=["Round Progress", "Current Epochs"],
+                height=28,
+                font=ctk.CTkFont(size=11, weight="bold"),
                 fg_color=T.BORDER,
                 selected_color=T.PRIMARY,
                 selected_hover_color=T.PRIMARY_HOVER,
@@ -127,20 +127,20 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
                 text_color=T.TEXT,
                 command=self._on_client_view_mode_changed,
             )
-            self.seg_client_view.set("🔁 Round Progress")
+            self.seg_client_view.set("Round Progress")
             self.seg_client_view.pack(side="left", padx=6)
 
             self.client_badge_box = ctk.CTkFrame(self.legend_frame, fg_color="transparent")
             self.client_badge_box.pack(side="left", padx=6)
             self._update_client_ribbon_badges()
 
-        # Action button to export figure
+        # Action buttons: Export CSV + Save Plot
         btn_save = ctk.CTkButton(
             self.legend_frame,
-            text="📷 Save Plot",
-            width=84,
-            height=26,
-            font=ctk.CTkFont(size=10, weight="bold"),
+            text="Save Plot",
+            width=88,
+            height=28,
+            font=ctk.CTkFont(size=11, weight="bold"),
             fg_color=T.PANEL,
             hover_color=T.SURFACE,
             text_color=T.TEXT,
@@ -148,7 +148,20 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
             border_color=T.BORDER,
             command=self.export_plot_image,
         )
-        btn_save.pack(side="right", padx=8)
+        btn_save.pack(side="right", padx=(4, 8))
+
+        btn_csv = ctk.CTkButton(
+            self.legend_frame,
+            text="Export CSV",
+            width=88,
+            height=28,
+            font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color=T.PRIMARY,
+            hover_color=T.PRIMARY_HOVER,
+            text_color=T.ON_ACCENT,
+            command=self.export_csv,
+        )
+        btn_csv.pack(side="right", padx=4)
 
     def _update_client_ribbon_badges(self):
         """Update chips on client ribbon based on active view mode."""
@@ -198,7 +211,7 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
                 eval_h = pkg.get("eval_history", [])
                 best_acc = max([e.get("eval_accuracy", 0.0) for e in eval_h], default=0.0) * 100
                 self.lbl_client_summary.configure(
-                    text=f"👤 Client {cid} | Samples: {samples:,} | Best Acc: {best_acc:.1f}%"
+                    text=f"Client {cid} | Samples: {samples:,} | Best Acc: {best_acc:.1f}%"
                 )
             except Exception:
                 self.server_active_view = "global"
@@ -211,7 +224,7 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         cid = payload.get("client_id")
         if cid is not None:
             self.client_packages[int(cid)] = payload
-            c_options = ["🌍 Global Server Metrics"] + [f"👤 Client {c}" for c in sorted(self.client_packages.keys())]
+            c_options = ["Global Server Metrics"] + [f"Client {c}" for c in sorted(self.client_packages.keys())]
             self.cmb_server_view.configure(values=c_options)
 
     def _set_appearance_mode(self, mode):
@@ -221,46 +234,47 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
             self._refresh_plots()
 
     def _build_figure(self):
-        """Create Matplotlib figure layout (2 panels for global/client, 3 panels for client inspection)."""
+        """Create Matplotlib figure layout with stacked plots (Accuracy on top, Loss on bottom)."""
         if hasattr(self, "canvas") and self.canvas is not None:
             self.canvas.get_tk_widget().destroy()
 
         if self.mode == "server" and self.server_active_view.startswith("client_"):
-            # 3 Panels: Loss, Accuracy, and Data Distribution
-            self.fig = Figure(figsize=(8.8, 3.2), dpi=100, facecolor=T.resolve(T.PANEL), constrained_layout=True)
-            self.ax_loss = self.fig.add_subplot(1, 3, 1)
-            self.ax_acc = self.fig.add_subplot(1, 3, 2)
-            self.ax_dist = self.fig.add_subplot(1, 3, 3)
+            # Stacked curves on left (Accuracy top, Loss bottom) + Distribution chart on right
+            self.fig = Figure(figsize=(8.8, 5.0), dpi=100, facecolor=T.resolve(T.PANEL), constrained_layout=True)
+            gs = self.fig.add_gridspec(2, 2, width_ratios=[1.2, 1.0])
+            self.ax_acc = self.fig.add_subplot(gs[0, 0])
+            self.ax_loss = self.fig.add_subplot(gs[1, 0], sharex=self.ax_acc)
+            self.ax_dist = self.fig.add_subplot(gs[:, 1])
+            self._style_axis(self.ax_acc, "Client Accuracy (Train & TA)", "", "Accuracy (%)")
             self._style_axis(self.ax_loss, "Client Loss (Train vs Eval)", "Server Round", "Loss")
-            self._style_axis(self.ax_acc, "Client Accuracy (Train & TA)", "Server Round", "Accuracy (%)")
             self._style_axis(self.ax_dist, "Data Distribution", "Class Label", "Sample Count")
         else:
-            # Standard 2 Panels
-            self.fig = Figure(figsize=(7.5, 3.2), dpi=100, facecolor=T.resolve(T.PANEL), constrained_layout=True)
-            self.ax_loss = self.fig.add_subplot(1, 2, 1)
-            self.ax_acc = self.fig.add_subplot(1, 2, 2)
+            # Vertically Stacked Panels: Accuracy (Top) and Loss (Bottom) sharing X-axis
+            self.fig = Figure(figsize=(7.5, 5.0), dpi=100, facecolor=T.resolve(T.PANEL), constrained_layout=True)
+            self.ax_acc = self.fig.add_subplot(2, 1, 1)
+            self.ax_loss = self.fig.add_subplot(2, 1, 2, sharex=self.ax_acc)
             self.ax_dist = None
 
             if self.mode == "server":
-                self._style_axis(self.ax_loss, "Evaluation Loss", "Communication Round", "Loss")
-                self._style_axis(self.ax_acc, "Accuracy Progression", "Communication Round", "Accuracy")
+                self._style_axis(self.ax_acc, "Accuracy Progression (BTA / BMCTA)", "", "Accuracy")
+                self._style_axis(self.ax_loss, "Evaluation Loss Reduction", "Communication Round", "Loss")
             else:
                 x_label = "Communication Round" if self.client_view_mode == "round" else "Epoch (Current Round)"
                 loss_title = "Local Round Loss" if self.client_view_mode == "round" else "Current Round Epoch Loss"
                 acc_title = "Local Round Accuracies" if self.client_view_mode == "round" else "Current Round Epoch Acc"
+                self._style_axis(self.ax_acc, acc_title, "", "Accuracy")
                 self._style_axis(self.ax_loss, loss_title, x_label, "Loss")
-                self._style_axis(self.ax_acc, acc_title, x_label, "Accuracy")
 
         self.canvas = FigureCanvasTkAgg(self.fig, master=self)
         self.canvas.get_tk_widget().pack(fill="both", expand=True, padx=8, pady=(0, 8))
 
     def _style_axis(self, ax, title: str, xlabel: str, ylabel: str):
         ax.set_facecolor(T.resolve(T.PANEL))
-        ax.set_title(title, color=T.resolve(T.TEXT), fontsize=9.5, fontweight="bold", pad=5)
-        ax.set_xlabel(xlabel, color=T.resolve(T.MUTED), fontsize=8)
-        ax.set_ylabel(ylabel, color=T.resolve(T.MUTED), fontsize=8)
+        ax.set_title(title, color=T.resolve(T.TEXT), fontsize=11, fontweight="bold", pad=6)
+        ax.set_xlabel(xlabel, color=T.resolve(T.MUTED), fontsize=9.5)
+        ax.set_ylabel(ylabel, color=T.resolve(T.MUTED), fontsize=9.5)
         ax.grid(True, linestyle="--", alpha=0.6, color=T.resolve(T.BORDER))
-        ax.tick_params(colors=T.resolve(T.MUTED), labelsize=7.5)
+        ax.tick_params(colors=T.resolve(T.MUTED), labelsize=9)
         if "bottom" in ax.spines:
             ax.spines["bottom"].set_color(T.resolve(T.MUTED))
         if "left" in ax.spines:
@@ -397,7 +411,7 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         if losses_h or eval_losses:
             all_l = losses_h + eval_losses
             self._set_axis_limits(self.ax_loss, rounds_h or eval_rounds, all_l)
-            self.ax_loss.legend(facecolor=T.resolve(T.PANEL), edgecolor=T.resolve(T.BORDER), labelcolor=T.resolve(T.TEXT), fontsize=7.5)
+            self.ax_loss.legend(facecolor=T.resolve(T.PANEL), edgecolor=T.resolve(T.BORDER), labelcolor=T.resolve(T.TEXT), fontsize=9)
 
         # 2. Accuracy Panel
         accs_h = [h.get("train_accuracy", 0.0) * 100 for h in history]
@@ -409,7 +423,7 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         if accs_h or eval_accs:
             all_a = accs_h + eval_accs
             self._set_axis_limits(self.ax_acc, rounds_h or eval_rounds, all_a, is_acc=True, max_val_100=True)
-            self.ax_acc.legend(facecolor=T.resolve(T.PANEL), edgecolor=T.resolve(T.BORDER), labelcolor=T.resolve(T.TEXT), fontsize=7.5)
+            self.ax_acc.legend(facecolor=T.resolve(T.PANEL), edgecolor=T.resolve(T.BORDER), labelcolor=T.resolve(T.TEXT), fontsize=9)
 
         # 3. Data Distribution Panel
         if self.ax_dist is not None and dist_dict:
@@ -436,7 +450,7 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
                     textcoords="offset points",
                     ha="center",
                     va="bottom",
-                    fontsize=7,
+                    fontsize=9,
                     fontweight="bold",
                     color=T.resolve(T.TEXT),
                 )
@@ -461,7 +475,7 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
                 all_accs.extend(r_data["train_accs"])
             if r_data["tas"]:
                 x = rounds[:len(r_data["tas"])]
-                self.ax_acc.plot(x, r_data["tas"], color=T.resolve(T.ACCENT), lw=2, label="Local TA")
+                self.ax_acc.plot(x, r_data["tas"], color=T.resolve(T.ACCENT), lw=2, label="TA")
                 all_accs.extend(r_data["tas"])
             if r_data["btas"]:
                 x = rounds[:len(r_data["btas"])]
@@ -511,8 +525,8 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         self.client_packages.clear()
 
         if self.mode == "server":
-            self.cmb_server_view.configure(values=["🌍 Global Server Metrics"])
-            self.cmb_server_view.set("🌍 Global Server Metrics")
+            self.cmb_server_view.configure(values=["Global Server Metrics"])
+            self.cmb_server_view.set("Global Server Metrics")
             self.server_active_view = "global"
             self.lbl_client_summary.configure(text="")
             self.badge_box.pack(side="left", padx=6)
@@ -530,3 +544,82 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         )
         if path:
             self.fig.savefig(path, dpi=200, facecolor=self.fig.get_facecolor(), bbox_inches="tight")
+
+    def export_csv(self, filepath: Optional[str] = None, show_dialog: bool = True):
+        """Export plotted curve points to CSV."""
+        import csv
+        from tkinter import filedialog, messagebox
+        if self.mode == "server":
+            if not self.rounds:
+                if show_dialog:
+                    messagebox.showinfo("Export CSV", "No server curve data to export yet.")
+                return
+            if not filepath:
+                filepath = filedialog.asksaveasfilename(
+                    title="Export Plotted Server Metrics CSV",
+                    initialdir="results",
+                    initialfile="server_plotted_metrics.csv",
+                    filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")],
+                    defaultextension=".csv",
+                )
+                if not filepath:
+                    return
+            try:
+                os.makedirs(os.path.dirname(os.path.abspath(filepath)), exist_ok=True)
+                with open(filepath, "w", newline="", encoding="utf-8-sig") as f:
+                    writer = csv.writer(f)
+                    writer.writerow(["round", "loss", "bta", "bmcta", "ta", "mcta"])
+                    for i, r in enumerate(self.rounds):
+                        l = self.losses[i] if i < len(self.losses) else ""
+                        bta = self.btas[i] if i < len(self.btas) else ""
+                        bmcta = self.bmctas[i] if i < len(self.bmctas) else ""
+                        ta = self.tas[i] if i < len(self.tas) else ""
+                        mcta = self.mctas[i] if i < len(self.mctas) else ""
+                        writer.writerow([r, l, bta, bmcta, ta, mcta])
+                if show_dialog:
+                    messagebox.showinfo("Export Complete", f"Exported {len(self.rounds)} rounds to:\n{filepath}")
+            except Exception as e:
+                print(f"[EXPORT CSV ERROR] {e}")
+                if show_dialog:
+                    messagebox.showerror("Export Error", f"Failed to export CSV:\n{e}")
+        else:
+            data = self.client_round_data if self.client_view_mode == "round" else self.client_epoch_data
+            r_or_e = data.get("rounds") or data.get("epochs") or []
+            if not r_or_e:
+                if show_dialog:
+                    messagebox.showinfo("Export CSV", "No client curve data to export yet.")
+                return
+            if not filepath:
+                filepath = filedialog.asksaveasfilename(
+                    title="Export Plotted Client Metrics CSV",
+                    initialdir="results",
+                    initialfile=f"client_plotted_{self.client_view_mode}_metrics.csv",
+                    filetypes=[("CSV Files", "*.csv"), ("All Files", "*.*")],
+                    defaultextension=".csv",
+                )
+                if not filepath:
+                    return
+            try:
+                os.makedirs(os.path.dirname(os.path.abspath(filepath)), exist_ok=True)
+                with open(filepath, "w", newline="", encoding="utf-8-sig") as f:
+                    writer = csv.writer(f)
+                    if self.client_view_mode == "round":
+                        writer.writerow(["round", "train_loss", "train_acc", "ta", "bta"])
+                        for i, r in enumerate(data["rounds"]):
+                            l = data["losses"][i] if i < len(data["losses"]) else ""
+                            acc = data["train_accs"][i] if i < len(data["train_accs"]) else ""
+                            ta = data["tas"][i] if i < len(data["tas"]) else ""
+                            bta = data["btas"][i] if i < len(data["btas"]) else ""
+                            writer.writerow([r, l, acc, ta, bta])
+                    else:
+                        writer.writerow(["epoch", "train_loss", "train_acc"])
+                        for i, ep in enumerate(data["epochs"]):
+                            l = data["losses"][i] if i < len(data["losses"]) else ""
+                            acc = data["train_accs"][i] if i < len(data["train_accs"]) else ""
+                            writer.writerow([ep, l, acc])
+                if show_dialog:
+                    messagebox.showinfo("Export Complete", f"Exported {len(r_or_e)} steps to:\n{filepath}")
+            except Exception as e:
+                print(f"[EXPORT CSV ERROR] {e}")
+                if show_dialog:
+                    messagebox.showerror("Export Error", f"Failed to export CSV:\n{e}")

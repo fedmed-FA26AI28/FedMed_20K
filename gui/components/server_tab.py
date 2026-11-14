@@ -155,7 +155,7 @@ class ServerTab(ctk.CTkFrame):
         # --- ADVANCED CONFIGURATION SUB-WINDOW TRIGGER ---
         self.btn_open_adv = ctk.CTkButton(
             self.scroll,
-            text="⚙  Open Advanced Configuration...",
+            text="Open Advanced Configuration...",
             height=34,
             font=ctk.CTkFont(size=11, weight="bold"),
             fg_color=T.SURFACE,
@@ -169,7 +169,7 @@ class ServerTab(ctk.CTkFrame):
 
         self.lbl_adv_status = ctk.CTkLabel(
             self.scroll,
-            text="● Standard Defaults Active",
+            text="[Standard Defaults Active]",
             font=ctk.CTkFont(size=11, weight="bold"),
             text_color=T.MUTED,
             anchor="center",
@@ -188,7 +188,7 @@ class ServerTab(ctk.CTkFrame):
 
         self.btn_start = ctk.CTkButton(
             btn_box,
-            text="▶ START FL SERVER",
+            text="START FL SERVER",
             height=44,
             font=ctk.CTkFont(size=11, weight="bold"),
             fg_color=T.PRIMARY,
@@ -203,7 +203,7 @@ class ServerTab(ctk.CTkFrame):
 
         self.btn_stop = ctk.CTkButton(
             sub_btns,
-            text="■ STOP SERVER",
+            text="STOP SERVER",
             height=34,
             font=ctk.CTkFont(size=11, weight="bold"),
             fg_color=T.ERROR,
@@ -215,7 +215,7 @@ class ServerTab(ctk.CTkFrame):
 
         self.btn_export = ctk.CTkButton(
             sub_btns,
-            text="📊 Export Results",
+            text="Export Results",
             height=34,
             font=ctk.CTkFont(size=11, weight="bold"),
             fg_color=T.PANEL,
@@ -247,13 +247,13 @@ class ServerTab(ctk.CTkFrame):
                 overrides += 1
         if overrides > 0:
             self.lbl_adv_status.configure(
-                text=f"● {overrides} Custom Overrides Active",
+                text=f"[{overrides} Custom Overrides Active]",
                 text_color=T.ACCENT,
             )
             self.btn_open_adv.configure(border_color=T.ACCENT)
         else:
             self.lbl_adv_status.configure(
-                text="● Standard Defaults Active",
+                text="[Standard Defaults Active]",
                 text_color=T.MUTED,
             )
             self.btn_open_adv.configure(border_color=T.BORDER)
@@ -262,9 +262,9 @@ class ServerTab(ctk.CTkFrame):
         """Backward compatibility helper for headless test suites."""
         self.adv_expanded = not self.adv_expanded
         if self.adv_expanded:
-            self.btn_toggle_adv.configure(text="⚙  Advanced Configuration (Active)")
+            self.btn_toggle_adv.configure(text="Advanced Configuration (Active)")
         else:
-            self.btn_toggle_adv.configure(text="⚙  Open Advanced Configuration...")
+            self.btn_toggle_adv.configure(text="Open Advanced Configuration...")
 
     def _on_strategy_changed(self, choice: str):
         pass

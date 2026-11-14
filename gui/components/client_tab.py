@@ -25,16 +25,16 @@ from gui.components.advanced_config_dialog import (
 
 
 class ClientPartitionInspector(ctk.CTkFrame):
-    """Mini Canvas inspector showing local client class distribution and total sample counts."""
+    """Canvas inspector showing local client class distribution and total sample counts."""
 
     def __init__(self, master, **kwargs):
-        super().__init__(master, fg_color=T.SURFACE, corner_radius=12, border_width=1, border_color=T.BORDER, height=185, **kwargs)
+        super().__init__(master, fg_color=T.SURFACE, corner_radius=12, border_width=1, border_color=T.BORDER, **kwargs)
         self._cached_draw = None
         self._build_ui()
 
     def _build_ui(self):
         hdr = ctk.CTkFrame(self, fg_color="transparent")
-        hdr.pack(fill="x", padx=10, pady=(6, 2))
+        hdr.pack(fill="x", padx=14, pady=(10, 4))
 
         # Top line: Title (Left) + Badge (Right)
         top_row = ctk.CTkFrame(hdr, fg_color="transparent")
@@ -42,8 +42,8 @@ class ClientPartitionInspector(ctk.CTkFrame):
 
         self.lbl_title = ctk.CTkLabel(
             top_row,
-            text="📊 PARTITION INSPECTOR",
-            font=ctk.CTkFont(size=11, weight="bold"),
+            text="DATA PARTITION & CLASS DISTRIBUTION INSPECTOR",
+            font=ctk.CTkFont(size=12, weight="bold"),
             text_color=T.TEXT,
         )
         self.lbl_title.pack(side="left")
@@ -51,7 +51,7 @@ class ClientPartitionInspector(ctk.CTkFrame):
         self.lbl_samples = ctk.CTkLabel(
             top_row,
             text="Unconfirmed",
-            font=ctk.CTkFont(size=10, weight="bold"),
+            font=ctk.CTkFont(size=11, weight="bold"),
             text_color=T.ACCENT,
             fg_color=T.SELECTED,
             corner_radius=4,
@@ -64,14 +64,14 @@ class ClientPartitionInspector(ctk.CTkFrame):
         self.lbl_subtitle = ctk.CTkLabel(
             hdr,
             text="Client 0 / 12 Clients Total",
-            font=ctk.CTkFont(size=10),
+            font=ctk.CTkFont(size=11),
             text_color=T.MUTED,
             anchor="w",
         )
-        self.lbl_subtitle.pack(fill="x", pady=(1, 2))
+        self.lbl_subtitle.pack(fill="x", pady=(2, 4))
 
-        self.canvas = tk.Canvas(self, bg=T.resolve(T.PANEL), highlightthickness=0, height=130)
-        self.canvas.pack(fill="both", expand=True, padx=8, pady=(2, 6))
+        self.canvas = tk.Canvas(self, bg=T.resolve(T.PANEL), highlightthickness=0)
+        self.canvas.pack(fill="both", expand=True, padx=12, pady=(4, 10))
         self.canvas.bind("<Configure>", self._on_canvas_configure)
 
     def _set_appearance_mode(self, mode):
@@ -97,7 +97,7 @@ class ClientPartitionInspector(ctk.CTkFrame):
 
     def show_unconfirmed(self, num_clients: int, dataset: str, partition_mode: str, client_id: int = 0, seed: int = 42):
         """Display standby/unconfirmed card without prematurely showing any classes plot."""
-        self.lbl_title.configure(text="📊 PARTITION INSPECTOR")
+        self.lbl_title.configure(text="DATA PARTITION INSPECTOR")
         self.lbl_subtitle.configure(text=f"Client Node #{client_id}  ·  {num_clients} Clients Total")
         self.lbl_samples.configure(text="Unconfirmed", text_color=T.MUTED, fg_color=T.SURFACE)
 
@@ -106,13 +106,13 @@ class ClientPartitionInspector(ctk.CTkFrame):
             w, h = self._get_canvas_dims()
             self.canvas.create_text(
                 w / 2, h / 2 - 16,
-                text="📋 Partition Not Confirmed",
+                text="Partition Not Confirmed",
                 fill=T.resolve(T.TEXT),
                 font=("Segoe UI", 11, "bold"),
             )
             self.canvas.create_text(
                 w / 2, h / 2 + 14,
-                text=f"Target: {dataset.upper()} | {partition_mode} | {num_clients} clients | Seed {seed}\nClick [🔍 Confirm & Inspect Partition] to verify or generate.",
+                text=f"Target: {dataset.upper()} | {partition_mode} | {num_clients} clients | Seed {seed}\nClick [Confirm & Inspect Partition] to verify or generate.",
                 fill=T.resolve(T.MUTED),
                 justify="center",
                 width=w - 24,
@@ -123,7 +123,7 @@ class ClientPartitionInspector(ctk.CTkFrame):
 
     def show_missing(self, num_clients: int, dataset: str, partition_mode: str, filename: str):
         """Display missing partition notice."""
-        self.lbl_title.configure(text="📊 PARTITION INSPECTOR")
+        self.lbl_title.configure(text="DATA PARTITION INSPECTOR")
         self.lbl_subtitle.configure(text=f"{num_clients} Clients Partition Missing")
         self.lbl_samples.configure(text="Missing", text_color=T.ERROR, fg_color=T.SURFACE)
 
@@ -132,13 +132,13 @@ class ClientPartitionInspector(ctk.CTkFrame):
             w, h = self._get_canvas_dims()
             self.canvas.create_text(
                 w / 2, h / 2 - 16,
-                text=f"⚠️ Partition for {num_clients} Clients Missing",
+                text=f"[!] Partition for {num_clients} Clients Missing",
                 fill=T.resolve(T.ERROR),
                 font=("Segoe UI", 10, "bold"),
             )
             self.canvas.create_text(
                 w / 2, h / 2 + 14,
-                text=f"Expected: {filename}\nClick [⚡ Generate Partition] below, or start client to auto-generate.",
+                text=f"Expected: {filename}\nClick [Generate Partition] below, or start client to auto-generate.",
                 fill=T.resolve(T.MUTED),
                 justify="center",
                 width=w - 24,
@@ -149,7 +149,7 @@ class ClientPartitionInspector(ctk.CTkFrame):
 
     def show_generating(self, num_clients: int, dataset: str, partition_mode: str):
         """Display in-progress generating state."""
-        self.lbl_title.configure(text="📊 PARTITION INSPECTOR")
+        self.lbl_title.configure(text="DATA PARTITION INSPECTOR")
         self.lbl_subtitle.configure(text=f"Generating {num_clients}-Client Partition...")
         self.lbl_samples.configure(text="Generating...", text_color=T.WARNING, fg_color=T.SURFACE)
 
@@ -158,7 +158,7 @@ class ClientPartitionInspector(ctk.CTkFrame):
             w, h = self._get_canvas_dims()
             self.canvas.create_text(
                 w / 2, h / 2 - 14,
-                text=f"⏳ Generating {num_clients}-Client Partition...",
+                text=f"Generating {num_clients}-Client Partition...",
                 fill=T.resolve(T.WARNING),
                 font=("Segoe UI", 11, "bold"),
             )
@@ -196,8 +196,8 @@ class ClientPartitionInspector(ctk.CTkFrame):
         file_name = data.get("file")
         total_cls = data.get("num_clients", 0)
 
-        self.lbl_title.configure(text="📊 PARTITION INSPECTOR")
-        self.lbl_subtitle.configure(text=f"Client Node #{client_id}  ·  {total_cls} Clients in Partition")
+        self.lbl_title.configure(text="DATA PARTITION INSPECTOR")
+        self.lbl_subtitle.configure(text=f"Client Node #{client_id}  |  {total_cls} Clients in Partition")
 
         def _draw():
             self.canvas.delete("all")
@@ -219,7 +219,7 @@ class ClientPartitionInspector(ctk.CTkFrame):
                 self.lbl_samples.configure(text="Out of Range", text_color=T.ERROR, fg_color=T.SURFACE)
                 self.canvas.create_text(
                     w / 2, h / 2 - 14,
-                    text=f"⚠️ Client {client_id} exceeds partition bounds",
+                    text=f"[!] Client {client_id} exceeds partition bounds",
                     fill=T.resolve(T.ERROR),
                     font=("Segoe UI", 10, "bold"),
                 )
@@ -299,8 +299,16 @@ class ClientTab(ctk.CTkFrame):
         self._build_form()
 
     def _build_form(self):
-        self.scroll = ctk.CTkScrollableFrame(self, fg_color=T.PANEL, corner_radius=12, border_width=1, border_color=T.BORDER, width=300)
-        self.scroll.pack(fill="both", expand=True, padx=4, pady=4)
+        # Two-column container: Left (Parameters Form + Action Buttons) + Right (Spacious Partition Inspector)
+        self.columns = ctk.CTkFrame(self, fg_color="transparent")
+        self.columns.pack(fill="both", expand=True)
+
+        left_col = ctk.CTkFrame(self.columns, width=380, fg_color="transparent")
+        left_col.pack(side="left", fill="both", padx=(0, 6), pady=0)
+        left_col.pack_propagate(False)
+
+        self.scroll = ctk.CTkScrollableFrame(left_col, fg_color=T.PANEL, corner_radius=12, border_width=1, border_color=T.BORDER)
+        self.scroll.pack(fill="both", expand=True, padx=0, pady=(0, 6))
 
         title = ctk.CTkLabel(
             self.scroll,
@@ -552,61 +560,10 @@ class ClientTab(ctk.CTkFrame):
         self.fields["seed"].insert(0, "42")
         self.fields["seed"].bind("<KeyRelease>", lambda e: self._on_params_changed_unconfirm())
 
-        # --- PARTITION INSPECTOR ---
-        partition_parent = self.scroll
-        self.inspector = ClientPartitionInspector(partition_parent)
-        self.inspector.pack(fill="both", expand=True, padx=10, pady=(14, 12))
-
-        # Partition Action Toolbar
-        part_toolbar = ctk.CTkFrame(partition_parent, fg_color="transparent")
-        part_toolbar.pack(fill="x", padx=10, pady=(0, 4))
-
-        self.btn_confirm_partition = ctk.CTkButton(
-            part_toolbar,
-            text="🔍 Confirm & Inspect Partition",
-            height=30,
-            font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color=T.PRIMARY,
-            hover_color=T.PRIMARY_HOVER,
-            text_color=T.ON_ACCENT,
-            command=self._confirm_and_inspect_partition,
-        )
-        self.btn_confirm_partition.pack(fill="x", pady=(0, 4))
-
-        self.btn_gen_partition = ctk.CTkButton(
-            part_toolbar,
-            text="⚡ Generate Partition",
-            height=30,
-            font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color=T.WARNING,
-            hover_color=T.WARNING_HOVER,
-            text_color=T.ON_ACCENT,
-            command=self._generate_missing_partition,
-        )
-        self.btn_gen_partition.pack(fill="x")
-        self.btn_gen_partition.configure(state="disabled", fg_color=T.MUTED)
-
-        self.lbl_partition_status = ctk.CTkLabel(
-            partition_parent,
-            text="● Partition unconfirmed. Click [Confirm & Inspect Partition] to verify.",
-            font=ctk.CTkFont(size=10),
-            text_color=T.MUTED,
-            anchor="w", wraplength=280, justify="left",
-        )
-        self.lbl_partition_status.pack(fill="x", padx=14, pady=(2, 6))
-
-        # Show initial unconfirmed standby state (plot is hidden until confirmed)
-        self.inspector.show_unconfirmed(
-            num_clients=12,
-            dataset="pathmnist",
-            partition_mode="practical",
-            client_id=0,
-        )
-
         # --- ADVANCED CONFIGURATION SUB-WINDOW TRIGGER ---
         self.btn_open_adv = ctk.CTkButton(
             self.scroll,
-            text="⚙  Open Advanced Configuration...",
+            text="Open Advanced Configuration...",
             height=34,
             font=ctk.CTkFont(size=11, weight="bold"),
             fg_color=T.SURFACE,
@@ -616,47 +573,45 @@ class ClientTab(ctk.CTkFrame):
             border_color=T.BORDER,
             command=self._open_advanced_dialog,
         )
-        self.btn_open_adv.pack(fill="x", padx=10, pady=(10, 4))
+        self.btn_open_adv.pack(fill="x", padx=10, pady=(14, 4))
 
         self.lbl_adv_status = ctk.CTkLabel(
             self.scroll,
-            text="● Standard Defaults Active",
+            text="[Standard Defaults Active]",
             font=ctk.CTkFont(size=11, weight="bold"),
             text_color=T.MUTED,
             anchor="center",
         )
-        self.lbl_adv_status.pack(fill="x", padx=10, pady=(0, 6))
+        self.lbl_adv_status.pack(fill="x", padx=10, pady=(0, 10))
 
         # Backward compatibility placeholders
         self.adv_container = ctk.CTkFrame(self.scroll, fg_color=T.SURFACE, corner_radius=6)
         self.btn_toggle_adv = self.btn_open_adv
         self.adv_partition_path = ctk.CTkEntry(self.adv_container)
 
-        # --- ACTION BUTTONS ---
-        self.scroll.pack_forget()
-        btn_box = ctk.CTkFrame(self, fg_color=T.PANEL, corner_radius=12, border_width=1, border_color=T.BORDER)
-        btn_box.pack(side="bottom", fill="x", padx=4, pady=(8, 4))
-        self.scroll.pack(fill="both", expand=True, padx=4, pady=4)
+        # --- LEFT COLUMN ACTION BUTTONS ---
+        btn_box = ctk.CTkFrame(left_col, fg_color=T.PANEL, corner_radius=12, border_width=1, border_color=T.BORDER)
+        btn_box.pack(side="bottom", fill="x", padx=0, pady=(6, 0))
 
         self.btn_start = ctk.CTkButton(
             btn_box,
-            text="▶ START FL CLIENT",
-            height=44,
+            text="START FL CLIENT",
+            height=40,
             font=ctk.CTkFont(size=11, weight="bold"),
             fg_color=T.PRIMARY,
             hover_color=T.PRIMARY_HOVER,
             text_color=T.ON_ACCENT,
             command=self._on_start_click,
         )
-        self.btn_start.pack(fill="x", padx=12, pady=(10, 8))
+        self.btn_start.pack(fill="x", padx=10, pady=(10, 6))
 
         sub_btns = ctk.CTkFrame(btn_box, fg_color="transparent")
-        sub_btns.pack(fill="x", padx=12, pady=(0, 10))
+        sub_btns.pack(fill="x", padx=10, pady=(0, 10))
 
         self.btn_stop = ctk.CTkButton(
             sub_btns,
-            text="■ STOP CLIENT",
-            height=34,
+            text="STOP CLIENT",
+            height=32,
             font=ctk.CTkFont(size=11, weight="bold"),
             fg_color=T.ERROR,
             hover_color=T.DANGER_HOVER,
@@ -667,8 +622,8 @@ class ClientTab(ctk.CTkFrame):
 
         self.btn_clear = ctk.CTkButton(
             sub_btns,
-            text="🔄 Clear Plots",
-            height=34,
+            text="Clear Plots",
+            height=32,
             font=ctk.CTkFont(size=11, weight="bold"),
             fg_color=T.PANEL,
             hover_color=T.SURFACE,
@@ -678,6 +633,61 @@ class ClientTab(ctk.CTkFrame):
             command=self._on_clear_click,
         )
         self.btn_clear.pack(side="right", fill="x", expand=True, padx=(4, 0))
+
+        # --- RIGHT COLUMN: SPACIOUS PARTITION INSPECTOR ---
+        self.right_panel = ctk.CTkFrame(self.columns, fg_color="transparent")
+        self.right_panel.pack(side="right", fill="both", expand=True, padx=(6, 0), pady=0)
+
+        self.inspector = ClientPartitionInspector(self.right_panel)
+        self.inspector.pack(fill="both", expand=True, padx=0, pady=(0, 8))
+
+        inspector_ctrl_box = ctk.CTkFrame(self.right_panel, fg_color=T.PANEL, corner_radius=12, border_width=1, border_color=T.BORDER)
+        inspector_ctrl_box.pack(fill="x", padx=0, pady=0)
+
+        part_toolbar = ctk.CTkFrame(inspector_ctrl_box, fg_color="transparent")
+        part_toolbar.pack(fill="x", padx=12, pady=(10, 4))
+
+        self.btn_confirm_partition = ctk.CTkButton(
+            part_toolbar,
+            text="Confirm & Inspect Partition",
+            height=32,
+            font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color=T.PRIMARY,
+            hover_color=T.PRIMARY_HOVER,
+            text_color=T.ON_ACCENT,
+            command=self._confirm_and_inspect_partition,
+        )
+        self.btn_confirm_partition.pack(side="left", fill="x", expand=True, padx=(0, 4))
+
+        self.btn_gen_partition = ctk.CTkButton(
+            part_toolbar,
+            text="Generate Partition",
+            height=32,
+            font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color=T.WARNING,
+            hover_color=T.WARNING_HOVER,
+            text_color=T.ON_ACCENT,
+            command=self._generate_missing_partition,
+        )
+        self.btn_gen_partition.pack(side="right", fill="x", expand=True, padx=(4, 0))
+        self.btn_gen_partition.configure(state="disabled", fg_color=T.MUTED)
+
+        self.lbl_partition_status = ctk.CTkLabel(
+            inspector_ctrl_box,
+            text="[i] Partition unconfirmed. Click [Confirm & Inspect Partition] to verify.",
+            font=ctk.CTkFont(size=10),
+            text_color=T.MUTED,
+            anchor="w",
+        )
+        self.lbl_partition_status.pack(fill="x", padx=14, pady=(2, 10))
+
+        # Show initial unconfirmed standby state (plot is hidden until confirmed)
+        self.inspector.show_unconfirmed(
+            num_clients=12,
+            dataset="pathmnist",
+            partition_mode="practical",
+            client_id=0,
+        )
 
     def _open_advanced_dialog(self):
         """Opens the modular multi-card Advanced Configuration sub-window for Client."""
@@ -699,13 +709,13 @@ class ClientTab(ctk.CTkFrame):
                 overrides += 1
         if overrides > 0:
             self.lbl_adv_status.configure(
-                text=f"● {overrides} Custom Overrides Active",
+                text=f"[{overrides} Custom Overrides Active]",
                 text_color=T.ACCENT,
             )
             self.btn_open_adv.configure(border_color=T.ACCENT)
         else:
             self.lbl_adv_status.configure(
-                text="● Standard Defaults Active",
+                text="[Standard Defaults Active]",
                 text_color=T.MUTED,
             )
             self.btn_open_adv.configure(border_color=T.BORDER)
@@ -714,9 +724,9 @@ class ClientTab(ctk.CTkFrame):
         """Backward compatibility helper for headless test suites."""
         self.adv_expanded = not self.adv_expanded
         if self.adv_expanded:
-            self.btn_toggle_adv.configure(text="⚙  Advanced Configuration (Active)")
+            self.btn_toggle_adv.configure(text="Advanced Configuration (Active)")
         else:
-            self.btn_toggle_adv.configure(text="⚙  Open Advanced Configuration...")
+            self.btn_toggle_adv.configure(text="Open Advanced Configuration...")
 
     def _increment_client_id(self):
         try:
@@ -786,7 +796,7 @@ class ClientTab(ctk.CTkFrame):
 
         self.inspector.show_unconfirmed(num_clients=nc, dataset=ds, partition_mode=pm, client_id=cid, seed=seed)
         self.lbl_partition_status.configure(
-            text="● Partition unconfirmed. Click [Confirm & Inspect Partition] to verify.",
+            text="[i] Partition unconfirmed. Click [Confirm & Inspect Partition] to verify.",
             text_color=T.MUTED,
         )
         self.btn_gen_partition.configure(state="disabled", fg_color=T.BORDER)
@@ -845,7 +855,7 @@ class ClientTab(ctk.CTkFrame):
             )
             self.btn_gen_partition.configure(state="disabled", fg_color=T.BORDER)
             self.lbl_partition_status.configure(
-                text=f"✓ Confirmed partition file: {p_file.name}",
+                text=f"[OK] Confirmed partition file: {p_file.name}",
                 text_color=T.SUCCESS,
             )
         else:
@@ -854,10 +864,10 @@ class ClientTab(ctk.CTkFrame):
             self.btn_gen_partition.configure(
                 state="normal",
                 fg_color=T.WARNING_ACTION,
-                text=f"⚡ Generate {nc}-Client Partition",
+                text=f"Generate {nc}-Client Partition",
             )
             self.lbl_partition_status.configure(
-                text=f"⚠️ Missing partition for {nc} clients. Click [Generate Partition] below.",
+                text=f"[!] Missing partition for {nc} clients. Click [Generate Partition] below.",
                 text_color=T.ERROR,
             )
 
@@ -880,7 +890,7 @@ class ClientTab(ctk.CTkFrame):
         self.btn_confirm_partition.configure(state="disabled")
         self.btn_gen_partition.configure(state="disabled")
         self.lbl_partition_status.configure(
-            text=f"⏳ Generating {num_clients}-client partition in background...",
+            text=f"Generating {num_clients}-client partition in background...",
             text_color=T.WARNING,
         )
 
@@ -915,13 +925,13 @@ class ClientTab(ctk.CTkFrame):
                     )
                     self.btn_gen_partition.configure(state="disabled", fg_color=T.BORDER)
                     self.lbl_partition_status.configure(
-                        text=f"✓ Auto-generated & confirmed {num_clients}-client partition!",
+                        text=f"[OK] Auto-generated & confirmed {num_clients}-client partition!",
                         text_color=T.SUCCESS,
                     )
                     if on_complete_callback:
                         on_complete_callback()
                 else:
-                    self.lbl_partition_status.configure(text=f"❌ {msg}", text_color=T.ERROR)
+                    self.lbl_partition_status.configure(text=f"[ERROR] {msg}", text_color=T.ERROR)
                     self.btn_gen_partition.configure(state="normal", fg_color=T.WARNING_ACTION)
             self.after(0, done)
 
@@ -1015,7 +1025,7 @@ class ClientTab(ctk.CTkFrame):
         else:
             # Auto-generate partition before starting!
             self.lbl_partition_status.configure(
-                text=f"⏳ Auto-generating {nc}-client partition before launch...",
+                text=f"Auto-generating {nc}-client partition before launch...",
                 text_color=T.WARNING,
             )
             self._trigger_partition_generation(

@@ -165,9 +165,9 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
         text_box.pack(side="left")
 
         title_text = (
-            "⚙  FL SERVER — ADVANCED CONFIGURATION"
+            "FL SERVER - ADVANCED CONFIGURATION"
             if self.mode == "server"
-            else "⚙  FL CLIENT — ADVANCED CONFIGURATION"
+            else "FL CLIENT - ADVANCED CONFIGURATION"
         )
         sub_text = (
             "Fine-grained algorithmic hyperparameters, optimization policies, early stopping, and storage overrides"
@@ -193,7 +193,7 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
 
         btn_close_top = ctk.CTkButton(
             header,
-            text="✕",
+            text="X",
             width=34,
             height=34,
             font=ctk.CTkFont(size=13, weight="bold"),
@@ -234,7 +234,7 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
 
         btn_reset = ctk.CTkButton(
             footer,
-            text="↺  Restore Defaults",
+            text="Restore Defaults",
             width=150,
             height=34,
             font=ctk.CTkFont(size=11, weight="bold"),
@@ -257,7 +257,7 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
 
         btn_save = ctk.CTkButton(
             footer,
-            text="✓  Save & Apply",
+            text="Save & Apply",
             width=140,
             height=34,
             font=ctk.CTkFont(size=12, weight="bold"),
@@ -299,9 +299,10 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
         c_header.pack(fill="x")
         c_header.pack_propagate(False)
 
+        header_text = f"{icon}  {title}" if icon else title
         lbl = ctk.CTkLabel(
             c_header,
-            text=f"{icon}  {title}",
+            text=header_text,
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color=T.TEXT,
         )
@@ -442,7 +443,7 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
         body = self._create_card(
             parent,
             title="STRATEGY MATHEMATICAL HYPERPARAMETERS",
-            icon="📐",
+            icon="",
             tag="Algorithmic",
             row=row,
             col=col,
@@ -533,7 +534,7 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
         body = self._create_card(
             parent,
             title="OPTIMIZATION POLICIES & LEARNING RATES",
-            icon="⚡",
+            icon="",
             tag="Convergence",
             row=row,
             col=col,
@@ -574,7 +575,7 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
         body = self._create_card(
             parent,
             title="EVALUATION & EARLY STOPPING",
-            icon="🎯",
+            icon="",
             tag="Validation",
             row=row,
             col=col,
@@ -626,7 +627,7 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
         body = self._create_card(
             parent,
             title="DATA PARTITIONS, HARDWARE & SYSTEM",
-            icon="📁",
+            icon="",
             tag="System / IO",
             row=row,
             col=col,
@@ -664,7 +665,7 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
 
         btn_browse_part = ctk.CTkButton(
             r_part,
-            text="📁 Browse",
+            text="Browse",
             width=70,
             height=26,
             font=ctk.CTkFont(size=11, weight="bold"),
@@ -712,7 +713,7 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
 
         btn_browse_dir = ctk.CTkButton(
             r_dir,
-            text="📁 Browse",
+            text="Browse",
             width=70,
             height=26,
             font=ctk.CTkFont(size=11, weight="bold"),

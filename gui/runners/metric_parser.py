@@ -51,6 +51,18 @@ class MetricStreamParser:
             self._parse_client_line(clean)
 
     def _parse_server_line(self, line: str):
+        # Check for real-time per-round client metrics
+        if "[CLIENT_ROUND_METRICS]" in line:
+            try:
+                import json
+                idx = line.find("[CLIENT_ROUND_METRICS]") + len("[CLIENT_ROUND_METRICS]")
+                payload = json.loads(line[idx:].strip())
+                if self.on_metric_callback:
+                    self.on_metric_callback("server_client_round", payload)
+                return
+            except Exception:
+                pass
+
         # Check for final client bundle
         if "[CLIENT_FINAL_METRICS]" in line:
             try:

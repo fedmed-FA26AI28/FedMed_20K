@@ -265,6 +265,34 @@ class FedStrategyBase(FlwrFedAvg):
             metrics_aggregated=metrics_aggregated,
         )
 
+        # Emit real-time per-round client metrics for GUI live telemetry table and curves
+        for _, fit_res in results:
+            m = fit_res.metrics or {}
+            cid = m.get("client_id")
+            if cid is not None:
+                try:
+                    import json
+                    round_pkg = {
+                        "client_id": int(cid),
+                        "server_round": int(server_round),
+                        "train_loss": float(m.get("train_loss", 0.0)),
+                        "train_accuracy": float(m.get("train_accuracy", 0.0)),
+                        "round_time": float(m.get("round_time", m.get("training_time", 0.0))),
+                        "epoch_time_avg": float(m.get("epoch_time_avg", 0.0)),
+                        "ping_ms": float(m.get("ping_ms", -1.0)),
+                        "weight_size_kb": float(m.get("weight_size_kb", 0.0)),
+                        "num_samples": int(fit_res.num_examples),
+                        "device_ipv4": str(m.get("device_ipv4", "")),
+                        "device_type": str(m.get("device_type", "")),
+                    }
+                    if "eval_loss" in m:
+                        round_pkg["eval_loss"] = float(m["eval_loss"])
+                    if "eval_accuracy" in m:
+                        round_pkg["eval_accuracy"] = float(m["eval_accuracy"])
+                    print(f"[CLIENT_ROUND_METRICS] {json.dumps(round_pkg)}", flush=True)
+                except Exception as e:
+                    log(WARNING, "[Server] Failed to emit client round metrics for client %s: %s", str(cid), e)
+
         # Unpack final-round complete client metrics & data distribution bundles if present
         for _, fit_res in results:
             m = fit_res.metrics or {}
