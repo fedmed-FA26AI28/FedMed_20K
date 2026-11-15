@@ -22,6 +22,8 @@ class LiveLogConsole(ctk.CTkFrame):
         self.show_source_switcher = show_source_switcher
         self.on_source_change = on_source_change
         self.mono_font = T.MONO_FONT
+        self._scroll_scheduled = False
+        self._last_telemetry_text: Optional[str] = None
 
         self._build_header(title)
         self._build_text_area()
@@ -222,6 +224,23 @@ class LiveLogConsole(ctk.CTkFrame):
         except tk.TclError:
             pass
 
+    def _schedule_autoscroll(self):
+        if self._scroll_scheduled or not self.autoscroll.get():
+            return
+        self._scroll_scheduled = True
+        try:
+            self.after_idle(self._flush_autoscroll)
+        except tk.TclError:
+            self._scroll_scheduled = False
+
+    def _flush_autoscroll(self):
+        self._scroll_scheduled = False
+        try:
+            if self.winfo_exists() and self.autoscroll.get() and self.winfo_viewable():
+                self.textbox.see(tk.END)
+        except tk.TclError:
+            pass
+
     def _insert_line(self, line: str):
         try:
             if not self.winfo_exists():
@@ -244,8 +263,15 @@ class LiveLogConsole(ctk.CTkFrame):
             else:
                 self.textbox.insert(tk.END, line)
 
+            try:
+                line_count = int(self.textbox.index("end-1c").split(".")[0])
+                if line_count > 2000:
+                    self.textbox.delete("1.0", "301.0")
+            except (tk.TclError, ValueError):
+                pass
+
             if self.autoscroll.get():
-                self.textbox.see(tk.END)
+                self._schedule_autoscroll()
         except tk.TclError:
             pass
 
@@ -272,7 +298,8 @@ class LiveLogConsole(ctk.CTkFrame):
 
         def _apply():
             try:
-                if self.winfo_exists():
+                if self.winfo_exists() and text != self._last_telemetry_text:
+                    self._last_telemetry_text = text
                     self.lbl_telemetry.configure(text=text)
             except tk.TclError:
                 pass

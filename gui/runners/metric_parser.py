@@ -11,6 +11,10 @@ class MetricStreamParser:
         self.total_rounds = 0
 
         # Regex patterns for Server
+        self.re_sim_matrix = re.compile(
+            r'>>>\s*\[Simulation\s+Matrix\s+(\d+)/(\d+)\]\s*Starting:\s*Dataset=([^\s|]+)\s*\|\s*Partition=([^\s|]+)\s*\|\s*Strategy=([^\s|]+)',
+            re.IGNORECASE,
+        )
         self.re_server_round = re.compile(
             r'(?:Starting\s+Round|(?:\[|\b)(?:Round|ROUND))\s*\[?(\d+)(?:\s*(?:/|\bof\b)\s*(\d+))?\]?(?!\s*:\s*[-+]?\d+(?:\.\d+)?(?:\s*$|\s*[,)]))',
             re.IGNORECASE,
@@ -63,6 +67,23 @@ class MetricStreamParser:
             self._parse_client_line(clean)
 
     def _parse_server_line(self, line: str):
+        # Check for Simulation Matrix transition between sub-runs
+        m_sim = self.re_sim_matrix.search(line)
+        if m_sim:
+            self.current_round = 0
+            if self.on_metric_callback:
+                self.on_metric_callback(
+                    "simulation_matrix_step",
+                    {
+                        "run_idx": int(m_sim.group(1)),
+                        "total_runs": int(m_sim.group(2)),
+                        "dataset": m_sim.group(3).strip(),
+                        "partition": m_sim.group(4).strip(),
+                        "strategy": m_sim.group(5).strip(),
+                    },
+                )
+            return
+
         # Check for real-time per-round client metrics
         if "[CLIENT_ROUND_METRICS]" in line:
             try:

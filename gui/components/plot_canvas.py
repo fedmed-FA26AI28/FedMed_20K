@@ -7,7 +7,7 @@ from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
 from matplotlib.ticker import MaxNLocator
 import numpy as np
-from typing import List, Dict, Optional, Any, Callable
+from typing import List, Dict, Optional, Any, Callable, Tuple
 
 
 class DualMetricPlotCanvas(ctk.CTkFrame):
@@ -46,6 +46,7 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         # Server: Client Inspection Packages (accumulated post-run / final round)
         self.client_packages: Dict[int, Dict[str, Any]] = {}
         self.server_active_view: str = "global"  # "global" or "client_<id>"
+        self._draw_after_id: Optional[str] = None
 
         self._build_legend_ribbon()
         self._build_figure()
@@ -149,6 +150,11 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
                 text_color=T.ACCENT,
             )
             self.lbl_client_summary.pack(side="left", padx=6)
+            if self.server_active_view.startswith("client_"):
+                try:
+                    self._update_client_summary_label(int(self.server_active_view.split("_")[-1]))
+                except Exception:
+                    pass
 
             self.badge_box = ctk.CTkFrame(self.ribbon_mode_frame, fg_color="transparent")
             badges = [
@@ -246,6 +252,37 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         self._build_figure()
         self._refresh_plots()
 
+    def _update_client_summary_label(self, cid: int) -> None:
+        """Update the ribbon summary text for the inspected server client."""
+        if not hasattr(self, "lbl_client_summary") or not self.lbl_client_summary.winfo_exists():
+            return
+        pkg = self.client_packages.get(int(cid), {})
+        history = pkg.get("history", []) or []
+        eval_h = pkg.get("eval_history", []) or []
+
+        samples = pkg.get("samples", 0) or 0
+        if not samples and history:
+            samples = history[-1].get("num_samples", 0) or 0
+
+        eval_accs = [
+            (float(e["eval_accuracy"]) * 100.0 if float(e["eval_accuracy"]) <= 1.0 else float(e["eval_accuracy"]))
+            for e in eval_h
+            if e.get("eval_accuracy") is not None
+        ]
+        if eval_accs:
+            best_acc = max(eval_accs)
+        else:
+            train_accs = [
+                (float(h["train_accuracy"]) * 100.0 if float(h["train_accuracy"]) <= 1.0 else float(h["train_accuracy"]))
+                for h in history
+                if h.get("train_accuracy") is not None
+            ]
+            best_acc = max(train_accs, default=0.0)
+
+        self.lbl_client_summary.configure(
+            text=f"Client {int(cid)} | Samples: {int(samples):,} | Best Acc: {best_acc:.1f}%"
+        )
+
     def _on_server_view_changed(self, choice: str):
         if "Global" in choice:
             self.server_active_view = "global"
@@ -256,27 +293,157 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
                 cid = int(choice.split()[-1])
                 self.server_active_view = f"client_{cid}"
                 self.badge_box.pack_forget()
-                pkg = self.client_packages.get(cid, {})
-                samples = pkg.get("samples", 0)
-                eval_h = pkg.get("eval_history", [])
-                best_acc = max([e.get("eval_accuracy", 0.0) for e in eval_h], default=0.0) * 100
-                self.lbl_client_summary.configure(
-                    text=f"Client {cid} | Samples: {samples:,} | Best Acc: {best_acc:.1f}%"
-                )
+                self._update_client_summary_label(cid)
             except Exception:
                 self.server_active_view = "global"
 
         self._build_figure()
         self._refresh_plots()
 
+    @staticmethod
+    def _merge_client_entries(
+        existing: List[Dict[str, Any]],
+        incoming: List[Dict[str, Any]],
+        round_keys: Tuple[str, ...],
+        canonical_key: str,
+        require_any_of: Optional[Tuple[str, ...]] = None,
+    ) -> List[Dict[str, Any]]:
+        """Merge round-keyed dictionaries cleanly without clobbering prior rounds."""
+        by_round: Dict[int, Dict[str, Any]] = {}
+        for entry in list(existing or []) + list(incoming or []):
+            if not isinstance(entry, dict):
+                continue
+            if require_any_of and all(entry.get(k) is None for k in require_any_of):
+                continue
+            r_val = None
+            for rk in round_keys:
+                if entry.get(rk) is not None:
+                    try:
+                        r_val = int(entry[rk])
+                        break
+                    except (TypeError, ValueError):
+                        pass
+            if r_val is None:
+                continue
+            merged = dict(by_round.get(r_val, {}))
+            for k, v in entry.items():
+                if v is not None:
+                    merged[k] = v
+            merged[canonical_key] = r_val
+            by_round[r_val] = merged
+        return [by_round[r] for r in sorted(by_round.keys())]
+
     def add_client_package(self, payload: Dict[str, Any]):
-        """Register a client's final metrics & data distribution package for post-training inspection."""
-        cid = payload.get("client_id")
-        if cid is not None:
-            self.client_packages[int(cid)] = payload
-            if self.mode == "server" and hasattr(self, "cmb_server_view") and self.cmb_server_view.winfo_exists():
-                c_options = ["Global Server Metrics"] + [f"Client {c}" for c in sorted(self.client_packages.keys())]
+        """Merge a client's round or final metrics & distribution package and refresh active inspection view."""
+        cid_raw = payload.get("client_id")
+        if cid_raw is None:
+            return
+        cid = int(cid_raw)
+
+        existed = cid in self.client_packages
+        pkg = self.client_packages.setdefault(
+            cid,
+            {
+                "client_id": cid,
+                "samples": 0,
+                "distribution": {},
+                "history": [],
+                "eval_history": [],
+            },
+        )
+        prev_state = (
+            pkg.get("samples", 0),
+            dict(pkg.get("distribution") or {}),
+            [dict(h) for h in (pkg.get("history") or [])],
+            [dict(e) for e in (pkg.get("eval_history") or [])],
+        )
+
+        samples_val = payload.get("samples") if payload.get("samples") is not None else payload.get("num_samples")
+        if samples_val is not None:
+            try:
+                if int(samples_val) > 0:
+                    pkg["samples"] = int(samples_val)
+            except (TypeError, ValueError):
+                pass
+
+        dist = payload.get("distribution")
+        if isinstance(dist, dict) and dist:
+            merged_dist = dict(pkg.get("distribution") or {})
+            merged_dist.update(dist)
+            pkg["distribution"] = merged_dist
+
+        incoming_hist = list(payload.get("history") or [])
+        flat_round = payload.get("server_round") if payload.get("server_round") is not None else payload.get("round")
+        if flat_round is not None and (
+            payload.get("train_loss") is not None or payload.get("train_accuracy") is not None
+        ):
+            flat_fit: Dict[str, Any] = {"round": int(flat_round)}
+            if payload.get("train_loss") is not None:
+                flat_fit["train_loss"] = payload["train_loss"]
+            if payload.get("train_accuracy") is not None:
+                flat_fit["train_accuracy"] = payload["train_accuracy"]
+            if payload.get("num_samples") is not None:
+                flat_fit["num_samples"] = payload["num_samples"]
+            incoming_hist.append(flat_fit)
+
+        pkg["history"] = self._merge_client_entries(
+            pkg.get("history", []),
+            incoming_hist,
+            round_keys=("round", "server_round"),
+            canonical_key="round",
+        )
+
+        if not pkg["samples"] and pkg["history"]:
+            try:
+                last_samples = pkg["history"][-1].get("num_samples", 0)
+                if last_samples:
+                    pkg["samples"] = int(last_samples)
+            except (TypeError, ValueError):
+                pass
+
+        incoming_eval = list(payload.get("eval_history") or [])
+        if flat_round is not None and (
+            payload.get("eval_loss") is not None or payload.get("eval_accuracy") is not None
+        ):
+            flat_eval: Dict[str, Any] = {"server_round": int(flat_round)}
+            if payload.get("eval_loss") is not None:
+                flat_eval["eval_loss"] = payload["eval_loss"]
+            if payload.get("eval_accuracy") is not None:
+                flat_eval["eval_accuracy"] = payload["eval_accuracy"]
+            incoming_eval.append(flat_eval)
+
+        pkg["eval_history"] = self._merge_client_entries(
+            pkg.get("eval_history", []),
+            incoming_eval,
+            round_keys=("server_round", "round"),
+            canonical_key="server_round",
+            require_any_of=("eval_loss", "eval_accuracy"),
+        )
+        pkg["rounds"] = max(len(pkg["history"]), len(pkg["eval_history"]))
+        new_state = (
+            pkg.get("samples", 0),
+            dict(pkg.get("distribution") or {}),
+            pkg.get("history") or [],
+            pkg.get("eval_history") or [],
+        )
+        pkg_changed = (not existed) or (new_state != prev_state)
+
+        if self.mode == "server" and hasattr(self, "cmb_server_view") and self.cmb_server_view.winfo_exists():
+            c_options = ["Global Server Metrics"] + [f"Client {c}" for c in sorted(self.client_packages.keys())]
+            try:
+                existing_vals = list(self.cmb_server_view.cget("values") or [])
+            except Exception:
+                existing_vals = []
+            if existing_vals != c_options:
                 self.cmb_server_view.configure(values=c_options)
+
+        if self.mode == "server" and self.server_active_view == f"client_{cid}":
+            needs_fig = getattr(self, "ax_dist", None) is None
+            if needs_fig:
+                self._build_figure()
+            if pkg_changed or needs_fig:
+                self._update_client_summary_label(cid)
+                self._refresh_plots()
 
     def _set_appearance_mode(self, mode):
         super()._set_appearance_mode(mode)
@@ -285,13 +452,21 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
             self._refresh_plots()
 
     def _build_figure(self):
-        """Create Matplotlib side-by-side figure layout (Accuracy left, Loss right, optional Distribution far right)."""
+        """Create Matplotlib figure layout (Accuracy left, Loss right, optional Distribution far right)."""
+        if getattr(self, "_draw_after_id", None) is not None:
+            try:
+                self.after_cancel(self._draw_after_id)
+            except Exception:
+                pass
+            self._draw_after_id = None
+
         if hasattr(self, "canvas") and self.canvas is not None:
             self.canvas.get_tk_widget().destroy()
 
         if self.mode == "server" and self.server_active_view.startswith("client_"):
-            # 1x3 Side-by-Side: Accuracy | Loss | Data Distribution
-            self.fig = Figure(figsize=(11.5, 3.8), dpi=100, facecolor=T.resolve(T.PANEL), constrained_layout=True)
+            # 1x3 panels: Accuracy | Loss | Data Distribution
+            self.fig = Figure(figsize=(11.5, 3.8), dpi=100, facecolor=T.resolve(T.PANEL))
+            self.fig.subplots_adjust(left=0.06, right=0.98, top=0.88, bottom=0.16, wspace=0.28)
             gs = self.fig.add_gridspec(1, 3, width_ratios=[1.1, 1.1, 1.0])
             self.ax_acc = self.fig.add_subplot(gs[0, 0])
             self.ax_loss = self.fig.add_subplot(gs[0, 1], sharex=self.ax_acc)
@@ -300,8 +475,9 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
             self._style_axis(self.ax_loss, "Client Loss (Train vs Eval)", "Server Round", "Loss")
             self._style_axis(self.ax_dist, "Data Distribution", "Class Label", "Sample Count")
         else:
-            # 1x2 Side-by-Side Panels: Accuracy (Left) and Loss (Right) sharing X-axis
-            self.fig = Figure(figsize=(10.5, 3.8), dpi=100, facecolor=T.resolve(T.PANEL), constrained_layout=True)
+            # 1x2 panels: Accuracy (Left) and Loss (Right) sharing X-axis
+            self.fig = Figure(figsize=(10.5, 3.8), dpi=100, facecolor=T.resolve(T.PANEL))
+            self.fig.subplots_adjust(left=0.07, right=0.98, top=0.88, bottom=0.16, wspace=0.25)
             self.ax_acc = self.fig.add_subplot(1, 2, 1)
             self.ax_loss = self.fig.add_subplot(1, 2, 2, sharex=self.ax_acc)
             self.ax_dist = None
@@ -360,19 +536,20 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
                               bmcta: Optional[float] = None, ta: Optional[float] = None, mcta: Optional[float] = None):
         """Merge and plot live curves for server global metrics keyed by round."""
         r_num = int(r)
+        existed = r_num in self._server_round_map
         entry = self._server_round_map.setdefault(
             r_num, {"loss": None, "bta": None, "bmcta": None, "ta": None, "mcta": None}
         )
-        if loss is not None:
-            entry["loss"] = float(loss)
-        if bta is not None:
-            entry["bta"] = float(bta)
-        if bmcta is not None:
-            entry["bmcta"] = float(bmcta)
-        if ta is not None:
-            entry["ta"] = float(ta)
-        if mcta is not None:
-            entry["mcta"] = float(mcta)
+        changed = not existed
+        for key, val in (("loss", loss), ("bta", bta), ("bmcta", bmcta), ("ta", ta), ("mcta", mcta)):
+            if val is not None:
+                f_val = float(val)
+                if entry[key] != f_val:
+                    entry[key] = f_val
+                    changed = True
+
+        if not changed:
+            return
 
         self._sync_server_arrays()
 
@@ -408,14 +585,43 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
             entry["ta"] = float(ta)
         if bta is not None:
             entry["bta"] = float(bta)
+        elif ta is not None:
+            prev_btas = [
+                float(v["bta"])
+                for rk, v in self._client_round_map.items()
+                if rk <= r_num and v.get("bta") is not None
+            ]
+            entry["bta"] = max([float(ta)] + prev_btas)
 
         self._sync_client_round_arrays()
 
         if self.mode == "client" and self.client_view_mode == "round":
             self._refresh_plots()
 
+    def _schedule_canvas_draw(self):
+        """Coalesce Matplotlib canvas repaints via a short 25ms debounce timer."""
+        if not hasattr(self, "canvas") or self.canvas is None:
+            return
+        if getattr(self, "_draw_after_id", None) is not None:
+            return
+        try:
+            if self.winfo_exists():
+                self._draw_after_id = self.after(25, self._flush_canvas_draw)
+        except Exception:
+            self._draw_after_id = None
+
+    def _flush_canvas_draw(self):
+        self._draw_after_id = None
+        if not hasattr(self, "canvas") or self.canvas is None:
+            return
+        try:
+            if self.winfo_exists():
+                self.canvas.draw_idle()
+        except Exception:
+            pass
+
     def _refresh_plots(self):
-        """Re-render data points on active Matplotlib axes and force immediate canvas redraw."""
+        """Re-render data points on active Matplotlib axes and schedule coalesced canvas redraw."""
         if not hasattr(self, "ax_loss") or self.ax_loss is None:
             return
 
@@ -436,11 +642,7 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
             else:
                 self._render_client_epoch()
 
-        if hasattr(self, "canvas") and self.canvas is not None:
-            try:
-                self.canvas.draw()
-            except Exception:
-                self.canvas.draw_idle()
+        self._schedule_canvas_draw()
 
     def _render_server_global(self):
         """Render global server metrics curves from consolidated round map."""
@@ -477,6 +679,8 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         """Render picked client's round curves and data distribution bar chart."""
         self._style_axis(self.ax_loss, f"Client {cid} - Loss", "Server Round", "Loss")
         self._style_axis(self.ax_acc, f"Client {cid} - Accuracy", "Server Round", "Accuracy (%)")
+        self.ax_loss.xaxis.set_major_locator(MaxNLocator(integer=True))
+        self.ax_acc.xaxis.set_major_locator(MaxNLocator(integer=True))
         if self.ax_dist is not None:
             self._style_axis(self.ax_dist, f"Client {cid} - Class Distribution", "Class", "Samples")
 
@@ -486,29 +690,61 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         dist_dict = pkg.get("distribution", {})
 
         # 1. Loss Panel
-        rounds_h = [h.get("round", i + 1) for i, h in enumerate(history)]
-        losses_h = [h.get("train_loss", 0.0) for h in history]
+        train_loss_pts = [
+            (int(h.get("round", h.get("server_round", i + 1))), float(h["train_loss"]))
+            for i, h in enumerate(history)
+            if h.get("train_loss") is not None
+        ]
+        eval_loss_pts = [
+            (int(e.get("server_round", e.get("round", i + 1))), float(e["eval_loss"]))
+            for i, e in enumerate(eval_history)
+            if e.get("eval_loss") is not None
+        ]
+        rounds_h = [r for r, _ in train_loss_pts]
+        losses_h = [v for _, v in train_loss_pts]
+        eval_rounds_l = [r for r, _ in eval_loss_pts]
+        eval_losses = [v for _, v in eval_loss_pts]
+
         if rounds_h and losses_h:
             self.ax_loss.plot(rounds_h, losses_h, color=T.resolve(T.WARNING), lw=2, marker="o", markersize=3, label="Train Loss")
-        eval_rounds = [e.get("server_round", i + 1) for i, e in enumerate(eval_history)]
-        eval_losses = [e.get("eval_loss", 0.0) for e in eval_history if e.get("eval_loss") is not None]
-        if eval_rounds and eval_losses:
-            self.ax_loss.plot(eval_rounds[:len(eval_losses)], eval_losses, color=T.resolve(T.ERROR), lw=2, marker="s", markersize=3, label="Test Loss")
+        if eval_rounds_l and eval_losses:
+            self.ax_loss.plot(eval_rounds_l, eval_losses, color=T.resolve(T.ERROR), lw=2, marker="s", markersize=3, label="Test Loss")
         if losses_h or eval_losses:
             all_l = losses_h + eval_losses
-            self._set_axis_limits(self.ax_loss, rounds_h or eval_rounds, all_l)
+            all_rounds_l = sorted(set(rounds_h) | set(eval_rounds_l))
+            self._set_axis_limits(self.ax_loss, all_rounds_l, all_l)
             self.ax_loss.legend(facecolor=T.resolve(T.PANEL), edgecolor=T.resolve(T.BORDER), labelcolor=T.resolve(T.TEXT), fontsize=9)
 
         # 2. Accuracy Panel
-        accs_h = [h.get("train_accuracy", 0.0) * 100 for h in history]
-        if rounds_h and accs_h:
-            self.ax_acc.plot(rounds_h, accs_h, color=T.resolve(T.BLUE), lw=2, marker="o", markersize=3, label="Train Acc")
-        eval_accs = [e.get("eval_accuracy", 0.0) * 100 for e in eval_history]
-        if eval_rounds and eval_accs:
-            self.ax_acc.plot(eval_rounds, eval_accs, color=T.resolve(T.ACCENT), lw=2, marker="s", markersize=3, label="Test TA")
+        train_acc_pts = [
+            (
+                int(h.get("round", h.get("server_round", i + 1))),
+                float(h["train_accuracy"]) * 100.0 if float(h["train_accuracy"]) <= 1.0 else float(h["train_accuracy"]),
+            )
+            for i, h in enumerate(history)
+            if h.get("train_accuracy") is not None
+        ]
+        eval_acc_pts = [
+            (
+                int(e.get("server_round", e.get("round", i + 1))),
+                float(e["eval_accuracy"]) * 100.0 if float(e["eval_accuracy"]) <= 1.0 else float(e["eval_accuracy"]),
+            )
+            for i, e in enumerate(eval_history)
+            if e.get("eval_accuracy") is not None
+        ]
+        rounds_a = [r for r, _ in train_acc_pts]
+        accs_h = [v for _, v in train_acc_pts]
+        eval_rounds_a = [r for r, _ in eval_acc_pts]
+        eval_accs = [v for _, v in eval_acc_pts]
+
+        if rounds_a and accs_h:
+            self.ax_acc.plot(rounds_a, accs_h, color=T.resolve(T.BLUE), lw=2, marker="o", markersize=3, label="Train Acc")
+        if eval_rounds_a and eval_accs:
+            self.ax_acc.plot(eval_rounds_a, eval_accs, color=T.resolve(T.ACCENT), lw=2, marker="s", markersize=3, label="Test TA")
         if accs_h or eval_accs:
             all_a = accs_h + eval_accs
-            self._set_axis_limits(self.ax_acc, rounds_h or eval_rounds, all_a, is_acc=True, max_val_100=True)
+            all_rounds_a = sorted(set(rounds_a) | set(eval_rounds_a))
+            self._set_axis_limits(self.ax_acc, all_rounds_a, all_a, is_acc=True, max_val_100=True)
             self.ax_acc.legend(facecolor=T.resolve(T.PANEL), edgecolor=T.resolve(T.BORDER), labelcolor=T.resolve(T.TEXT), fontsize=9)
 
         # 3. Data Distribution Panel

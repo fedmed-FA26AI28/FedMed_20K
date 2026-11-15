@@ -1,8 +1,8 @@
-"""Local training loop for client models.
+"""Local training loop for client / centralized models.
 
-Performs forward and backward passes, updates model parameters,
-and optionally tracks local validation metrics, learning rate reduction,
-and early stopping.
+Performs forward and backward passes, optionally tracks validation and test
+metrics per epoch, manages LR scheduling (fixed, server_decay, or ReduceLROnPlateau),
+gradient clipping, and decoupled best-checkpoint / early-stopping tracking.
 """
 
 import time
@@ -12,6 +12,25 @@ import torch.nn as nn
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 
 
+def _evaluate_split(model, loader, criterion, device):
+    """Evaluate model loss and accuracy on a DataLoader split."""
+    model.eval()
+    total_loss = 0.0
+    correct = 0
+    total = 0
+    with torch.no_grad():
+        for images, labels in loader:
+            images = images.to(device)
+            labels = labels.view(-1).long().to(device)
+            outputs = model(images)
+            loss = criterion(outputs, labels)
+            total_loss += loss.item() * images.size(0)
+            _, predicted = torch.max(outputs.data, 1)
+            total += labels.size(0)
+            correct += (predicted == labels).sum().item()
+    return (total_loss / total if total > 0 else 0.0), (correct / total if total > 0 else 0.0)
+
+
 def train(
     model,
     train_loader,
@@ -19,46 +38,78 @@ def train(
     epochs,
     device,
     val_loader=None,
+    test_loader=None,
+    lr_mode: str = None,
     lr_patience: int = 3,
     lr_factor: float = 0.5,
     min_lr: float = 1e-6,
+    lr_decay_steps: int = 15,
+    lr_decay_gamma: float = 0.5,
     early_stop_patience: int = 8,
+    early_stop_metric: str = "accuracy",
+    clip_grad_norm: float = None,
 ):
     criterion = nn.CrossEntropyLoss()
     model.train()
 
     start_time = time.time()
+    initial_lr = float(optimizer.param_groups[0]["lr"])
 
-    # 1. Initialize Learning Rate Scheduler
-    # - factor: reduce LR by multiplicative factor when validation loss plateaus
-    # - patience: epochs to wait before reducing LR
-    # - min_lr: lower bound for learning rate
-    scheduler = ReduceLROnPlateau(
-        optimizer, mode='min', factor=lr_factor, patience=lr_patience, min_lr=min_lr
-    )
-    
-    # 2. Early stopping state
-    best_loss = float('inf')
+    # 1. Resolve Learning Rate Scheduling Mode (matching client/client.py semantics)
+    # Preserve backward compatibility if callers pass lr_mode=None:
+    # use 'plateau' when lr_patience > 0, otherwise 'fixed'.
+    if lr_mode is None:
+        mode_str = "plateau" if (lr_patience is not None and int(lr_patience) > 0) else "fixed"
+    else:
+        mode_str = str(lr_mode).lower().strip()
+
+    scheduler = None
+    if mode_str in ("client_loss", "val_loss", "plateau") and lr_patience is not None and int(lr_patience) > 0:
+        scheduler = ReduceLROnPlateau(
+            optimizer, mode="min", factor=lr_factor, patience=int(lr_patience), min_lr=min_lr
+        )
+
+    # 2. Best-model & early stopping state (patience <= 0 disables stopping, never disables best tracking)
+    patience = int(early_stop_patience) if early_stop_patience is not None else 0
+    metric_mode = str(early_stop_metric or "accuracy").lower().strip()
     patience_counter = 0
-    patience = early_stop_patience
+    best_monitored = None
+    best_checkpoint_metric = None
     best_weights = None
     best_epoch = 0
-    best_val_loss = None
-    best_val_acc = None
+
+    best_val_loss = float("inf")
+    best_val_loss_epoch = 0
+    best_val_acc = -1.0
+    best_val_acc_epoch = 0
+
+    best_test_acc = -1.0
+    best_test_epoch = 0
+    bta_loss = None
+    best_test_loss = float("inf")
+    best_test_weights = None
 
     history = {
         "loss": [],
-        "accuracy": []
+        "accuracy": [],
+        "lr": [],
     }
-
     if val_loader is not None:
         history["val_loss"] = []
         history["val_accuracy"] = []
-    
+    if test_loader is not None:
+        history["test_loss"] = []
+        history["test_accuracy"] = []
+
     total = 0
     for epoch in range(epochs):
-        model.train() 
-        
+        # Apply step decay when configured with server_decay mode
+        if mode_str == "server_decay" and lr_decay_steps is not None and int(lr_decay_steps) > 0:
+            decayed_lr = max(initial_lr * (lr_decay_gamma ** (epoch // int(lr_decay_steps))), min_lr)
+            for param_group in optimizer.param_groups:
+                param_group["lr"] = decayed_lr
+
+        model.train()
         running_loss = 0.0
         correct = 0
         total = 0
@@ -70,7 +121,8 @@ def train(
             outputs = model(images)
             loss = criterion(outputs, labels)
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1) 
+            if clip_grad_norm is not None and float(clip_grad_norm) > 0.0:
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=float(clip_grad_norm))
             optimizer.step()
 
             running_loss += loss.item() * images.size(0)
@@ -78,80 +130,136 @@ def train(
             total += labels.size(0)
             correct += (predicted == labels).sum().item()
 
-        epoch_loss = running_loss / total
-        epoch_accuracy = correct / total
+        epoch_loss = running_loss / total if total > 0 else 0.0
+        epoch_accuracy = correct / total if total > 0 else 0.0
+        current_lr = float(optimizer.param_groups[0]["lr"])
 
-        history['loss'].append(epoch_loss)
-        history['accuracy'].append(epoch_accuracy)
-        
-        current_lr = optimizer.param_groups[0]['lr']
-        print_str = f"Epoch [{epoch + 1}/{epochs}] (LR: {current_lr:.6f}) | Train Loss: {epoch_loss:.4f}, Train Acc: {epoch_accuracy:.4f}"
+        history["loss"].append(epoch_loss)
+        history["accuracy"].append(epoch_accuracy)
+        history["lr"].append(current_lr)
 
+        print_str = (
+            f"Epoch [{epoch + 1}/{epochs}] (LR: {current_lr:.6f}) | "
+            f"Train Loss: {epoch_loss:.4f}, Train Acc: {epoch_accuracy:.4f}"
+        )
+
+        val_epoch_loss = None
+        val_epoch_accuracy = None
         if val_loader is not None:
-            model.eval()
-            val_loss = 0.0
-            val_correct = 0
-            val_total = 0
-            with torch.no_grad():
-                for val_images, val_labels in val_loader:
-                    val_images = val_images.to(device)
-                    val_labels = val_labels.view(-1).long().to(device)
-
-                    val_outputs = model(val_images)
-                    v_loss = criterion(val_outputs, val_labels)
-                    val_loss += v_loss.item() * val_images.size(0)
-
-                    _, val_predicted = torch.max(val_outputs.data, 1)
-                    val_total += val_labels.size(0)
-                    val_correct += (val_predicted == val_labels).sum().item()
-            val_epoch_loss = val_loss / val_total
-            val_epoch_accuracy = val_correct / val_total
-            history['val_loss'].append(val_epoch_loss)  
-            history['val_accuracy'].append(val_epoch_accuracy)
-
+            val_epoch_loss, val_epoch_accuracy = _evaluate_split(model, val_loader, criterion, device)
+            history["val_loss"].append(val_epoch_loss)
+            history["val_accuracy"].append(val_epoch_accuracy)
             print_str += f" | Val Loss: {val_epoch_loss:.4f}, Val Acc: {val_epoch_accuracy:.4f}"
-            print(print_str)
-            
-            old_lr = optimizer.param_groups[0]['lr']
-            scheduler.step(val_epoch_loss)
-            new_lr = optimizer.param_groups[0]['lr']
-            
-            if new_lr < old_lr:
-                print(f"   Val loss did not decrease, automatically reducing Learning Rate to {new_lr:.6f}")
-                
-            # --- Early stopping on validation loss ---
-            if val_epoch_loss < best_loss:
-                best_loss = val_epoch_loss
-                patience_counter = 0
-                best_weights = copy.deepcopy(model.state_dict())
-                best_epoch = epoch + 1
+
+            if val_epoch_loss < best_val_loss:
                 best_val_loss = val_epoch_loss
+                best_val_loss_epoch = epoch + 1
+            if val_epoch_accuracy > best_val_acc:
                 best_val_acc = val_epoch_accuracy
+                best_val_acc_epoch = epoch + 1
+
+        test_epoch_loss = None
+        test_epoch_accuracy = None
+        if test_loader is not None:
+            test_epoch_loss, test_epoch_accuracy = _evaluate_split(model, test_loader, criterion, device)
+            history["test_loss"].append(test_epoch_loss)
+            history["test_accuracy"].append(test_epoch_accuracy)
+
+            if test_epoch_accuracy > best_test_acc:
+                best_test_acc = test_epoch_accuracy
+                best_test_epoch = epoch + 1
+                bta_loss = test_epoch_loss
+                best_test_weights = copy.deepcopy(model.state_dict())
+            if test_epoch_loss < best_test_loss:
+                best_test_loss = test_epoch_loss
+
+            print_str += (
+                f" | Test Loss: {test_epoch_loss:.4f}, Test Acc: {test_epoch_accuracy:.4f} "
+                f"(BTA: {best_test_acc * 100:.2f}% @ E{best_test_epoch})"
+            )
+
+        print(print_str)
+
+        # Step plateau scheduler only when active in client_loss / val_loss / plateau mode
+        if scheduler is not None:
+            old_lr = float(optimizer.param_groups[0]["lr"])
+            scheduler_metric = val_epoch_loss if val_epoch_loss is not None else epoch_loss
+            scheduler.step(scheduler_metric)
+            new_lr = float(optimizer.param_groups[0]["lr"])
+            if new_lr < old_lr:
+                print(f"   Loss plateaued, automatically reducing Learning Rate to {new_lr:.6f}")
+
+        # Track best checkpoint & optional early stopping
+        monitored = None
+        if test_loader is not None:
+            monitored = test_epoch_accuracy if metric_mode == "accuracy" else test_epoch_loss
+        elif val_loader is not None:
+            monitored = val_epoch_accuracy if metric_mode == "accuracy" else val_epoch_loss
+
+        if monitored is not None:
+            if test_loader is not None and metric_mode == "accuracy" and best_test_weights is not None:
+                best_weights = best_test_weights
+                best_epoch = best_test_epoch
+            else:
+                strictly_better = (
+                    best_checkpoint_metric is None
+                    or (monitored < best_checkpoint_metric if metric_mode == "loss" else monitored > best_checkpoint_metric)
+                )
+                if strictly_better:
+                    best_checkpoint_metric = monitored
+                    best_weights = copy.deepcopy(model.state_dict())
+                    best_epoch = epoch + 1
+
+            if metric_mode == "loss":
+                improved = best_monitored is None or monitored < (best_monitored - 1e-5)
+            else:
+                improved = best_monitored is None or monitored > (best_monitored + 1e-5)
+
+            if improved:
+                best_monitored = monitored
+                patience_counter = 0
             else:
                 patience_counter += 1
-                if patience_counter >= patience:
-                    print(f"--- Early stopping triggered at Epoch {epoch + 1}! Val Loss did not decrease for {patience} consecutive epochs. ---")
+                if patience > 0 and patience_counter >= patience:
+                    print(
+                        f"--- Early stopping triggered at Epoch {epoch + 1}! "
+                        f"{metric_mode.capitalize()} did not improve for {patience} consecutive epochs. ---"
+                    )
                     break
-        else:
-            # If no validation set, display training metrics only
-            print(print_str)
-        
+
     training_time = time.time() - start_time
-    if val_loader is not None and best_weights is not None:
-        print("Reloading best weights for testing...")
+    final_weights = copy.deepcopy(model.state_dict())
+
+    if best_weights is not None:
+        print(f"Reloading best weights (Epoch {best_epoch}) for final evaluation...")
         model.load_state_dict(best_weights)
 
     metrics = {
         "training_time": training_time,
-        "final_loss": history['loss'][-1] if history['loss'] else 0.0,
-        "final_accuracy": history['accuracy'][-1] if history['accuracy'] else 0.0,
+        "final_loss": history["loss"][-1] if history["loss"] else 0.0,
+        "final_accuracy": history["accuracy"][-1] if history["accuracy"] else 0.0,
         "num_samples": total,
-        "history": history
+        "history": history,
+        "lr_mode": mode_str,
+        "best_weights": best_weights,
+        "final_weights": final_weights,
     }
-    if val_loader is not None and 'val_loss' in history and history['val_loss']:
-        metrics["final_val_loss"] = history['val_loss'][-1]
-        metrics["final_val_accuracy"] = history['val_accuracy'][-1]
+    if best_epoch > 0:
         metrics["best_epoch"] = best_epoch
+    if val_loader is not None and "val_loss" in history and history["val_loss"]:
+        metrics["final_val_loss"] = history["val_loss"][-1]
+        metrics["final_val_accuracy"] = history["val_accuracy"][-1]
         metrics["best_val_loss"] = best_val_loss
+        metrics["best_val_loss_epoch"] = best_val_loss_epoch
         metrics["best_val_acc"] = best_val_acc
+        metrics["best_val_acc_epoch"] = best_val_acc_epoch
+    if test_loader is not None and "test_loss" in history and history["test_loss"]:
+        metrics["bta"] = best_test_acc
+        metrics["bta_epoch"] = best_test_epoch
+        metrics["bta_loss"] = bta_loss
+        metrics["best_test_accuracy"] = best_test_acc
+        metrics["best_test_epoch"] = best_test_epoch
+        metrics["best_test_loss"] = best_test_loss
+        metrics["final_test_accuracy"] = history["test_accuracy"][-1]
+        metrics["final_test_loss"] = history["test_loss"][-1]
     return metrics

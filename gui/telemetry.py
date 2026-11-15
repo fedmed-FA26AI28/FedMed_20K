@@ -117,6 +117,8 @@ class HardwareTelemetryMonitor:
         self._running = False
         self._thread: Optional[threading.Thread] = None
         self._nvml = _NVMLBackend()
+        self._smi_available: Optional[bool] = None
+        self._torch_cuda_available: Optional[bool] = None
 
     def start(self):
         if self._running:
@@ -191,55 +193,61 @@ class HardwareTelemetryMonitor:
         if res:
             return res
 
-        # 2. nvidia-smi subprocess query
-        try:
-            import subprocess
-            out = subprocess.check_output(
-                ["nvidia-smi", "--query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu", "--format=csv,noheader,nounits"],
-                creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0,
-                text=True,
-                timeout=0.6,
-            ).strip()
-            parts = [p.strip() for p in out.split(",")]
-            if len(parts) >= 4:
-                raw_name = parts[0]
-                cleaned = raw_name.replace("NVIDIA", "").replace("GeForce", "").strip()
-                gpu_util = float(parts[1])
-                used_mb = float(parts[2])
-                total_mb = float(parts[3])
-                temp = int(float(parts[4])) if len(parts) >= 5 else None
-                return {
-                    "has_gpu": True,
-                    "gpu_name": cleaned or raw_name,
-                    "gpu_util": gpu_util,
-                    "gpu_temp": temp,
-                    "vram_used_gb": round(used_mb / 1024, 2),
-                    "vram_total_gb": round(total_mb / 1024, 2),
-                    "vram_percent": round((used_mb / total_mb) * 100, 1) if total_mb > 0 else 0.0,
-                }
-        except Exception:
-            pass
+        # 2. nvidia-smi subprocess query (skip permanently if absent)
+        if self._smi_available is not False:
+            try:
+                import subprocess
+                out = subprocess.check_output(
+                    ["nvidia-smi", "--query-gpu=name,utilization.gpu,memory.used,memory.total,temperature.gpu", "--format=csv,noheader,nounits"],
+                    creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0,
+                    text=True,
+                    timeout=0.6,
+                ).strip()
+                parts = [p.strip() for p in out.split(",")]
+                if len(parts) >= 4:
+                    self._smi_available = True
+                    raw_name = parts[0]
+                    cleaned = raw_name.replace("NVIDIA", "").replace("GeForce", "").strip()
+                    gpu_util = float(parts[1])
+                    used_mb = float(parts[2])
+                    total_mb = float(parts[3])
+                    temp = int(float(parts[4])) if len(parts) >= 5 else None
+                    return {
+                        "has_gpu": True,
+                        "gpu_name": cleaned or raw_name,
+                        "gpu_util": gpu_util,
+                        "gpu_temp": temp,
+                        "vram_used_gb": round(used_mb / 1024, 2),
+                        "vram_total_gb": round(total_mb / 1024, 2),
+                        "vram_percent": round((used_mb / total_mb) * 100, 1) if total_mb > 0 else 0.0,
+                    }
+                self._smi_available = False
+            except Exception:
+                self._smi_available = False
 
-        # 3. PyTorch fallback
-        try:
-            import torch
-            if torch.cuda.is_available():
-                name = torch.cuda.get_device_name(0)
-                cleaned = name.replace("NVIDIA", "").replace("GeForce", "").strip()
-                used = torch.cuda.memory_allocated(0) / (1024 ** 3)
-                total = torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
-                pct = round((used / total) * 100, 1) if total > 0 else 0.0
-                return {
-                    "has_gpu": True,
-                    "gpu_name": cleaned or name,
-                    "gpu_util": 0.0,
-                    "gpu_temp": None,
-                    "vram_used_gb": round(used, 2),
-                    "vram_total_gb": round(total, 1),
-                    "vram_percent": pct,
-                }
-        except Exception:
-            pass
+        # 3. PyTorch fallback (cache negative CUDA availability)
+        if self._torch_cuda_available is not False:
+            try:
+                import torch
+                cuda_ok = bool(torch.cuda.is_available())
+                self._torch_cuda_available = cuda_ok
+                if cuda_ok:
+                    name = torch.cuda.get_device_name(0)
+                    cleaned = name.replace("NVIDIA", "").replace("GeForce", "").strip()
+                    used = torch.cuda.memory_allocated(0) / (1024 ** 3)
+                    total = torch.cuda.get_device_properties(0).total_memory / (1024 ** 3)
+                    pct = round((used / total) * 100, 1) if total > 0 else 0.0
+                    return {
+                        "has_gpu": True,
+                        "gpu_name": cleaned or name,
+                        "gpu_util": 0.0,
+                        "gpu_temp": None,
+                        "vram_used_gb": round(used, 2),
+                        "vram_total_gb": round(total, 1),
+                        "vram_percent": pct,
+                    }
+            except Exception:
+                self._torch_cuda_available = False
 
         return {
             "has_gpu": False,

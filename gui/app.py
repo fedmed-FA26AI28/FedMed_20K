@@ -2,9 +2,10 @@ import os
 import queue
 import sys
 import threading
+import time
 import tkinter as tk
 from pathlib import Path
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 # Cross-platform High-DPI and Windows Per-Monitor Scaling Initialization
 if sys.platform.startswith("win"):
@@ -69,6 +70,7 @@ class FLOrchestratorDashboard(ctk.CTk):
         self.active_view = "server"
         self._sidebar_visible = True
         self._role_metrics = {"server": {}, "client": {}}
+        self._sim_matrix_state: Optional[Dict[str, Any]] = None
         self._ui_queue: "queue.SimpleQueue" = queue.SimpleQueue()
         self._closing = False
         self._ui_queue_after_id = None
@@ -495,7 +497,7 @@ class FLOrchestratorDashboard(ctk.CTk):
 
     def _bind_kpi_reactive_inputs(self):
         """Bind dynamic text changes in Server and Client forms to update KPI cards immediately."""
-        for key in ("rounds", "local_epochs", "min_clients"):
+        for key in ("rounds", "local_epochs", "min_clients", "batch_size"):
             widget = self.server_ctrl.fields.get(key)
             if widget and hasattr(widget, "bind"):
                 widget.bind("<KeyRelease>", self._sync_kpi_display)
@@ -505,46 +507,80 @@ class FLOrchestratorDashboard(ctk.CTk):
             if widget and hasattr(widget, "bind"):
                 widget.bind("<KeyRelease>", self._sync_kpi_display)
 
+    @staticmethod
+    def _cfg_if_changed(widget, **kwargs):
+        """Only call widget.configure(...) when one or more property values changed."""
+        cache = getattr(widget, "_last_cfg", None)
+        if cache is None:
+            cache = {}
+            setattr(widget, "_last_cfg", cache)
+        changed = {k: v for k, v in kwargs.items() if k not in cache or cache[k] != v}
+        if changed:
+            widget.configure(**changed)
+            cache.update(changed)
+
     def _sync_kpi_display(self, event=None):
         """Keep each role's summary independent when navigation changes."""
         mode = self.active_view
+        cfg = self._cfg_if_changed
         if mode in ("server", "client"):
             ctrl = self.server_ctrl if mode == "server" else self.client_ctrl
             metrics = self._role_metrics[mode]
             running = getattr(self, mode + "_runner").is_running()
-            self.btn_quick_stop.configure(text="Stop Server" if mode == "server" else "Stop Client",
-                                          state="normal" if running else "disabled")
+            is_sim = (mode == "server" and getattr(self.server_ctrl, "run_mode", "standalone") == "simulation")
+            stop_txt = ("Stop Simulation" if is_sim else "Stop Server") if mode == "server" else "Stop Client"
+            cfg(self.btn_quick_stop, text=stop_txt, state="normal" if running else "disabled")
             value = lambda key, default: ctrl.fields[key].get().strip() or default
             round_number = metrics.get("round", 0)
-            self.kpi_card_2.lbl_title.configure(text="FL ROUNDS PROGRESS" if mode == "server" else "CLIENT TRAINING PROGRESS")
+            cfg(self.kpi_card_2.lbl_title, text="FL ROUNDS PROGRESS" if mode == "server" else "CLIENT TRAINING PROGRESS")
             progress = f"Round {round_number} / {value('rounds', '40')}" if mode == "server" else f"Round {round_number}"
-            self.kpi_card_2.lbl_val.configure(text=progress)
-            self.kpi_card_2.lbl_sub.configure(text=f"Local epochs: {value('local_epochs', '5')}")
-            self.kpi_card_3.lbl_title.configure(text="BEST TEST ACCURACY" if mode == "server" else "CLIENT TRAIN ACCURACY")
+            cfg(self.kpi_card_2.lbl_val, text=progress)
+            cfg(self.kpi_card_2.lbl_sub, text=f"Local epochs: {value('local_epochs', '5')}")
+            cfg(self.kpi_card_3.lbl_title, text="BEST TEST ACCURACY" if mode == "server" else "CLIENT TRAIN ACCURACY")
             accuracy = metrics.get("bta" if mode == "server" else "train_acc")
-            self.kpi_card_3.lbl_val.configure(text="—" if accuracy is None else f"{accuracy * 100 if accuracy <= 1 else accuracy:.2f} %")
+            cfg(self.kpi_card_3.lbl_val, text="—" if accuracy is None else f"{accuracy * 100 if accuracy <= 1 else accuracy:.2f} %")
             ta = metrics.get("ta")
-            self.kpi_card_3.lbl_sub.configure(text="Waiting for evaluation" if ta is None else f"Test accuracy: {ta * 100 if ta <= 1 else ta:.2f}%")
+            cfg(self.kpi_card_3.lbl_sub, text="Waiting for evaluation" if ta is None else f"Test accuracy: {ta * 100 if ta <= 1 else ta:.2f}%")
             loss = metrics.get("loss")
-            self.kpi_card_4.lbl_title.configure(text="GLOBAL LOSS" if mode == "server" else "CLIENT TRAIN LOSS")
-            self.kpi_card_4.lbl_val.configure(text="—" if loss is None else f"{loss:.4f}")
-            self.kpi_card_4.lbl_sub.configure(text="Waiting for metrics" if loss is None else f"Latest report · Round {round_number}")
-            self.kpi_card_1.lbl_title.configure(text="NETWORK / TARGET")
-            self.kpi_card_1.lbl_val.configure(text=f"Port {self.entry_server_port.get().strip() or '8080'}" if mode == "server" else f"Client #{value('client_id', '0')}")
-            address = self.cmb_server_ip.get() if mode == "server" else self.entry_client_server_addr.get()
-            self.kpi_card_1.lbl_sub.configure(text=address, wraplength=195)
+            cfg(self.kpi_card_4.lbl_title, text="GLOBAL LOSS" if mode == "server" else "CLIENT TRAIN LOSS")
+            cfg(self.kpi_card_4.lbl_val, text="—" if loss is None else f"{loss:.4f}")
+            cfg(self.kpi_card_4.lbl_sub, text="Waiting for metrics" if loss is None else f"Latest report · Round {round_number}")
+            if is_sim:
+                if self._sim_matrix_state:
+                    ms = self._sim_matrix_state
+                    cfg(self.kpi_card_1.lbl_title, text="SIMULATION MATRIX")
+                    cfg(self.kpi_card_1.lbl_val, text=f"Run {ms['run_idx']} / {ms['total_runs']}")
+                    cfg(
+                        self.kpi_card_1.lbl_sub,
+                        text=f"{ms['dataset']} · {ms['partition']} · {ms['strategy'].upper()}",
+                        wraplength=195,
+                    )
+                else:
+                    part_m = (
+                        self.server_ctrl.fields["partition_mode"].get()
+                        if "partition_mode" in self.server_ctrl.fields
+                        else "practical"
+                    )
+                    cfg(self.kpi_card_1.lbl_title, text="SIMULATION MODE")
+                    cfg(self.kpi_card_1.lbl_val, text=f"{value('min_clients', '12')} Clients")
+                    cfg(self.kpi_card_1.lbl_sub, text=f"Partition: {part_m} · Localhost", wraplength=195)
+            else:
+                cfg(self.kpi_card_1.lbl_title, text="NETWORK / TARGET")
+                cfg(self.kpi_card_1.lbl_val, text=f"Port {self.entry_server_port.get().strip() or '8080'}" if mode == "server" else f"Client #{value('client_id', '0')}")
+                address = self.cmb_server_ip.get() if mode == "server" else self.entry_client_server_addr.get()
+                cfg(self.kpi_card_1.lbl_sub, text=address, wraplength=195)
         elif mode == "analytics":
             srv_run = self.server_runner.is_running()
             clt_run = self.client_runner.is_running()
             running = srv_run or clt_run
-            self.btn_quick_stop.configure(text="Stop Process", state="normal" if running else "disabled")
+            cfg(self.btn_quick_stop, text="Stop Process", state="normal" if running else "disabled")
             pc = self.analytics_tab.plot_canvas if hasattr(self, "analytics_tab") else None
             active_role = pc.mode if pc is not None else (
                 getattr(self.analytics_tab, "active_log_source", "server") if hasattr(self, "analytics_tab") else "server"
             )
-            self.kpi_card_1.lbl_title.configure(text="ACTIVE MONITOR")
-            self.kpi_card_1.lbl_val.configure(text=f"{active_role.capitalize()} Mode")
-            self.kpi_card_1.lbl_sub.configure(text="Side-by-Side Curves & Table")
+            cfg(self.kpi_card_1.lbl_title, text="ACTIVE MONITOR")
+            cfg(self.kpi_card_1.lbl_val, text=f"{active_role.capitalize()} Mode")
+            cfg(self.kpi_card_1.lbl_sub, text="Curves & Table", wraplength=0)
 
             if active_role == "client" and pc is not None:
                 r_count = len(pc.client_round_data["rounds"])
@@ -561,37 +597,37 @@ class FLOrchestratorDashboard(ctk.CTk):
             else:
                 r_count, best_acc, last_loss, loss_sub = 0, None, None, "Convergence Loss"
 
-            self.kpi_card_2.lbl_title.configure(text="ROUNDS PLOTTED")
-            self.kpi_card_2.lbl_val.configure(text=f"{r_count} Rounds")
-            self.kpi_card_2.lbl_sub.configure(text="Side-by-Side Accuracy & Loss")
+            cfg(self.kpi_card_2.lbl_title, text="ROUNDS PLOTTED")
+            cfg(self.kpi_card_2.lbl_val, text=f"{r_count} Rounds")
+            cfg(self.kpi_card_2.lbl_sub, text="Accuracy & Loss")
 
-            self.kpi_card_3.lbl_title.configure(text="BEST PLOTTED ACC")
-            self.kpi_card_3.lbl_val.configure(text="—" if best_acc is None else f"{best_acc * 100 if best_acc <= 1 else best_acc:.2f} %")
-            self.kpi_card_3.lbl_sub.configure(text="From active curve points")
+            cfg(self.kpi_card_3.lbl_title, text="BEST PLOTTED ACC")
+            cfg(self.kpi_card_3.lbl_val, text="—" if best_acc is None else f"{best_acc * 100 if best_acc <= 1 else best_acc:.2f} %")
+            cfg(self.kpi_card_3.lbl_sub, text="From active curve points")
 
-            self.kpi_card_4.lbl_title.configure(text="LATEST LOSS")
-            self.kpi_card_4.lbl_val.configure(text="—" if last_loss is None else f"{last_loss:.4f}")
-            self.kpi_card_4.lbl_sub.configure(text=loss_sub)
+            cfg(self.kpi_card_4.lbl_title, text="LATEST LOSS")
+            cfg(self.kpi_card_4.lbl_val, text="—" if last_loss is None else f"{last_loss:.4f}")
+            cfg(self.kpi_card_4.lbl_sub, text=loss_sub)
         elif mode == "settings":
-            self.btn_quick_stop.configure(text="Stop Process", state="disabled")
+            cfg(self.btn_quick_stop, text="Stop Process", state="disabled")
             strat = self.server_ctrl.fields.get("strategy").get() if hasattr(self, "server_ctrl") else "fedbns"
-            self.kpi_card_1.lbl_title.configure(text="ACTIVE STRATEGY")
-            self.kpi_card_1.lbl_val.configure(text=strat.upper())
-            self.kpi_card_1.lbl_sub.configure(text="Federated Learning Algorithm")
+            cfg(self.kpi_card_1.lbl_title, text="ACTIVE STRATEGY")
+            cfg(self.kpi_card_1.lbl_val, text=strat.upper())
+            cfg(self.kpi_card_1.lbl_sub, text="Federated Learning Algorithm", wraplength=0)
 
-            self.kpi_card_2.lbl_title.configure(text="CONFIGURATION")
-            self.kpi_card_2.lbl_val.configure(text="4 Cards Active")
-            self.kpi_card_2.lbl_sub.configure(text="Hyperparams & Scheduling")
+            cfg(self.kpi_card_2.lbl_title, text="CONFIGURATION")
+            cfg(self.kpi_card_2.lbl_val, text="4 Cards Active")
+            cfg(self.kpi_card_2.lbl_sub, text="Hyperparams & Scheduling")
 
             s_eval = self.settings_tab.config.get("server_eval", False) if hasattr(self, "settings_tab") else False
-            self.kpi_card_3.lbl_title.configure(text="CENTRALIZED EVAL")
-            self.kpi_card_3.lbl_val.configure(text="Enabled" if s_eval else "Disabled")
-            self.kpi_card_3.lbl_sub.configure(text="Server-side Test Set")
+            cfg(self.kpi_card_3.lbl_title, text="CENTRALIZED EVAL")
+            cfg(self.kpi_card_3.lbl_val, text="Enabled" if s_eval else "Disabled")
+            cfg(self.kpi_card_3.lbl_sub, text="Server-side Test Set")
 
             l_test = self.settings_tab.config.get("local_test", True) if hasattr(self, "settings_tab") else True
-            self.kpi_card_4.lbl_title.configure(text="LOCAL CLIENT TEST")
-            self.kpi_card_4.lbl_val.configure(text="Enabled" if l_test else "Disabled")
-            self.kpi_card_4.lbl_sub.configure(text="Client On-Device Evaluation")
+            cfg(self.kpi_card_4.lbl_title, text="LOCAL CLIENT TEST")
+            cfg(self.kpi_card_4.lbl_val, text="Enabled" if l_test else "Disabled")
+            cfg(self.kpi_card_4.lbl_sub, text="Client On-Device Evaluation")
 
     # --- WORKSPACES ---
 
@@ -605,6 +641,7 @@ class FLOrchestratorDashboard(ctk.CTk):
             on_start=self._start_server,
             on_stop=self._stop_server,
             on_export=self._export_server_results,
+            on_mode_change=self._on_server_mode_changed,
         )
         self.server_ctrl.pack(side="left", fill="both", padx=(0, 6), pady=0)
         self.server_ctrl.set_running_state(False)
@@ -612,6 +649,10 @@ class FLOrchestratorDashboard(ctk.CTk):
         # Right Panel: Real-Time Client Telemetry Table with Download Clients CSV
         self.client_table = ClientTelemetryTable(self.workspace_server, total_clients=12)
         self.client_table.pack(side="right", fill="both", expand=True, padx=(6, 0), pady=0)
+
+    def _on_server_mode_changed(self, run_mode: str):
+        self._sim_matrix_state = None
+        self._sync_kpi_display()
 
     def _build_client_workspace(self):
         self.workspace_client = ctk.CTkFrame(self.workspace_body, fg_color="transparent")
@@ -701,7 +742,7 @@ class FLOrchestratorDashboard(ctk.CTk):
             "settings": ("Settings", "Federated Strategy & Hyperparameter Configuration"),
         }
         role, role_label = role_map.get(self.active_view, ("FL Platform", "Workspace"))
-        self.lbl_breadcrumb.configure(text=f"FL Platform  ›  {role}  ›  {role_label}")
+        self._cfg_if_changed(self.lbl_breadcrumb, text=f"FL Platform  ›  {role}  ›  {role_label}")
 
     def _switch_view(self, mode: str):
         self.active_view = mode
@@ -733,6 +774,9 @@ class FLOrchestratorDashboard(ctk.CTk):
                 self.client_ribbon.pack(side="left")
             else:
                 self.client_ribbon.pack_forget()
+
+        if mode == "analytics" and hasattr(self, "analytics_tab"):
+            self.analytics_tab.plot_canvas._refresh_plots()
 
         self._sync_kpi_display()
         self._on_workspace_tab_changed()
@@ -809,15 +853,21 @@ class FLOrchestratorDashboard(ctk.CTk):
     # --- PROCESS EVENT HANDLERS ---
 
     def _start_server(self, partial_cmd: List[str]):
+        import time
+
+        self._server_start_time = time.time()
+        self._sim_matrix_state = None
         python_exe = self.active_venv
         port = self.entry_server_port.get().strip() or "8080"
         cmd = self.server_ctrl.build_command(python_exe, port=port)
+        is_sim = getattr(self.server_ctrl, "run_mode", "standalone") == "simulation"
+        launch_tag = "SIMULATION LAUNCH" if is_sim else "SERVER LAUNCH"
         self.metric_parser.current_round = 0
         self.metric_parser.total_rounds = 0
         if hasattr(self, "analytics_tab"):
             self.analytics_tab.clear()
             self.analytics_tab.set_role("server", auto=True)
-            self.analytics_tab.append_server_log(f"\n[SERVER LAUNCH] Invoking command:\n{' '.join(cmd)}\n\n")
+            self.analytics_tab.append_server_log(f"\n[{launch_tag}] Invoking command:\n{' '.join(cmd)}\n\n")
         self._role_metrics["server"].clear()
         if hasattr(self, "client_table"):
             self.client_table.reset_table()
@@ -831,6 +881,7 @@ class FLOrchestratorDashboard(ctk.CTk):
         ok = self.server_runner.start(cmd)
         if ok:
             self.server_ctrl.set_running_state(True)
+            self._sync_kpi_display()
         else:
             if hasattr(self, "analytics_tab"):
                 self.analytics_tab.append_server_log("[ERROR] Server process could not be launched.\n")
@@ -863,7 +914,8 @@ class FLOrchestratorDashboard(ctk.CTk):
         if getattr(self, "_closing", False):
             return
         processed = 0
-        while processed < 500:
+        t0 = time.perf_counter()
+        while processed < 60 and (time.perf_counter() - t0) < 0.012:
             try:
                 fn = self._ui_queue.get_nowait()
             except queue.Empty:
@@ -877,7 +929,7 @@ class FLOrchestratorDashboard(ctk.CTk):
             processed += 1
 
         if not getattr(self, "_closing", False):
-            delay = 1 if processed >= 500 else 20
+            delay = 5 if not self._ui_queue.empty() else 25
             try:
                 self._ui_queue_after_id = self.after(delay, self._drain_ui_queue)
             except (tk.TclError, RuntimeError):
@@ -885,7 +937,11 @@ class FLOrchestratorDashboard(ctk.CTk):
 
     def _on_server_log(self, line: str):
         def _process():
-            if hasattr(self, "analytics_tab"):
+            if (
+                hasattr(self, "analytics_tab")
+                and "[CLIENT_ROUND_METRICS]" not in line
+                and "[CLIENT_FINAL_METRICS]" not in line
+            ):
                 self.analytics_tab.append_server_log(line)
             self.metric_parser.parse_line(line, source="server")
 
@@ -904,11 +960,19 @@ class FLOrchestratorDashboard(ctk.CTk):
         try:
             import glob
             import json
-            cand_files = sorted(
-                glob.glob(str(PROJECT_ROOT / "results" / "federated" / "*" / "*" / "client_full_histories.json")),
-                key=os.path.getmtime,
-                reverse=True,
+            start_ts = getattr(self, "_server_start_time", 0.0)
+            history_globs = (
+                glob.glob(str(PROJECT_ROOT / "results" / "federated" / "*" / "*" / "client_full_histories.json"))
+                + glob.glob(str(PROJECT_ROOT / "results" / "simulation" / "**" / "client_full_histories.json"), recursive=True)
             )
+            cand_files = [
+                p for p in sorted(
+                    history_globs,
+                    key=os.path.getmtime,
+                    reverse=True,
+                )
+                if not start_ts or os.path.getmtime(p) >= start_ts - 2.0
+            ]
             if cand_files:
                 with open(cand_files[0], "r", encoding="utf-8") as f:
                     data = json.load(f)
@@ -926,7 +990,9 @@ class FLOrchestratorDashboard(ctk.CTk):
                             "eval_history": eval_hists.get(cid_str, []),
                         }
                         if hasattr(self, "analytics_tab"):
-                            self.after(0, lambda p=pkg: self.analytics_tab.plot_canvas.add_client_package(p))
+                            self._run_on_main_thread(
+                                lambda p=pkg: self.analytics_tab.plot_canvas.add_client_package(p)
+                            )
         except Exception as e:
             if hasattr(self, "analytics_tab"):
                 self.analytics_tab.append_server_log(f"[INSPECTOR] Could not load post-run client histories: {e}\n")
@@ -981,6 +1047,24 @@ class FLOrchestratorDashboard(ctk.CTk):
         self._run_on_main_thread(lambda: self._apply_metric_event(source, payload))
 
     def _apply_metric_event(self, source, payload):
+        if source == "simulation_matrix_step":
+            self._sim_matrix_state = dict(payload)
+            self._role_metrics["server"].clear()
+            if hasattr(self, "analytics_tab"):
+                self.analytics_tab.plot_canvas.clear()
+                if hasattr(self.analytics_tab, "metrics_table"):
+                    self.analytics_tab.metrics_table.clear()
+            if hasattr(self, "client_table"):
+                self.client_table.reset_table()
+                min_c = self.server_ctrl.fields.get("min_clients") if hasattr(self, "server_ctrl") else None
+                if min_c:
+                    try:
+                        self.client_table.set_total_clients(int(min_c.get().strip()))
+                    except Exception:
+                        pass
+            self._sync_kpi_display()
+            return
+
         if source == "server_client_round":
             if hasattr(self, "client_table"):
                 self.client_table.update_client_round(payload)
@@ -988,20 +1072,33 @@ class FLOrchestratorDashboard(ctk.CTk):
                 self.analytics_tab.metrics_table.add_client_metrics(payload)
             cid = payload.get("client_id")
             if cid is not None and hasattr(self, "analytics_tab"):
-                self.analytics_tab.plot_canvas.add_client_package({
-                    "client_id": int(cid),
-                    "samples": payload.get("num_samples", 0),
-                    "history": [{
-                        "round": payload.get("server_round", 1),
-                        "train_loss": payload.get("train_loss", 0.0),
-                        "train_accuracy": payload.get("train_accuracy", 0.0),
-                    }],
-                    "eval_history": [{
-                        "server_round": payload.get("server_round", 1),
-                        "eval_loss": payload.get("eval_loss", 0.0),
-                        "eval_accuracy": payload.get("eval_accuracy", 0.0),
-                    }],
-                })
+                srv_round = payload.get("server_round", 1)
+                pkg = {"client_id": int(cid)}
+                samples_val = payload.get("samples") if payload.get("samples") is not None else payload.get("num_samples")
+                if samples_val is not None:
+                    pkg["samples"] = int(samples_val)
+                if isinstance(payload.get("distribution"), dict) and payload.get("distribution"):
+                    pkg["distribution"] = payload["distribution"]
+
+                if payload.get("train_loss") is not None or payload.get("train_accuracy") is not None:
+                    hist_item = {"round": srv_round}
+                    if payload.get("train_loss") is not None:
+                        hist_item["train_loss"] = payload["train_loss"]
+                    if payload.get("train_accuracy") is not None:
+                        hist_item["train_accuracy"] = payload["train_accuracy"]
+                    if samples_val is not None:
+                        hist_item["num_samples"] = int(samples_val)
+                    pkg["history"] = [hist_item]
+
+                if payload.get("eval_loss") is not None or payload.get("eval_accuracy") is not None:
+                    eval_item = {"server_round": srv_round}
+                    if payload.get("eval_loss") is not None:
+                        eval_item["eval_loss"] = payload["eval_loss"]
+                    if payload.get("eval_accuracy") is not None:
+                        eval_item["eval_accuracy"] = payload["eval_accuracy"]
+                    pkg["eval_history"] = [eval_item]
+
+                self.analytics_tab.plot_canvas.add_client_package(pkg)
             return
 
         if source == "server_client_bundle":

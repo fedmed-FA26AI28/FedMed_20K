@@ -820,6 +820,24 @@ def main():
         model=initial_model,
     )
 
+    partition_path = getattr(args, "partition_path", None)
+    if partition_path and os.path.exists(partition_path):
+        try:
+            with open(partition_path, "r", encoding="utf-8") as f:
+                pdata = json.load(f)
+            clients_meta = pdata.get("clients", {})
+            if isinstance(clients_meta, dict):
+                if not hasattr(recorder, "client_class_distributions"):
+                    recorder.client_class_distributions = {}
+                for cid_key, cinfo in clients_meta.items():
+                    if isinstance(cinfo, dict) and "class_distribution" in cinfo:
+                        try:
+                            recorder.client_class_distributions[int(cid_key)] = dict(cinfo["class_distribution"])
+                        except (TypeError, ValueError):
+                            pass
+        except Exception as e:
+            print(f"[Server] Warning: Could not preload class distributions from partition file: {e}")
+
     strategy_kwargs = {
         "min_fit_clients": args.min_clients,
         "min_evaluate_clients": args.min_clients,

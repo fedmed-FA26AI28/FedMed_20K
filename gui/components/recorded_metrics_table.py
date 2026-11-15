@@ -26,6 +26,11 @@ class RecordedMetricsTable(ctk.CTkFrame):
         self.active_view = "server"  # "server" or "client"
         self.client_filter = "All Clients"
         self.client_ids = set()
+        self._last_counter_text: Optional[str] = None
+        self._font_regular = ctk.CTkFont(size=10, weight="normal")
+        self._font_bold = ctk.CTkFont(size=10, weight="bold")
+        self._font_mono = ctk.CTkFont(family=T.MONO_FONT, size=10, weight="normal")
+        self._font_mono_bold = ctk.CTkFont(family=T.MONO_FONT, size=10, weight="bold")
 
         self._build_ui()
 
@@ -201,7 +206,10 @@ class RecordedMetricsTable(ctk.CTkFrame):
             self.server_records.sort(key=lambda r: int(r.get("round", 0)))
 
         if self.active_view == "server":
-            self.lbl_counter.configure(text=f"{len(self.server_records)} Server Rounds")
+            cnt_txt = f"{len(self.server_records)} Server Rounds"
+            if cnt_txt != self._last_counter_text:
+                self._last_counter_text = cnt_txt
+                self.lbl_counter.configure(text=cnt_txt)
             if r_num in self.server_row_widgets:
                 self._update_server_row_widgets(r_num, record)
             else:
@@ -212,6 +220,7 @@ class RecordedMetricsTable(ctk.CTkFrame):
         r_val = int(payload.get("server_round", payload.get("round", 0)))
         cid = int(payload.get("client_id", 0))
         key = (r_val, cid)
+        is_new_cid = cid not in self.client_ids
         self.client_ids.add(cid)
 
         existing = next(
@@ -230,16 +239,20 @@ class RecordedMetricsTable(ctk.CTkFrame):
             record = dict(payload)
             self.client_records.append(record)
 
-        # Update filter dropdown values
-        c_vals = ["All Clients"] + [f"Client #{c}" for c in sorted(self.client_ids)]
-        self.cmb_client_filter.configure(values=c_vals)
+        # Update filter dropdown values only when a new client id appears
+        if is_new_cid:
+            c_vals = ["All Clients"] + [f"Client #{c}" for c in sorted(self.client_ids)]
+            self.cmb_client_filter.configure(values=c_vals)
 
         if self.active_view == "client":
             filtered_count = sum(
                 1 for r in self.client_records
                 if self.client_filter == "All Clients" or self.client_filter == f"Client #{r.get('client_id')}"
             )
-            self.lbl_counter.configure(text=f"{filtered_count} Reports")
+            cnt_txt = f"{filtered_count} Reports"
+            if cnt_txt != self._last_counter_text:
+                self._last_counter_text = cnt_txt
+                self.lbl_counter.configure(text=cnt_txt)
             if self.client_filter == "All Clients" or self.client_filter == f"Client #{cid}":
                 if key in self.client_row_widgets:
                     self._update_client_row_widgets(key, record)
@@ -255,7 +268,9 @@ class RecordedMetricsTable(ctk.CTkFrame):
             w.destroy()
 
         if self.active_view == "server":
-            self.lbl_counter.configure(text=f"{len(self.server_records)} Server Rounds")
+            cnt_txt = f"{len(self.server_records)} Server Rounds"
+            self._last_counter_text = cnt_txt
+            self.lbl_counter.configure(text=cnt_txt)
             for i, rec in enumerate(self.server_records):
                 self._render_single_server_row(rec, i)
         else:
@@ -263,7 +278,9 @@ class RecordedMetricsTable(ctk.CTkFrame):
                 rec for rec in self.client_records
                 if self.client_filter == "All Clients" or self.client_filter == f"Client #{rec.get('client_id')}"
             ]
-            self.lbl_counter.configure(text=f"{len(filtered)} Reports")
+            cnt_txt = f"{len(filtered)} Reports"
+            self._last_counter_text = cnt_txt
+            self.lbl_counter.configure(text=cnt_txt)
             for i, rec in enumerate(filtered):
                 self._render_single_client_row(rec, i)
 
@@ -278,15 +295,22 @@ class RecordedMetricsTable(ctk.CTkFrame):
             (f"{rec.get('mcta') * 100:.2f}%" if rec.get("mcta") is not None else "—", 75, T.PURPLE, True),
         ]
 
+    def _cell_font(self, is_mono: bool, is_bold: bool) -> ctk.CTkFont:
+        if is_mono:
+            return self._font_mono_bold if is_bold else self._font_mono
+        return self._font_bold if is_bold else self._font_regular
+
     def _render_single_server_row(self, rec: Dict[str, Any], row_idx: int):
         r_num = int(rec.get("round", 0))
         r_frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent", height=26)
         r_frame.pack(fill="x", pady=1)
 
         labels = []
-        for col_idx, (text, width, color, is_mono) in enumerate(self._server_cell_specs(rec)):
-            font = ctk.CTkFont(family=T.MONO_FONT if is_mono else None, size=10, weight="bold" if col_idx in (2, 3) else "normal")
+        specs = self._server_cell_specs(rec)
+        for col_idx, (text, width, color, is_mono) in enumerate(specs):
+            font = self._cell_font(is_mono, col_idx in (2, 3))
             lbl = ctk.CTkLabel(r_frame, text=text, font=font, text_color=color, width=width, anchor="w")
+            lbl._last_cell = (text, color)
             lbl.grid(row=0, column=col_idx, padx=6, pady=1, sticky="ew")
             r_frame.grid_columnconfigure(col_idx, weight=1, uniform="srv_cols")
             labels.append(lbl)
@@ -298,7 +322,10 @@ class RecordedMetricsTable(ctk.CTkFrame):
         if not entry:
             return
         for lbl, (text, _, color, _) in zip(entry["labels"], self._server_cell_specs(rec)):
-            lbl.configure(text=text, text_color=color)
+            cell = (text, color)
+            if getattr(lbl, "_last_cell", None) != cell:
+                lbl.configure(text=text, text_color=color)
+                lbl._last_cell = cell
 
     @staticmethod
     def _client_cell_specs(rec: Dict[str, Any]):
@@ -331,8 +358,9 @@ class RecordedMetricsTable(ctk.CTkFrame):
 
         labels = []
         for col_idx, (text, width, color, is_mono) in enumerate(self._client_cell_specs(rec)):
-            font = ctk.CTkFont(family=T.MONO_FONT if is_mono else None, size=10, weight="bold" if col_idx in (3, 6) else "normal")
+            font = self._cell_font(is_mono, col_idx in (3, 6))
             lbl = ctk.CTkLabel(r_frame, text=text, font=font, text_color=color, width=width, anchor="w")
+            lbl._last_cell = (text, color)
             lbl.grid(row=0, column=col_idx, padx=6, pady=1, sticky="ew")
             r_frame.grid_columnconfigure(col_idx, weight=1, uniform="clt_cols")
             labels.append(lbl)
@@ -344,7 +372,10 @@ class RecordedMetricsTable(ctk.CTkFrame):
         if not entry:
             return
         for lbl, (text, _, color, _) in zip(entry["labels"], self._client_cell_specs(rec)):
-            lbl.configure(text=text, text_color=color)
+            cell = (text, color)
+            if getattr(lbl, "_last_cell", None) != cell:
+                lbl.configure(text=text, text_color=color)
+                lbl._last_cell = cell
 
     def export_csv(self, filepath: Optional[str] = None, show_dialog: bool = True):
         """Export current table records to CSV."""

@@ -608,10 +608,16 @@ def run_single_experiment(
                         if not clean_line:
                             continue
 
+                        if "[CLIENT_ROUND_METRICS]" in clean_line or "[CLIENT_FINAL_METRICS]" in clean_line:
+                            print(clean_line, flush=True)
+                            last_heartbeat = time.time()
+                            continue
+
                         # Round header: [ROUND X]
                         m_rd = re.search(r'\[ROUND\s+(\d+)\]', clean_line, re.IGNORECASE)
                         if m_rd:
                             current_active_round = int(m_rd.group(1))
+                            print(f"  [ROUND {current_active_round}]", flush=True)
                             last_heartbeat = time.time()
                             continue
 
@@ -622,8 +628,12 @@ def run_single_experiment(
                             last_heartbeat = time.time()
                             continue
 
-                        # Centralized server evaluation progress
-                        if "Global Evaluation" in clean_line or ("Loss:" in clean_line and "Accuracy:" in clean_line and "Round" in clean_line):
+                        # Centralized / Distributed evaluation progress
+                        if (
+                            "Global Evaluation" in clean_line
+                            or "Distributed Client Evaluation" in clean_line
+                            or ("Loss:" in clean_line and "Accuracy:" in clean_line)
+                        ):
                             print(f"  [Progress] {clean_line}")
                             sys.stdout.flush()
                             last_heartbeat = time.time()

@@ -23,6 +23,9 @@ class ClientTelemetryTable(ctk.CTkFrame):
         self.latest_client_states: Dict[int, Dict[str, Any]] = {}
         self.all_records: List[Dict[str, Any]] = []
         self.client_rows: Dict[int, Dict[str, ctk.CTkLabel]] = {}
+        self._font_bold = ctk.CTkFont(size=11, weight="bold")
+        self._font_mono = ctk.CTkFont(family=T.MONO_FONT, size=11, weight="normal")
+        self._font_mono_bold = ctk.CTkFont(family=T.MONO_FONT, size=11, weight="bold")
 
         self._build_header()
         self._build_table_headers()
@@ -129,18 +132,57 @@ class ClientTelemetryTable(ctk.CTkFrame):
         )
         self.lbl_net_stats.pack(anchor="w", padx=12, pady=(0, 6))
 
+    @staticmethod
+    def _cfg_if_changed(widget, **kwargs):
+        cache = getattr(widget, "_last_cfg", None)
+        if cache is None:
+            cache = {}
+            setattr(widget, "_last_cfg", cache)
+        changed = {k: v for k, v in kwargs.items() if k not in cache or cache[k] != v}
+        if changed:
+            widget.configure(**changed)
+            cache.update(changed)
+
     def set_total_clients(self, count: int):
         self.total_clients = max(1, count)
         reporting = len(self.latest_client_states)
-        self.lbl_subtitle.configure(
-            text=f"Reporting: {reporting}/{self.total_clients} Nodes Connected | Synced Each Round from Clients"
+        self._cfg_if_changed(
+            self.lbl_subtitle,
+            text=f"Reporting: {reporting}/{self.total_clients} Nodes Connected | Synced Each Round from Clients",
         )
 
     def update_client_round(self, payload: Dict[str, Any]):
         """Receive round metrics for a client and update live row in real-time."""
         cid = int(payload.get("client_id", 0))
-        self.latest_client_states[cid] = payload
-        self.all_records.append(dict(payload))
+        merged_state = dict(self.latest_client_states.get(cid, {}))
+        for k, v in payload.items():
+            if v is not None:
+                merged_state[k] = v
+        self.latest_client_states[cid] = merged_state
+
+        srv_r = payload.get("server_round")
+        if srv_r is not None:
+            r_int = int(srv_r)
+            existing_rec = next(
+                (
+                    rec for rec in self.all_records
+                    if rec.get("server_round") is not None
+                    and rec.get("client_id") is not None
+                    and int(rec["server_round"]) == r_int
+                    and int(rec["client_id"]) == cid
+                ),
+                None,
+            )
+            if existing_rec is not None:
+                for k, v in payload.items():
+                    if v is not None:
+                        existing_rec[k] = v
+            else:
+                self.all_records.append({k: v for k, v in payload.items() if v is not None})
+        else:
+            self.all_records.append({k: v for k, v in payload.items() if v is not None})
+
+        payload = merged_state
 
         loss_val = float(payload.get("train_loss", 0.0))
         acc_val = float(payload.get("train_accuracy", 0.0))
@@ -166,7 +208,7 @@ class ClientTelemetryTable(ctk.CTkFrame):
             lbl_cid = ctk.CTkLabel(
                 self.scroll_frame,
                 text=f"Client #{cid}",
-                font=ctk.CTkFont(size=11, weight="bold"),
+                font=self._font_bold,
                 text_color=T.TEXT,
                 width=95,
                 anchor="w",
@@ -174,36 +216,42 @@ class ClientTelemetryTable(ctk.CTkFrame):
             lbl_cid.grid(row=row_idx, column=0, padx=6, pady=4, sticky="w")
             row_widgets["cid"] = lbl_cid
 
+            loss_txt = f"{loss_val:.4f}"
             lbl_loss = ctk.CTkLabel(
                 self.scroll_frame,
-                text=f"{loss_val:.4f}",
-                font=ctk.CTkFont(family=T.MONO_FONT, size=11, weight="bold"),
+                text=loss_txt,
+                font=self._font_mono_bold,
                 text_color=T.WARNING,
                 width=95,
                 anchor="w",
             )
+            lbl_loss._last_cfg = {"text": loss_txt}
             lbl_loss.grid(row=row_idx, column=1, padx=6, pady=4, sticky="w")
             row_widgets["loss"] = lbl_loss
 
+            acc_txt = f"{acc_val * 100:.2f}%"
             lbl_acc = ctk.CTkLabel(
                 self.scroll_frame,
-                text=f"{acc_val * 100:.2f}%",
-                font=ctk.CTkFont(family=T.MONO_FONT, size=11, weight="bold"),
+                text=acc_txt,
+                font=self._font_mono_bold,
                 text_color=T.SUCCESS,
                 width=95,
                 anchor="w",
             )
+            lbl_acc._last_cfg = {"text": acc_txt}
             lbl_acc.grid(row=row_idx, column=2, padx=6, pady=4, sticky="w")
             row_widgets["acc"] = lbl_acc
 
+            time_txt = f"{rtime_val:.2f}s"
             lbl_time = ctk.CTkLabel(
                 self.scroll_frame,
-                text=f"{rtime_val:.2f}s",
-                font=ctk.CTkFont(family=T.MONO_FONT, size=11),
+                text=time_txt,
+                font=self._font_mono,
                 text_color=T.MUTED,
                 width=75,
                 anchor="w",
             )
+            lbl_time._last_cfg = {"text": time_txt}
             lbl_time.grid(row=row_idx, column=3, padx=6, pady=4, sticky="w")
             row_widgets["time"] = lbl_time
 
@@ -211,39 +259,43 @@ class ClientTelemetryTable(ctk.CTkFrame):
             lbl_ping = ctk.CTkLabel(
                 self.scroll_frame,
                 text=ping_str,
-                font=ctk.CTkFont(family=T.MONO_FONT, size=11),
+                font=self._font_mono,
                 text_color=T.BLUE,
                 width=70,
                 anchor="w",
             )
+            lbl_ping._last_cfg = {"text": ping_str}
             lbl_ping.grid(row=row_idx, column=4, padx=6, pady=4, sticky="w")
             row_widgets["ping"] = lbl_ping
 
             lbl_status = ctk.CTkLabel(
                 self.scroll_frame,
                 text=status_text,
-                font=ctk.CTkFont(size=11, weight="bold"),
+                font=self._font_bold,
                 text_color=status_color,
                 width=80,
                 anchor="w",
             )
+            lbl_status._last_cfg = {"text": status_text, "text_color": status_color}
             lbl_status.grid(row=row_idx, column=5, padx=6, pady=4, sticky="w")
             row_widgets["status"] = lbl_status
 
             self.client_rows[cid] = row_widgets
         else:
             row_widgets = self.client_rows[cid]
-            row_widgets["loss"].configure(text=f"{loss_val:.4f}")
-            row_widgets["acc"].configure(text=f"{acc_val * 100:.2f}%")
-            row_widgets["time"].configure(text=f"{rtime_val:.2f}s")
+            cfg = self._cfg_if_changed
+            cfg(row_widgets["loss"], text=f"{loss_val:.4f}")
+            cfg(row_widgets["acc"], text=f"{acc_val * 100:.2f}%")
+            cfg(row_widgets["time"], text=f"{rtime_val:.2f}s")
             ping_str = f"{ping_val:.0f}ms" if ping_val >= 0 else "—"
-            row_widgets["ping"].configure(text=ping_str)
-            row_widgets["status"].configure(text=status_text, text_color=status_color)
+            cfg(row_widgets["ping"], text=ping_str)
+            cfg(row_widgets["status"], text=status_text, text_color=status_color)
 
         # Update header and footer
         reporting = len(self.latest_client_states)
-        self.lbl_subtitle.configure(
-            text=f"Reporting: {reporting}/{self.total_clients} Nodes Connected | Synced Each Round from Clients"
+        self._cfg_if_changed(
+            self.lbl_subtitle,
+            text=f"Reporting: {reporting}/{self.total_clients} Nodes Connected | Synced Each Round from Clients",
         )
 
         # Diagnostics footer
@@ -260,20 +312,23 @@ class ClientTelemetryTable(ctk.CTkFrame):
             if float(p.get("round_time", 0.0)) > avg_time * 1.30 and float(p.get("round_time", 0.0)) > 5.0
         ]
         if slow_clients:
-            self.lbl_diag.configure(
+            self._cfg_if_changed(
+                self.lbl_diag,
                 text=f"Straggler Diagnostics: {', '.join(slow_clients)} reporting high latency",
                 text_color=T.WARNING,
             )
         else:
-            self.lbl_diag.configure(
+            self._cfg_if_changed(
+                self.lbl_diag,
                 text="Straggler Diagnostics: All clients synchronizing within normal duration",
                 text_color=T.SUCCESS,
             )
 
         pings = [float(p.get("ping_ms", -1.0)) for p in self.latest_client_states.values() if float(p.get("ping_ms", -1.0)) >= 0]
         avg_ping = sum(pings) / len(pings) if pings else 0.0
-        self.lbl_net_stats.configure(
-            text=f"Average Network Latency: {avg_ping:.1f} ms | Average Batch Duration: {avg_time:.2f} s"
+        self._cfg_if_changed(
+            self.lbl_net_stats,
+            text=f"Average Network Latency: {avg_ping:.1f} ms | Average Batch Duration: {avg_time:.2f} s",
         )
 
     def reset_table(self):
@@ -284,15 +339,18 @@ class ClientTelemetryTable(ctk.CTkFrame):
             for w in widgets.values():
                 w.destroy()
         self.client_rows.clear()
-        self.lbl_subtitle.configure(
-            text=f"Reporting: 0/{self.total_clients} Nodes Connected | Synced Each Round from Clients"
+        self._cfg_if_changed(
+            self.lbl_subtitle,
+            text=f"Reporting: 0/{self.total_clients} Nodes Connected | Synced Each Round from Clients",
         )
-        self.lbl_diag.configure(
+        self._cfg_if_changed(
+            self.lbl_diag,
             text="Straggler Diagnostics: Awaiting client node connections",
             text_color=T.MUTED,
         )
-        self.lbl_net_stats.configure(
-            text="Average Network Latency: — ms | Average Batch Duration: — s"
+        self._cfg_if_changed(
+            self.lbl_net_stats,
+            text="Average Network Latency: — ms | Average Batch Duration: — s",
         )
 
     def export_csv(self, filepath: Optional[str] = None, show_dialog: bool = True):

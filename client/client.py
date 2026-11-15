@@ -1011,7 +1011,7 @@ class FedMedAIClient(fl.client.NumPyClient):
             "device_ipv4": str(self.device_ipv4),
             "device_type": str(self.device_type),
         }
-        if self.eval_history:
+        if self.eval_history and int(self.eval_history[-1].get("server_round", -1)) == int(server_round):
             return_metrics["eval_loss"] = float(self.eval_history[-1]["eval_loss"])
             return_metrics["eval_accuracy"] = float(self.eval_history[-1]["eval_accuracy"])
 
@@ -1285,7 +1285,11 @@ class FedMedAIClient(fl.client.NumPyClient):
             if not getattr(self, "_empty_test_warning_issued", False):
                 print(f"[Client {self.client_id}] No local test samples; skipping evaluation")
                 self._empty_test_warning_issued = True
-            return 0.0, 0, {"accuracy": 0.0}
+            return 0.0, 0, {
+                "accuracy": 0.0,
+                "client_id": int(self.client_id),
+                "server_round": int(eval_round) if eval_round is not None else 0,
+            }
 
         avg_loss = total_loss / total
         accuracy = correct / total
@@ -1319,7 +1323,15 @@ class FedMedAIClient(fl.client.NumPyClient):
             f"loss={avg_loss:.4f} acc={accuracy:.4f}"
         )
 
-        return float(avg_loss), total, {"accuracy": float(accuracy)}
+        return float(avg_loss), total, {
+            "accuracy": float(accuracy),
+            "client_id": int(self.client_id),
+            "server_round": int(resolved_round),
+            "eval_loss": float(avg_loss),
+            "eval_accuracy": float(accuracy),
+            "num_samples": int(len(self.train_loader.dataset)),
+            "class_counts_json": json.dumps(self._class_counts_dict),
+        }
 
 
 # ──────────────────────────────────────────────────────────────

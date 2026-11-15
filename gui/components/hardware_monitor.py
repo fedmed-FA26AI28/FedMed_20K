@@ -1,3 +1,4 @@
+import threading
 import tkinter as tk
 import customtkinter as ctk
 from typing import Dict, Any, Optional
@@ -163,34 +164,60 @@ class HardwareMonitorWidget(ctk.CTkFrame):
         self.bar_vram.set(0.0)
         self.bar_vram.pack(fill="x", padx=8, pady=(1, 6))
 
+    @staticmethod
+    def _cfg_if_changed(widget, **kwargs):
+        cache = getattr(widget, "_last_cfg", None)
+        if cache is None:
+            cache = {}
+            setattr(widget, "_last_cfg", cache)
+        changed = {k: v for k, v in kwargs.items() if k not in cache or cache[k] != v}
+        if changed:
+            widget.configure(**changed)
+            cache.update(changed)
+
+    @staticmethod
+    def _set_bar_if_changed(bar, val: float):
+        clamped = min(1.0, max(0.0, float(val)))
+        prev = getattr(bar, "_last_val", None)
+        if prev is None or abs(clamped - prev) >= 0.002:
+            bar.set(clamped)
+            setattr(bar, "_last_val", clamped)
+
     def update_metrics(self, info: Dict[str, Any]):
         """Thread-safe update of hardware telemetry gauges."""
-        self.after(0, self._apply_metrics, info)
+        if threading.current_thread() is threading.main_thread():
+            self._apply_metrics(info)
+        else:
+            try:
+                self.after(0, self._apply_metrics, info)
+            except tk.TclError:
+                pass
 
     def _apply_metrics(self, info: Dict[str, Any]):
+        try:
+            if not self.winfo_exists():
+                return
+        except tk.TclError:
+            return
+
+        cfg = self._cfg_if_changed
+        set_bar = self._set_bar_if_changed
+
         # 1. Update CPU
         cpu_pct = float(info.get("cpu_percent", 0.0))
-        self.lbl_cpu_val.configure(text=f"{cpu_pct:.1f}%")
-        self.bar_cpu.set(min(1.0, max(0.0, cpu_pct / 100.0)))
-        if cpu_pct >= 90.0:
-            self.bar_cpu.configure(progress_color=T.ERROR)
-        elif cpu_pct >= 75.0:
-            self.bar_cpu.configure(progress_color=T.WARNING)
-        else:
-            self.bar_cpu.configure(progress_color=T.PRIMARY)
+        cfg(self.lbl_cpu_val, text=f"{cpu_pct:.1f}%")
+        set_bar(self.bar_cpu, cpu_pct / 100.0)
+        cpu_color = T.ERROR if cpu_pct >= 90.0 else (T.WARNING if cpu_pct >= 75.0 else T.PRIMARY)
+        cfg(self.bar_cpu, progress_color=cpu_color)
 
         # 2. Update RAM
         ram_used = float(info.get("ram_used_gb", 0.0))
         ram_total = float(info.get("ram_total_gb", 0.0))
         ram_pct = float(info.get("ram_percent", 0.0))
-        self.lbl_ram_val.configure(text=f"{ram_used:.1f}/{ram_total:.1f} GB")
-        self.bar_ram.set(min(1.0, max(0.0, ram_pct / 100.0)))
-        if ram_pct >= 90.0:
-            self.bar_ram.configure(progress_color=T.ERROR)
-        elif ram_pct >= 80.0:
-            self.bar_ram.configure(progress_color=T.WARNING)
-        else:
-            self.bar_ram.configure(progress_color=T.BLUE)
+        cfg(self.lbl_ram_val, text=f"{ram_used:.1f}/{ram_total:.1f} GB")
+        set_bar(self.bar_ram, ram_pct / 100.0)
+        ram_color = T.ERROR if ram_pct >= 90.0 else (T.WARNING if ram_pct >= 80.0 else T.BLUE)
+        cfg(self.bar_ram, progress_color=ram_color)
 
         # 3. Update GPU & VRAM
         has_gpu = info.get("has_gpu", False)
@@ -198,30 +225,25 @@ class HardwareMonitorWidget(ctk.CTkFrame):
             name = info.get("gpu_name") or "GPU"
             if len(name) > 14:
                 name = name[:12] + ".."
-            self.lbl_gpu_title.configure(text=name)
+            cfg(self.lbl_gpu_title, text=name)
 
             gpu_util = float(info.get("gpu_util", 0.0))
             gpu_temp = info.get("gpu_temp")
             temp_str = f" · {gpu_temp}°C" if gpu_temp is not None else ""
-            self.lbl_gpu_val.configure(text=f"{gpu_util:.0f}%{temp_str}")
-            self.bar_gpu.set(min(1.0, max(0.0, gpu_util / 100.0)))
+            cfg(self.lbl_gpu_val, text=f"{gpu_util:.0f}%{temp_str}", text_color=T.ACCENT)
+            set_bar(self.bar_gpu, gpu_util / 100.0)
 
             vram_used = float(info.get("vram_used_gb", 0.0))
             vram_total = float(info.get("vram_total_gb", 0.0))
             vram_pct = float(info.get("vram_percent", 0.0))
-            self.lbl_vram_val.configure(text=f"{vram_used:.1f}/{vram_total:.1f} GB ({vram_pct:.0f}%)")
-            self.bar_vram.set(min(1.0, max(0.0, vram_pct / 100.0)))
+            cfg(self.lbl_vram_val, text=f"{vram_used:.1f}/{vram_total:.1f} GB ({vram_pct:.0f}%)", text_color=T.PURPLE)
+            set_bar(self.bar_vram, vram_pct / 100.0)
 
-            # OOM warning coloration
-            if vram_pct >= 90.0:
-                self.bar_vram.configure(progress_color=T.ERROR)
-            elif vram_pct >= 75.0:
-                self.bar_vram.configure(progress_color=T.WARNING)
-            else:
-                self.bar_vram.configure(progress_color=T.PURPLE)
+            vram_color = T.ERROR if vram_pct >= 90.0 else (T.WARNING if vram_pct >= 75.0 else T.PURPLE)
+            cfg(self.bar_vram, progress_color=vram_color)
         else:
-            self.lbl_gpu_title.configure(text="GPU Mode")
-            self.lbl_gpu_val.configure(text="CPU Only", text_color=T.MUTED)
-            self.bar_gpu.set(0.0)
-            self.lbl_vram_val.configure(text="No CUDA", text_color=T.MUTED)
-            self.bar_vram.set(0.0)
+            cfg(self.lbl_gpu_title, text="GPU Mode")
+            cfg(self.lbl_gpu_val, text="CPU Only", text_color=T.MUTED)
+            set_bar(self.bar_gpu, 0.0)
+            cfg(self.lbl_vram_val, text="No CUDA", text_color=T.MUTED)
+            set_bar(self.bar_vram, 0.0)
