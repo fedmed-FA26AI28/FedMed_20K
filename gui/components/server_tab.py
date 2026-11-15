@@ -45,7 +45,7 @@ class ServerTab(ctk.CTkFrame):
 
         title = ctk.CTkLabel(
             self.scroll,
-            text="02 / Federation configuration",
+            text="Federation configuration",
             font=ctk.CTkFont(size=11, weight="bold"),
             text_color=T.TEXT,
         )
@@ -152,7 +152,7 @@ class ServerTab(ctk.CTkFrame):
         self.fields["name"] = add_field("Run Name / Tag:", ctk.CTkEntry, height=28, font=ctk.CTkFont(size=11))
         self.fields["name"].insert(0, "gui_server_run")
 
-        # --- ADVANCED CONFIGURATION SUB-WINDOW TRIGGER ---
+        # --- ADVANCED CONFIGURATION (managed via global Settings Tab; keep attributes unmounted for compatibility) ---
         self.btn_open_adv = ctk.CTkButton(
             self.scroll,
             text="Open Advanced Configuration...",
@@ -165,7 +165,6 @@ class ServerTab(ctk.CTkFrame):
             border_color=T.BORDER,
             command=self._open_advanced_dialog,
         )
-        self.btn_open_adv.pack(fill="x", padx=10, pady=(14, 4))
 
         self.lbl_adv_status = ctk.CTkLabel(
             self.scroll,
@@ -174,7 +173,6 @@ class ServerTab(ctk.CTkFrame):
             text_color=T.MUTED,
             anchor="center",
         )
-        self.lbl_adv_status.pack(fill="x", padx=10, pady=(0, 6))
 
         # Backward compatibility placeholders
         self.adv_container = ctk.CTkFrame(self.scroll, fg_color=T.SURFACE, corner_radius=6)
@@ -331,6 +329,19 @@ class ServerTab(ctk.CTkFrame):
             cmd.extend(["--fedsld_reduction", str(adv.get("fedsld_reduction", "mean"))])
 
         # 4. Optimizer & LR Policies
+        lr_steps = str(adv.get("server_lr_decay_step", "")).strip()
+        if lr_steps:
+            cmd.extend(["--lr_decay_steps", lr_steps])
+        lr_gamma = str(adv.get("server_lr_decay_gamma", "")).strip()
+        if lr_gamma:
+            cmd.extend(["--lr_decay_gamma", lr_gamma])
+        c_pat = str(adv.get("client_lr_patience", "")).strip()
+        if c_pat:
+            cmd.extend(["--client_lr_patience", c_pat])
+        c_fac = str(adv.get("client_lr_factor", "")).strip()
+        if c_fac:
+            cmd.extend(["--client_lr_factor", c_fac])
+
         opt = self.fields["optimizer"].get()
         if opt == "sgd":
             mom = str(adv.get("momentum", "0.9")).strip()

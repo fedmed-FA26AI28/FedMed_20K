@@ -21,6 +21,8 @@ class RecordedMetricsTable(ctk.CTkFrame):
         )
         self.server_records: List[Dict[str, Any]] = []
         self.client_records: List[Dict[str, Any]] = []
+        self.server_row_widgets: Dict[int, Dict[str, Any]] = {}
+        self.client_row_widgets: Dict[Any, Dict[str, Any]] = {}
         self.active_view = "server"  # "server" or "client"
         self.client_filter = "All Clients"
         self.client_ids = set()
@@ -111,6 +113,14 @@ class RecordedMetricsTable(ctk.CTkFrame):
 
         self._build_table_headers()
 
+    def set_view_mode(self, mode: str):
+        """Programmatically switch the active table view between 'server' and 'client'."""
+        target = "server" if mode.lower() == "server" else "client"
+        label = "Server Global" if target == "server" else "Client Nodes"
+        self.seg_view.set(label)
+        if target != self.active_view:
+            self._on_view_changed(label)
+
     def _on_view_changed(self, choice: str):
         self.active_view = "server" if "Server" in choice else "client"
         if self.active_view == "client":
@@ -136,6 +146,7 @@ class RecordedMetricsTable(ctk.CTkFrame):
                 ("TA", 4, 80, "w"),
                 ("MCTA", 5, 75, "w"),
             ]
+            uniform_grp = "srv_cols"
         else:
             cols = [
                 ("RND", 0, 45, "w"),
@@ -146,6 +157,7 @@ class RecordedMetricsTable(ctk.CTkFrame):
                 ("PING", 5, 55, "w"),
                 ("STATUS", 6, 65, "w"),
             ]
+            uniform_grp = "clt_cols"
 
         for col_name, col_idx, width, anchor in cols:
             lbl = ctk.CTkLabel(
@@ -156,8 +168,8 @@ class RecordedMetricsTable(ctk.CTkFrame):
                 width=width,
                 anchor=anchor,
             )
-            lbl.grid(row=0, column=col_idx, padx=4, pady=2, sticky="w")
-            self.th_frame.grid_columnconfigure(col_idx, weight=1 if col_idx in (1, 2, 3) else 0)
+            lbl.grid(row=0, column=col_idx, padx=6, pady=2, sticky="ew")
+            self.th_frame.grid_columnconfigure(col_idx, weight=1, uniform=uniform_grp)
 
     def add_server_metrics(
         self,
@@ -168,39 +180,76 @@ class RecordedMetricsTable(ctk.CTkFrame):
         ta: Optional[float] = None,
         mcta: Optional[float] = None,
     ):
-        """Append a server round metrics entry."""
-        record = {
-            "round": int(round_num),
+        """Insert or consolidate server round metrics entry keyed by round number."""
+        r_num = int(round_num)
+        updates = {
             "loss": float(loss) if loss is not None else None,
             "bta": float(bta) if bta is not None else None,
             "bmcta": float(bmcta) if bmcta is not None else None,
             "ta": float(ta) if ta is not None else None,
             "mcta": float(mcta) if mcta is not None else None,
         }
-        self.server_records.append(record)
+        existing = next((r for r in self.server_records if r.get("round") == r_num), None)
+        if existing is not None:
+            for k, v in updates.items():
+                if v is not None:
+                    existing[k] = v
+            record = existing
+        else:
+            record = {"round": r_num, **updates}
+            self.server_records.append(record)
+            self.server_records.sort(key=lambda r: int(r.get("round", 0)))
 
         if self.active_view == "server":
             self.lbl_counter.configure(text=f"{len(self.server_records)} Server Rounds")
-            self._render_single_server_row(record, len(self.server_records) - 1)
+            if r_num in self.server_row_widgets:
+                self._update_server_row_widgets(r_num, record)
+            else:
+                self._render_single_server_row(record, len(self.server_records) - 1)
 
     def add_client_metrics(self, payload: Dict[str, Any]):
-        """Append a client round telemetry report."""
-        record = dict(payload)
-        cid = int(record.get("client_id", 0))
+        """Insert or consolidate client round telemetry report keyed by (round, client_id)."""
+        r_val = int(payload.get("server_round", payload.get("round", 0)))
+        cid = int(payload.get("client_id", 0))
+        key = (r_val, cid)
         self.client_ids.add(cid)
-        self.client_records.append(record)
+
+        existing = next(
+            (
+                r for r in self.client_records
+                if int(r.get("server_round", r.get("round", 0))) == r_val and int(r.get("client_id", 0)) == cid
+            ),
+            None,
+        )
+        if existing is not None:
+            for k, v in payload.items():
+                if v is not None:
+                    existing[k] = v
+            record = existing
+        else:
+            record = dict(payload)
+            self.client_records.append(record)
 
         # Update filter dropdown values
         c_vals = ["All Clients"] + [f"Client #{c}" for c in sorted(self.client_ids)]
         self.cmb_client_filter.configure(values=c_vals)
 
         if self.active_view == "client":
-            self.lbl_counter.configure(text=f"{len(self.client_records)} Reports")
+            filtered_count = sum(
+                1 for r in self.client_records
+                if self.client_filter == "All Clients" or self.client_filter == f"Client #{r.get('client_id')}"
+            )
+            self.lbl_counter.configure(text=f"{filtered_count} Reports")
             if self.client_filter == "All Clients" or self.client_filter == f"Client #{cid}":
-                self._render_single_client_row(record, len(self.scroll_frame.winfo_children()))
+                if key in self.client_row_widgets:
+                    self._update_client_row_widgets(key, record)
+                else:
+                    self._render_single_client_row(record, len(self.client_row_widgets))
 
     def _refresh_table(self):
         """Re-render all rows matching active view and filter."""
+        self.server_row_widgets.clear()
+        self.client_row_widgets.clear()
         self._build_table_headers()
         for w in self.scroll_frame.winfo_children():
             w.destroy()
@@ -218,11 +267,9 @@ class RecordedMetricsTable(ctk.CTkFrame):
             for i, rec in enumerate(filtered):
                 self._render_single_client_row(rec, i)
 
-    def _render_single_server_row(self, rec: Dict[str, Any], row_idx: int):
-        r_frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent", height=26)
-        r_frame.pack(fill="x", pady=1)
-
-        cols = [
+    @staticmethod
+    def _server_cell_specs(rec: Dict[str, Any]):
+        return [
             (f"R{rec.get('round', 0)}", 55, T.TEXT, False),
             (f"{rec.get('loss'):.4f}" if rec.get("loss") is not None else "—", 75, T.WARNING, True),
             (f"{rec.get('bta') * 100:.2f}%" if rec.get("bta") is not None else "—", 85, T.SUCCESS, True),
@@ -231,39 +278,73 @@ class RecordedMetricsTable(ctk.CTkFrame):
             (f"{rec.get('mcta') * 100:.2f}%" if rec.get("mcta") is not None else "—", 75, T.PURPLE, True),
         ]
 
-        for col_idx, (text, width, color, is_mono) in enumerate(cols):
-            font = ctk.CTkFont(family=T.MONO_FONT if is_mono else None, size=10, weight="bold" if col_idx in (2, 3) else "normal")
-            lbl = ctk.CTkLabel(r_frame, text=text, font=font, text_color=color, width=width, anchor="w")
-            lbl.grid(row=0, column=col_idx, padx=4, pady=1, sticky="w")
-            r_frame.grid_columnconfigure(col_idx, weight=1 if col_idx in (1, 2, 3) else 0)
-
-    def _render_single_client_row(self, rec: Dict[str, Any], row_idx: int):
+    def _render_single_server_row(self, rec: Dict[str, Any], row_idx: int):
+        r_num = int(rec.get("round", 0))
         r_frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent", height=26)
         r_frame.pack(fill="x", pady=1)
 
+        labels = []
+        for col_idx, (text, width, color, is_mono) in enumerate(self._server_cell_specs(rec)):
+            font = ctk.CTkFont(family=T.MONO_FONT if is_mono else None, size=10, weight="bold" if col_idx in (2, 3) else "normal")
+            lbl = ctk.CTkLabel(r_frame, text=text, font=font, text_color=color, width=width, anchor="w")
+            lbl.grid(row=0, column=col_idx, padx=6, pady=1, sticky="ew")
+            r_frame.grid_columnconfigure(col_idx, weight=1, uniform="srv_cols")
+            labels.append(lbl)
+
+        self.server_row_widgets[r_num] = {"frame": r_frame, "labels": labels}
+
+    def _update_server_row_widgets(self, r_num: int, rec: Dict[str, Any]):
+        entry = self.server_row_widgets.get(r_num)
+        if not entry:
+            return
+        for lbl, (text, _, color, _) in zip(entry["labels"], self._server_cell_specs(rec)):
+            lbl.configure(text=text, text_color=color)
+
+    @staticmethod
+    def _client_cell_specs(rec: Dict[str, Any]):
         r_val = rec.get("server_round", rec.get("round", 0))
         cid = rec.get("client_id", 0)
-        t_loss = rec.get("train_loss", 0.0)
-        t_acc = rec.get("train_accuracy", 0.0)
+        t_loss = rec.get("train_loss", rec.get("loss"))
+        t_acc = rec.get("train_accuracy", rec.get("ta"))
         r_time = rec.get("round_time", rec.get("training_time", 0.0))
+        r_time_val = float(r_time) if r_time is not None else 0.0
         ping = rec.get("ping_ms", -1.0)
-        is_slow = float(r_time) > 8.5  # Straggler threshold
+        ping_val = float(ping) if ping is not None else -1.0
+        is_slow = r_time_val > 8.5  # Straggler threshold
 
-        cols = [
+        return [
             (f"R{r_val}", 45, T.MUTED, False),
             (f"Client #{cid}", 75, T.TEXT, False),
-            (f"{float(t_loss):.4f}", 75, T.WARNING, True),
-            (f"{float(t_acc) * 100:.2f}%", 80, T.SUCCESS, True),
-            (f"{float(r_time):.2f}s", 65, T.MUTED, True),
-            (f"{float(ping):.0f}ms" if float(ping) >= 0 else "—", 55, T.BLUE, True),
+            (f"{float(t_loss):.4f}" if t_loss is not None else "—", 75, T.WARNING, True),
+            (f"{float(t_acc) * 100:.2f}%" if t_acc is not None else "—", 80, T.SUCCESS, True),
+            (f"{r_time_val:.2f}s", 65, T.MUTED, True),
+            (f"{ping_val:.0f}ms" if ping_val >= 0 else "—", 55, T.BLUE, True),
             ("SLOW" if is_slow else "DONE", 65, T.WARNING if is_slow else T.SUCCESS, False),
         ]
 
-        for col_idx, (text, width, color, is_mono) in enumerate(cols):
+    def _render_single_client_row(self, rec: Dict[str, Any], row_idx: int):
+        r_val = int(rec.get("server_round", rec.get("round", 0)))
+        cid = int(rec.get("client_id", 0))
+        key = (r_val, cid)
+        r_frame = ctk.CTkFrame(self.scroll_frame, fg_color="transparent", height=26)
+        r_frame.pack(fill="x", pady=1)
+
+        labels = []
+        for col_idx, (text, width, color, is_mono) in enumerate(self._client_cell_specs(rec)):
             font = ctk.CTkFont(family=T.MONO_FONT if is_mono else None, size=10, weight="bold" if col_idx in (3, 6) else "normal")
             lbl = ctk.CTkLabel(r_frame, text=text, font=font, text_color=color, width=width, anchor="w")
-            lbl.grid(row=0, column=col_idx, padx=4, pady=1, sticky="w")
-            r_frame.grid_columnconfigure(col_idx, weight=1 if col_idx in (2, 3) else 0)
+            lbl.grid(row=0, column=col_idx, padx=6, pady=1, sticky="ew")
+            r_frame.grid_columnconfigure(col_idx, weight=1, uniform="clt_cols")
+            labels.append(lbl)
+
+        self.client_row_widgets[key] = {"frame": r_frame, "labels": labels}
+
+    def _update_client_row_widgets(self, key: Any, rec: Dict[str, Any]):
+        entry = self.client_row_widgets.get(key)
+        if not entry:
+            return
+        for lbl, (text, _, color, _) in zip(entry["labels"], self._client_cell_specs(rec)):
+            lbl.configure(text=text, text_color=color)
 
     def export_csv(self, filepath: Optional[str] = None, show_dialog: bool = True):
         """Export current table records to CSV."""
@@ -325,6 +406,8 @@ class RecordedMetricsTable(ctk.CTkFrame):
         """Clear all historical records and rows."""
         self.server_records.clear()
         self.client_records.clear()
+        self.server_row_widgets.clear()
+        self.client_row_widgets.clear()
         self.client_ids.clear()
         self.cmb_client_filter.configure(values=["All Clients"])
         self.cmb_client_filter.set("All Clients")

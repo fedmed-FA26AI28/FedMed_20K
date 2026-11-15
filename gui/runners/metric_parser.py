@@ -11,13 +11,25 @@ class MetricStreamParser:
         self.total_rounds = 0
 
         # Regex patterns for Server
-        self.re_server_round = re.compile(r'(?:Starting\s+Round|Round|ROUND)\s*\[?(\d+)[/\s]*(\d+)?\]?', re.IGNORECASE)
+        self.re_server_round = re.compile(
+            r'(?:Starting\s+Round|(?:\[|\b)(?:Round|ROUND))\s*\[?(\d+)(?:\s*(?:/|\bof\b)\s*(\d+))?\]?(?!\s*:\s*[-+]?\d+(?:\.\d+)?(?:\s*$|\s*[,)]))',
+            re.IGNORECASE,
+        )
+        self.re_server_ignore = re.compile(
+            r'\[SUMMARY\]'
+            r'|\bHistory\s*\('
+            r'|\b(?:losses_distributed|losses_centralized|metrics_distributed|metrics_centralized|app_fit)\b'
+            r'|(?:^|\s)round\s+\d+\s*:\s*[-+]?\d+(?:\.\d+)?(?:\s*$|\s*[,)])'
+            r'|\b(?:Best\s+Metric|BMCTA\s+Loss|Best\s+Eval\s+Loss|Final\s+Eval\s+Loss|Final\s+Accuracy|Final\s+Loss|Final\s+Summary|Evaluation\s+Summary|Training\s+Summary|Run\s+finished)\b'
+            r'|\[SERVER\s+(?:LAUNCH|TERMINATED)\]',
+            re.IGNORECASE,
+        )
         self.re_server_metrics = re.compile(
-            r'(?:Loss|test_loss)\s*[:=]\s*([\d\.]+)'
-            r'|(?:\bBTA\b)\s*[:=]\s*([\d\.]+)%?'
-            r'|(?:\bBMCTA\b)\s*[:=]\s*([\d\.]+)%?'
-            r'|(?:\bTA\b)\s*[:=]\s*([\d\.]+)%?'
-            r'|(?:\bMCTA\b)\s*[:=]\s*([\d\.]+)%?',
+            r'(?:Global\s+Test\s+Loss|Global\s+Loss|test_loss|(?<!BMCTA\s)(?<!Eval\s)(?<!Final\s)(?<!Best\s)\bLoss)\s*[:=]\s*([\d\.]+)'
+            r'|(?:\b(?:BTA|Best))\s*[:=]\s*([\d\.]+)\s*%?'
+            r'|(?:\bBMCTA)\s*[:=]\s*([\d\.]+)\s*%?'
+            r'|(?:Global\s+Test\s+Acc(?:uracy)?|\bCombined|\bAccuracy|\bTA)\s*[:=]\s*([\d\.]+)\s*%?'
+            r'|(?:\bMCTA)\s*[:=]\s*([\d\.]+)\s*%?',
             re.IGNORECASE
         )
 
@@ -75,6 +87,10 @@ class MetricStreamParser:
             except Exception:
                 pass
 
+        # Ignore post-run summaries, banners, and Flower history dumps
+        if not line or not line.strip() or self.re_server_ignore.search(line):
+            return
+
         # Check for round start / progress
         m_round = self.re_server_round.search(line)
         if m_round:
@@ -83,25 +99,29 @@ class MetricStreamParser:
             if m_round.group(2):
                 self.total_rounds = int(m_round.group(2))
 
-        # Check for metrics
+        # Ignore initial/Round-0 evaluations before Round 1 starts
+        if self.current_round < 1:
+            return
+
+        # Check for metrics (ordered cleanly to avoid summary/BMCTA-loss collisions)
         metrics = {}
-        # Explicit key-value search
         patterns = {
-            "loss": r'(?:Global\s+Test\s+Loss|test_loss|Loss)\s*[:=]\s*([\d\.]+)',
-            "bta": r'\bBTA\s*[:=]\s*([\d\.]+)%?',
-            "bmcta": r'\bBMCTA\s*[:=]\s*([\d\.]+)%?',
-            "ta": r'\bTA\s*[:=]\s*([\d\.]+)%?',
-            "mcta": r'\bMCTA\s*[:=]\s*([\d\.]+)%?',
+            "loss": r'(?:Global\s+Test\s+Loss|Global\s+Loss|test_loss|(?<!BMCTA\s)(?<!Eval\s)(?<!Final\s)(?<!Best\s)\bLoss)\s*[:=]\s*([\d\.]+)',
+            "bta": r'\b(?:BTA|Best)\s*[:=]\s*([\d\.]+)\s*(%?)',
+            "bmcta": r'\bBMCTA\s*[:=]\s*([\d\.]+)\s*(%?)',
+            "ta": r'(?:Global\s+Test\s+Acc(?:uracy)?|\bCombined|\bAccuracy|\bTA)\s*[:=]\s*([\d\.]+)\s*(%?)',
+            "mcta": r'\bMCTA\s*[:=]\s*([\d\.]+)\s*(%?)',
         }
         for k, pat in patterns.items():
             m = re.search(pat, line, re.IGNORECASE)
             if m:
                 val = float(m.group(1))
-                if val > 1.0 and k in ("bta", "bmcta", "ta", "mcta"):
+                has_pct = m.lastindex and m.lastindex >= 2 and bool(m.group(2))
+                if k in ("bta", "bmcta", "ta", "mcta") and (has_pct or val > 1.0):
                     val = val / 100.0  # normalize percentage e.g. 74.2% -> 0.742
                 metrics[k] = val
 
-        if metrics:
+        if metrics and self.current_round >= 1:
             payload = {
                 "round": self.current_round,
                 "total_rounds": self.total_rounds,

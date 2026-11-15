@@ -1,4 +1,5 @@
 from gui import theme as T
+import threading
 import tkinter as tk
 import customtkinter as ctk
 from typing import Dict, Any, Optional, Callable
@@ -213,29 +214,40 @@ class LiveLogConsole(ctk.CTkFrame):
 
     def append_log(self, text: str):
         """Thread-safe append of a log line with auto-formatting."""
-        self.after(0, self._insert_line, text)
+        try:
+            if threading.current_thread() is threading.main_thread():
+                self._insert_line(text)
+            else:
+                self.after(0, self._insert_line, text)
+        except tk.TclError:
+            pass
 
     def _insert_line(self, line: str):
-        tag = None
-        upper = line.upper()
-        if "[ERROR]" in upper or "FAILED" in upper or "TRACEBACK" in upper:
-            tag = "error"
-        elif "[METRICS" in upper or "BTA:" in upper or "BMCTA:" in upper:
-            tag = "metrics"
-        elif "[ROUND" in upper or "ROUND " in upper:
-            tag = "round"
-        elif "[CLIENT" in upper or "CLIENTS" in upper:
-            tag = "clients"
-        elif "[INFO]" in upper or "[SERVER]" in upper or "[CONNECT]" in upper:
-            tag = "info"
+        try:
+            if not self.winfo_exists():
+                return
+            tag = None
+            upper = line.upper()
+            if "[ERROR]" in upper or "FAILED" in upper or "TRACEBACK" in upper:
+                tag = "error"
+            elif "[METRICS" in upper or "BTA:" in upper or "BMCTA:" in upper:
+                tag = "metrics"
+            elif "[ROUND" in upper or "ROUND " in upper:
+                tag = "round"
+            elif "[CLIENT" in upper or "CLIENTS" in upper:
+                tag = "clients"
+            elif "[INFO]" in upper or "[SERVER]" in upper or "[CONNECT]" in upper:
+                tag = "info"
 
-        if tag:
-            self.textbox.insert(tk.END, line, tag)
-        else:
-            self.textbox.insert(tk.END, line)
+            if tag:
+                self.textbox.insert(tk.END, line, tag)
+            else:
+                self.textbox.insert(tk.END, line)
 
-        if self.autoscroll.get():
-            self.textbox.see(tk.END)
+            if self.autoscroll.get():
+                self.textbox.see(tk.END)
+        except tk.TclError:
+            pass
 
     def update_telemetry(self, info: Dict[str, Any]):
         """Update hardware telemetry badge with real-time GPU, CPU, and RAM stats."""
@@ -258,7 +270,24 @@ class LiveLogConsole(ctk.CTkFrame):
             vram_p = float(info.get("vram_percent", 0.0))
             text = f"{name}: {gpu_u:.0f}%{temp_str} · VRAM: {used:.1f}/{total:.1f} GB ({vram_p:.0f}%) | CPU: {cpu:.1f}% | RAM: {ram_u:.1f}/{ram_t:.1f} GB"
 
-        self.after(0, lambda: self.lbl_telemetry.configure(text=text))
+        def _apply():
+            try:
+                if self.winfo_exists():
+                    self.lbl_telemetry.configure(text=text)
+            except tk.TclError:
+                pass
+
+        try:
+            if threading.current_thread() is threading.main_thread():
+                _apply()
+            else:
+                self.after(0, _apply)
+        except tk.TclError:
+            pass
 
     def clear(self):
-        self.textbox.delete("1.0", tk.END)
+        try:
+            if self.winfo_exists():
+                self.textbox.delete("1.0", tk.END)
+        except tk.TclError:
+            pass

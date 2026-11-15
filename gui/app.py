@@ -1,5 +1,7 @@
 import os
+import queue
 import sys
+import threading
 import tkinter as tk
 from pathlib import Path
 from typing import Dict, Any, List
@@ -30,6 +32,7 @@ from gui.components.analytics_tab import AnalyticsTab
 from gui.components.settings_tab import SettingsTab
 from gui.components.plot_canvas import DualMetricPlotCanvas
 from gui.components.log_console import LiveLogConsole
+from gui.components.log_console_dialog import LiveLogConsoleDialog
 from gui.components.hardware_monitor import HardwareMonitorWidget
 from gui.runners.process_runner import SubprocessRunner
 from gui.runners.metric_parser import MetricStreamParser
@@ -66,6 +69,9 @@ class FLOrchestratorDashboard(ctk.CTk):
         self.active_view = "server"
         self._sidebar_visible = True
         self._role_metrics = {"server": {}, "client": {}}
+        self._ui_queue: "queue.SimpleQueue" = queue.SimpleQueue()
+        self._closing = False
+        self._ui_queue_after_id = None
 
         # Initialize Runners & Parsers
         self.metric_parser = MetricStreamParser(on_metric_callback=self._on_metric_event)
@@ -79,6 +85,7 @@ class FLOrchestratorDashboard(ctk.CTk):
         )
 
         self._build_layout()
+        self._drain_ui_queue()
 
         # Start Real-Time Hardware Telemetry Monitor (CPU, RAM, GPU/VRAM)
         self.telemetry = HardwareTelemetryMonitor(interval=1.2, callback=self._on_telemetry_update)
@@ -278,7 +285,7 @@ class FLOrchestratorDashboard(ctk.CTk):
         )
         self.lbl_breadcrumb.pack(side="left", padx=16)
 
-        # Topbar Right: Theme button & Quick Stop
+        # Topbar Right: Theme button, Quick Stop & Global Live Console Popup Toggle
         self.theme_button = ctk.CTkButton(
             self.topbar, text="◐", width=28, height=28, corner_radius=14,
             font=ctk.CTkFont(family="Segoe UI Symbol", size=18),
@@ -294,6 +301,15 @@ class FLOrchestratorDashboard(ctk.CTk):
             command=self._stop_active_role, state="disabled",
         )
         self.btn_quick_stop.pack(side="right", padx=4)
+
+        self.btn_live_console = ctk.CTkButton(
+            self.topbar, text="Live Console", width=106, height=28,
+            font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color=T.SURFACE, hover_color=T.BORDER, text_color=T.TEXT,
+            border_width=1, border_color=T.BORDER,
+            command=self._toggle_live_console,
+        )
+        self.btn_live_console.pack(side="right", padx=4)
 
         # Topbar Right: Dynamic Host / Target Ribbon
         self.ribbon_frame = ctk.CTkFrame(self.topbar, fg_color="transparent")
@@ -522,25 +538,40 @@ class FLOrchestratorDashboard(ctk.CTk):
             clt_run = self.client_runner.is_running()
             running = srv_run or clt_run
             self.btn_quick_stop.configure(text="Stop Process", state="normal" if running else "disabled")
-            src = getattr(self.analytics_tab, "active_log_source", "server") if hasattr(self, "analytics_tab") else "server"
+            pc = self.analytics_tab.plot_canvas if hasattr(self, "analytics_tab") else None
+            active_role = pc.mode if pc is not None else (
+                getattr(self.analytics_tab, "active_log_source", "server") if hasattr(self, "analytics_tab") else "server"
+            )
             self.kpi_card_1.lbl_title.configure(text="ACTIVE MONITOR")
-            self.kpi_card_1.lbl_val.configure(text=f"{src.capitalize()} Mode")
-            self.kpi_card_1.lbl_sub.configure(text="Live Console & Convergence Curves")
+            self.kpi_card_1.lbl_val.configure(text=f"{active_role.capitalize()} Mode")
+            self.kpi_card_1.lbl_sub.configure(text="Side-by-Side Curves & Table")
 
-            r_count = len(self.analytics_tab.plot_canvas.rounds) if hasattr(self, "analytics_tab") else 0
+            if active_role == "client" and pc is not None:
+                r_count = len(pc.client_round_data["rounds"])
+                acc_pool = pc.client_round_data["btas"] or pc.client_round_data["tas"] or pc.client_round_data["train_accs"]
+                best_acc = max(acc_pool) if acc_pool else None
+                last_loss = pc.client_round_data["losses"][-1] if pc.client_round_data["losses"] else None
+                loss_sub = "Latest Client Round Loss"
+            elif pc is not None:
+                r_count = len(pc.rounds)
+                acc_pool = pc.btas or pc.tas
+                best_acc = max(acc_pool) if acc_pool else None
+                last_loss = pc.losses[-1] if pc.losses else None
+                loss_sub = "Global Convergence Loss"
+            else:
+                r_count, best_acc, last_loss, loss_sub = 0, None, None, "Convergence Loss"
+
             self.kpi_card_2.lbl_title.configure(text="ROUNDS PLOTTED")
             self.kpi_card_2.lbl_val.configure(text=f"{r_count} Rounds")
-            self.kpi_card_2.lbl_sub.configure(text="Stacked Accuracy & Loss")
+            self.kpi_card_2.lbl_sub.configure(text="Side-by-Side Accuracy & Loss")
 
-            best_acc = max(self.analytics_tab.plot_canvas.btas) if hasattr(self, "analytics_tab") and self.analytics_tab.plot_canvas.btas else None
             self.kpi_card_3.lbl_title.configure(text="BEST PLOTTED ACC")
             self.kpi_card_3.lbl_val.configure(text="—" if best_acc is None else f"{best_acc * 100 if best_acc <= 1 else best_acc:.2f} %")
             self.kpi_card_3.lbl_sub.configure(text="From active curve points")
 
-            last_loss = self.analytics_tab.plot_canvas.losses[-1] if hasattr(self, "analytics_tab") and self.analytics_tab.plot_canvas.losses else None
             self.kpi_card_4.lbl_title.configure(text="LATEST LOSS")
             self.kpi_card_4.lbl_val.configure(text="—" if last_loss is None else f"{last_loss:.4f}")
-            self.kpi_card_4.lbl_sub.configure(text="Global Convergence Loss")
+            self.kpi_card_4.lbl_sub.configure(text=loss_sub)
         elif mode == "settings":
             self.btn_quick_stop.configure(text="Stop Process", state="disabled")
             strat = self.server_ctrl.fields.get("strategy").get() if hasattr(self, "server_ctrl") else "fedbns"
@@ -594,12 +625,49 @@ class FLOrchestratorDashboard(ctk.CTk):
         self.client_ctrl.pack(fill="both", expand=True)
         self.client_ctrl.set_running_state(False)
 
+    def _toggle_live_console(self):
+        if hasattr(self, "live_console_dialog") and self.live_console_dialog is not None:
+            self.live_console_dialog.toggle()
+
+    def _on_console_visibility_changed(self, visible: bool):
+        if hasattr(self, "btn_live_console") and self.btn_live_console is not None:
+            try:
+                if visible:
+                    self.btn_live_console.configure(
+                        fg_color=T.PRIMARY,
+                        hover_color=T.PRIMARY_HOVER,
+                        text_color=T.ON_ACCENT,
+                        border_color=T.PRIMARY,
+                    )
+                else:
+                    self.btn_live_console.configure(
+                        fg_color=T.SURFACE,
+                        hover_color=T.BORDER,
+                        text_color=T.TEXT,
+                        border_color=T.BORDER,
+                    )
+            except tk.TclError:
+                pass
+
+    def _on_console_source_changed(self, choice: str):
+        if hasattr(self, "analytics_tab"):
+            self.analytics_tab._on_source_switch(choice)
+
     def _build_analytics_workspace(self):
         self.workspace_analytics = ctk.CTkFrame(self.workspace_body, fg_color="transparent")
-        self.analytics_tab = AnalyticsTab(self.workspace_analytics)
+        self.live_console_dialog = LiveLogConsoleDialog(
+            self,
+            on_source_change=self._on_console_source_changed,
+            on_visibility_change=self._on_console_visibility_changed,
+        )
+        self.analytics_tab = AnalyticsTab(
+            self.workspace_analytics,
+            console_dialog=self.live_console_dialog,
+        )
         self.analytics_tab.pack(fill="both", expand=True)
 
         # Backward compatibility aliases
+        self.console_dialog = self.live_console_dialog
         self.server_plot = self.analytics_tab.plot_canvas
         self.client_plot = self.analytics_tab.plot_canvas
         self.server_console = self.analytics_tab.console
@@ -672,8 +740,13 @@ class FLOrchestratorDashboard(ctk.CTk):
     def _stop_active_role(self):
         if self.active_view == "server":
             self._stop_server()
-        else:
+        elif self.active_view == "client":
             self._stop_client()
+        else:
+            if self.server_runner.is_running():
+                self._stop_server()
+            if self.client_runner.is_running():
+                self._stop_client()
 
     # --- TOPBAR ACTIONS ---
 
@@ -739,10 +812,12 @@ class FLOrchestratorDashboard(ctk.CTk):
         python_exe = self.active_venv
         port = self.entry_server_port.get().strip() or "8080"
         cmd = self.server_ctrl.build_command(python_exe, port=port)
+        self.metric_parser.current_round = 0
+        self.metric_parser.total_rounds = 0
         if hasattr(self, "analytics_tab"):
-            self.analytics_tab.set_active_source("server", auto=True)
-            self.analytics_tab.append_server_log(f"\n[SERVER LAUNCH] Invoking command:\n{' '.join(cmd)}\n\n")
             self.analytics_tab.clear()
+            self.analytics_tab.set_role("server", auto=True)
+            self.analytics_tab.append_server_log(f"\n[SERVER LAUNCH] Invoking command:\n{' '.join(cmd)}\n\n")
         self._role_metrics["server"].clear()
         if hasattr(self, "client_table"):
             self.client_table.reset_table()
@@ -771,15 +846,59 @@ class FLOrchestratorDashboard(ctk.CTk):
         if hasattr(self, "analytics_tab"):
             self.analytics_tab.plot_canvas.export_plot_image()
 
+    def _run_on_main_thread(self, fn):
+        """Execute callback immediately on main thread or queue safely from worker threads."""
+        if getattr(self, "_closing", False):
+            return
+        if threading.current_thread() is threading.main_thread():
+            try:
+                fn()
+            except (tk.TclError, RuntimeError):
+                pass
+        else:
+            self._ui_queue.put(fn)
+
+    def _drain_ui_queue(self):
+        """Drain queued worker callbacks safely inside Tk main thread."""
+        if getattr(self, "_closing", False):
+            return
+        processed = 0
+        while processed < 500:
+            try:
+                fn = self._ui_queue.get_nowait()
+            except queue.Empty:
+                break
+            try:
+                fn()
+            except (tk.TclError, RuntimeError):
+                pass
+            except Exception as e:
+                print(f"[UI QUEUE ERROR] {e}")
+            processed += 1
+
+        if not getattr(self, "_closing", False):
+            delay = 1 if processed >= 500 else 20
+            try:
+                self._ui_queue_after_id = self.after(delay, self._drain_ui_queue)
+            except (tk.TclError, RuntimeError):
+                pass
+
     def _on_server_log(self, line: str):
-        if hasattr(self, "analytics_tab"):
-            self.analytics_tab.append_server_log(line)
-        self.metric_parser.parse_line(line, source="server")
+        def _process():
+            if hasattr(self, "analytics_tab"):
+                self.analytics_tab.append_server_log(line)
+            self.metric_parser.parse_line(line, source="server")
+
+        self._run_on_main_thread(_process)
 
     def _on_server_exit(self, code: int):
-        if hasattr(self, "analytics_tab"):
-            self.analytics_tab.append_server_log(f"\n[SERVER TERMINATED] Process exited with code {code}.\n")
-        self.after(0, lambda: (self.server_ctrl.set_running_state(False), self._sync_kpi_display()))
+        def _process():
+            if hasattr(self, "analytics_tab"):
+                self.analytics_tab.append_server_log(f"\n[SERVER TERMINATED] Process exited with code {code}.\n")
+            self.server_ctrl.set_running_state(False)
+            self._sync_kpi_display()
+
+        self._run_on_main_thread(_process)
 
         # Check if client_full_histories.json was saved in the latest results directory
         try:
@@ -817,7 +936,7 @@ class FLOrchestratorDashboard(ctk.CTk):
         server_addr = self.entry_client_server_addr.get().strip() or "127.0.0.1:8080"
         cmd = self.client_ctrl.build_command(python_exe, server_address=server_addr)
         if hasattr(self, "analytics_tab"):
-            self.analytics_tab.set_active_source("client", auto=True)
+            self.analytics_tab.set_role("client", auto=True)
             self.analytics_tab.append_client_log(f"\n[CLIENT LAUNCH] Invoking command:\n{' '.join(cmd)}\n\n")
         self._role_metrics["client"].clear()
 
@@ -841,18 +960,25 @@ class FLOrchestratorDashboard(ctk.CTk):
         self._role_metrics["client"].clear()
 
     def _on_client_log(self, line: str):
-        if hasattr(self, "analytics_tab"):
-            self.analytics_tab.append_client_log(line)
-        self.metric_parser.parse_line(line, source="client")
+        def _process():
+            if hasattr(self, "analytics_tab"):
+                self.analytics_tab.append_client_log(line)
+            self.metric_parser.parse_line(line, source="client")
+
+        self._run_on_main_thread(_process)
 
     def _on_client_exit(self, code: int):
-        if hasattr(self, "analytics_tab"):
-            self.analytics_tab.append_client_log(f"\n[CLIENT TERMINATED] Process exited with code {code}.\n")
-        self.after(0, lambda: (self.client_ctrl.set_running_state(False), self._sync_kpi_display()))
+        def _process():
+            if hasattr(self, "analytics_tab"):
+                self.analytics_tab.append_client_log(f"\n[CLIENT TERMINATED] Process exited with code {code}.\n")
+            self.client_ctrl.set_running_state(False)
+            self._sync_kpi_display()
+
+        self._run_on_main_thread(_process)
 
     def _on_metric_event(self, source: str, payload: Dict[str, Any]):
-        """Dispatch worker metrics to Tk before updating the active role's summary."""
-        self.after(0, self._apply_metric_event, source, payload)
+        """Dispatch worker metrics safely on the Tk main thread."""
+        self._run_on_main_thread(lambda: self._apply_metric_event(source, payload))
 
     def _apply_metric_event(self, source, payload):
         if source == "server_client_round":
@@ -937,19 +1063,36 @@ class FLOrchestratorDashboard(ctk.CTk):
         self._sync_kpi_display()
 
     def _on_telemetry_update(self, info: Dict[str, Any]):
-        if hasattr(self, "hardware_monitor"):
-            self.hardware_monitor.update_metrics(info)
-        if hasattr(self, "analytics_tab"):
-            self.analytics_tab.update_telemetry(info)
+        def _apply():
+            if hasattr(self, "hardware_monitor"):
+                self.hardware_monitor.update_metrics(info)
+            if hasattr(self, "analytics_tab"):
+                self.analytics_tab.update_telemetry(info)
+
+        self._run_on_main_thread(_apply)
 
     def _on_close(self):
         """Cleanup processes and stop telemetry before quitting."""
-        if hasattr(self, "_workspace_refresh_id"):
-            self.after_cancel(self._workspace_refresh_id)
+        self._closing = True
+        for timer_attr in ("_ui_queue_after_id", "_workspace_refresh_id"):
+            timer_id = getattr(self, timer_attr, None)
+            if timer_id is not None:
+                try:
+                    self.after_cancel(timer_id)
+                except (tk.TclError, RuntimeError):
+                    pass
         self.telemetry.stop()
         self.server_runner.stop()
         self.client_runner.stop()
+        if hasattr(self, "live_console_dialog") and self.live_console_dialog is not None:
+            try:
+                self.live_console_dialog.destroy()
+            except (tk.TclError, RuntimeError):
+                pass
         self.destroy()
+
+
+FedMedAIDashboard = FLOrchestratorDashboard
 
 
 def main():

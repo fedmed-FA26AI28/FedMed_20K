@@ -5,18 +5,21 @@ import matplotlib
 matplotlib.use("TkAgg")
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+from matplotlib.ticker import MaxNLocator
 import numpy as np
-from typing import List, Dict, Optional, Any
+from typing import List, Dict, Optional, Any, Callable
 
 
 class DualMetricPlotCanvas(ctk.CTkFrame):
     """Dual/Triple-panel live Matplotlib canvas with legend header ribbon, client inspection, and epoch reset."""
 
-    def __init__(self, master, mode: str = "server", **kwargs):
+    def __init__(self, master, mode: str = "server", on_role_change: Optional[Callable[[str], None]] = None, **kwargs):
         super().__init__(master, fg_color=T.PANEL, corner_radius=12, border_width=1, border_color=T.BORDER, **kwargs)
         self.mode = mode  # "server" or "client"
+        self.on_role_change = on_role_change
 
-        # Server Global state storage
+        # Server Global state storage keyed by round number (no duplicate rounds)
+        self._server_round_map: Dict[int, Dict[str, Optional[float]]] = {}
         self.rounds: List[int] = []
         self.losses: List[float] = []
         self.btas: List[float] = []
@@ -25,6 +28,7 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         self.mctas: List[float] = []
 
         # Client state storage: Round vs Epoch separation
+        self._client_round_map: Dict[int, Dict[str, Optional[float]]] = {}
         self.client_round_data = {
             "rounds": [],
             "losses": [],
@@ -47,94 +51,32 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         self._build_figure()
 
     def _build_legend_ribbon(self):
-        """Dedicated top legend frame outside plot axes with interactive view controls."""
-        self.legend_frame = ctk.CTkFrame(self, fg_color=T.SURFACE, height=36, corner_radius=6, border_width=1, border_color=T.BORDER)
+        """Dedicated top legend frame outside plot axes with role switcher and interactive view controls."""
+        self.legend_frame = ctk.CTkFrame(self, fg_color=T.SURFACE, height=38, corner_radius=6, border_width=1, border_color=T.BORDER)
         self.legend_frame.pack(fill="x", padx=10, pady=(8, 4))
         self.legend_frame.pack_propagate(False)
 
-        if self.mode == "server":
-            # Server Mode: Dropdown to pick between Global view and individual clients
-            self.lbl_server_title = ctk.CTkLabel(
-                self.legend_frame,
-                text="SERVER METRICS:",
-                font=ctk.CTkFont(size=12, weight="bold"),
-                text_color=T.TEXT,
-            )
-            self.lbl_server_title.pack(side="left", padx=(10, 4))
+        self.seg_role = ctk.CTkSegmentedButton(
+            self.legend_frame,
+            values=["Server", "Client"],
+            height=28,
+            font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color=T.BORDER,
+            selected_color=T.PRIMARY,
+            selected_hover_color=T.PRIMARY_HOVER,
+            unselected_color=T.PANEL,
+            unselected_hover_color=T.SURFACE,
+            text_color=T.TEXT,
+            command=self._on_role_segmented_changed,
+        )
+        self.seg_role.set("Server" if self.mode == "server" else "Client")
+        self.seg_role.pack(side="left", padx=(10, 6))
 
-            self.cmb_server_view = ctk.CTkComboBox(
-                self.legend_frame,
-                values=["Global Server Metrics"],
-                width=200,
-                height=28,
-                font=ctk.CTkFont(size=11, weight="bold"),
-                fg_color=T.PANEL,
-                border_color=T.BORDER,
-                text_color=T.TEXT,
-                button_color=T.PRIMARY,
-                button_hover_color=T.PRIMARY_HOVER,
-                command=self._on_server_view_changed,
-            )
-            self.cmb_server_view.pack(side="left", padx=4)
+        # Dynamic container for Server vs Client specific controls
+        self.ribbon_mode_frame = ctk.CTkFrame(self.legend_frame, fg_color="transparent")
+        self.ribbon_mode_frame.pack(side="left", fill="both", expand=True)
 
-            self.lbl_client_summary = ctk.CTkLabel(
-                self.legend_frame,
-                text="",
-                font=ctk.CTkFont(size=11, weight="bold"),
-                text_color=T.ACCENT,
-            )
-            self.lbl_client_summary.pack(side="left", padx=6)
-
-            # Global badges container (hidden when viewing a specific client)
-            self.badge_box = ctk.CTkFrame(self.legend_frame, fg_color="transparent")
-            self.badge_box.pack(side="left", padx=6)
-            badges = [
-                ("● BTA", T.PRIMARY),
-                ("● BMCTA", T.BLUE),
-                ("● TA", T.SUCCESS),
-                ("● MCTA", T.PURPLE),
-                ("● Loss", T.WARNING),
-            ]
-            for text, color in badges:
-                chip = ctk.CTkLabel(
-                    self.badge_box,
-                    text=text,
-                    font=ctk.CTkFont(size=11, weight="bold"),
-                    text_color=color,
-                )
-                chip.pack(side="left", padx=4)
-
-        else:
-            # Client Mode: Segmented View Switcher between Round-Level and Current Epochs
-            title_lbl = ctk.CTkLabel(
-                self.legend_frame,
-                text="CLIENT METRICS:",
-                font=ctk.CTkFont(size=12, weight="bold"),
-                text_color=T.TEXT,
-            )
-            title_lbl.pack(side="left", padx=(10, 4))
-
-            self.seg_client_view = ctk.CTkSegmentedButton(
-                self.legend_frame,
-                values=["Round Progress", "Current Epochs"],
-                height=28,
-                font=ctk.CTkFont(size=11, weight="bold"),
-                fg_color=T.BORDER,
-                selected_color=T.PRIMARY,
-                selected_hover_color=T.PRIMARY_HOVER,
-                unselected_color=T.PANEL,
-                unselected_hover_color=T.SURFACE,
-                text_color=T.TEXT,
-                command=self._on_client_view_mode_changed,
-            )
-            self.seg_client_view.set("Round Progress")
-            self.seg_client_view.pack(side="left", padx=6)
-
-            self.client_badge_box = ctk.CTkFrame(self.legend_frame, fg_color="transparent")
-            self.client_badge_box.pack(side="left", padx=6)
-            self._update_client_ribbon_badges()
-
-        # Action buttons: Export CSV + Save Plot
+        # Action buttons: Export CSV + Save Plot (always on Right)
         btn_save = ctk.CTkButton(
             self.legend_frame,
             text="Save Plot",
@@ -162,6 +104,114 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
             command=self.export_csv,
         )
         btn_csv.pack(side="right", padx=4)
+
+        self._populate_mode_ribbon()
+
+    def _populate_mode_ribbon(self):
+        """Populate Server or Client controls inside the ribbon container."""
+        for w in self.ribbon_mode_frame.winfo_children():
+            w.destroy()
+
+        if self.mode == "server":
+            self.lbl_server_title = ctk.CTkLabel(
+                self.ribbon_mode_frame,
+                text="SERVER METRICS:",
+                font=ctk.CTkFont(size=11, weight="bold"),
+                text_color=T.TEXT,
+            )
+            self.lbl_server_title.pack(side="left", padx=(4, 4))
+
+            c_options = ["Global Server Metrics"] + [f"Client {c}" for c in sorted(self.client_packages.keys())]
+            self.cmb_server_view = ctk.CTkComboBox(
+                self.ribbon_mode_frame,
+                values=c_options,
+                width=190,
+                height=28,
+                font=ctk.CTkFont(size=11, weight="bold"),
+                fg_color=T.PANEL,
+                border_color=T.BORDER,
+                text_color=T.TEXT,
+                button_color=T.PRIMARY,
+                button_hover_color=T.PRIMARY_HOVER,
+                command=self._on_server_view_changed,
+            )
+            if self.server_active_view.startswith("client_"):
+                cid_str = self.server_active_view.split("_")[-1]
+                self.cmb_server_view.set(f"Client {cid_str}")
+            else:
+                self.cmb_server_view.set("Global Server Metrics")
+            self.cmb_server_view.pack(side="left", padx=4)
+
+            self.lbl_client_summary = ctk.CTkLabel(
+                self.ribbon_mode_frame,
+                text="",
+                font=ctk.CTkFont(size=11, weight="bold"),
+                text_color=T.ACCENT,
+            )
+            self.lbl_client_summary.pack(side="left", padx=6)
+
+            self.badge_box = ctk.CTkFrame(self.ribbon_mode_frame, fg_color="transparent")
+            badges = [
+                ("● BTA", T.PRIMARY),
+                ("● BMCTA", T.BLUE),
+                ("● TA", T.SUCCESS),
+                ("● MCTA", T.PURPLE),
+                ("● Loss", T.WARNING),
+            ]
+            for text, color in badges:
+                chip = ctk.CTkLabel(
+                    self.badge_box,
+                    text=text,
+                    font=ctk.CTkFont(size=11, weight="bold"),
+                    text_color=color,
+                )
+                chip.pack(side="left", padx=4)
+            if self.server_active_view == "global":
+                self.badge_box.pack(side="left", padx=6)
+        else:
+            title_lbl = ctk.CTkLabel(
+                self.ribbon_mode_frame,
+                text="CLIENT METRICS:",
+                font=ctk.CTkFont(size=11, weight="bold"),
+                text_color=T.TEXT,
+            )
+            title_lbl.pack(side="left", padx=(4, 4))
+
+            self.seg_client_view = ctk.CTkSegmentedButton(
+                self.ribbon_mode_frame,
+                values=["Round Progress", "Current Epochs"],
+                height=28,
+                font=ctk.CTkFont(size=11, weight="bold"),
+                fg_color=T.BORDER,
+                selected_color=T.PRIMARY,
+                selected_hover_color=T.PRIMARY_HOVER,
+                unselected_color=T.PANEL,
+                unselected_hover_color=T.SURFACE,
+                text_color=T.TEXT,
+                command=self._on_client_view_mode_changed,
+            )
+            self.seg_client_view.set("Round Progress" if self.client_view_mode == "round" else "Current Epochs")
+            self.seg_client_view.pack(side="left", padx=6)
+
+            self.client_badge_box = ctk.CTkFrame(self.ribbon_mode_frame, fg_color="transparent")
+            self.client_badge_box.pack(side="left", padx=6)
+            self._update_client_ribbon_badges()
+
+    def _on_role_segmented_changed(self, choice: str):
+        self.set_mode(choice.lower(), notify=True)
+
+    def set_mode(self, mode: str, notify: bool = False):
+        """Switch plot mode between 'server' and 'client' and rebuild controls/axes if changed."""
+        target = "client" if mode.lower() == "client" else "server"
+        self.seg_role.set("Client" if target == "client" else "Server")
+        changed = (target != self.mode)
+        self.mode = target
+        if changed:
+            self._populate_mode_ribbon()
+            self._build_figure()
+            self._refresh_plots()
+        if notify and self.on_role_change:
+            self.on_role_change(target)
 
     def _update_client_ribbon_badges(self):
         """Update chips on client ribbon based on active view mode."""
@@ -224,8 +274,9 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         cid = payload.get("client_id")
         if cid is not None:
             self.client_packages[int(cid)] = payload
-            c_options = ["Global Server Metrics"] + [f"Client {c}" for c in sorted(self.client_packages.keys())]
-            self.cmb_server_view.configure(values=c_options)
+            if self.mode == "server" and hasattr(self, "cmb_server_view") and self.cmb_server_view.winfo_exists():
+                c_options = ["Global Server Metrics"] + [f"Client {c}" for c in sorted(self.client_packages.keys())]
+                self.cmb_server_view.configure(values=c_options)
 
     def _set_appearance_mode(self, mode):
         super()._set_appearance_mode(mode)
@@ -234,35 +285,35 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
             self._refresh_plots()
 
     def _build_figure(self):
-        """Create Matplotlib figure layout with stacked plots (Accuracy on top, Loss on bottom)."""
+        """Create Matplotlib side-by-side figure layout (Accuracy left, Loss right, optional Distribution far right)."""
         if hasattr(self, "canvas") and self.canvas is not None:
             self.canvas.get_tk_widget().destroy()
 
         if self.mode == "server" and self.server_active_view.startswith("client_"):
-            # Stacked curves on left (Accuracy top, Loss bottom) + Distribution chart on right
-            self.fig = Figure(figsize=(8.8, 5.0), dpi=100, facecolor=T.resolve(T.PANEL), constrained_layout=True)
-            gs = self.fig.add_gridspec(2, 2, width_ratios=[1.2, 1.0])
+            # 1x3 Side-by-Side: Accuracy | Loss | Data Distribution
+            self.fig = Figure(figsize=(11.5, 3.8), dpi=100, facecolor=T.resolve(T.PANEL), constrained_layout=True)
+            gs = self.fig.add_gridspec(1, 3, width_ratios=[1.1, 1.1, 1.0])
             self.ax_acc = self.fig.add_subplot(gs[0, 0])
-            self.ax_loss = self.fig.add_subplot(gs[1, 0], sharex=self.ax_acc)
-            self.ax_dist = self.fig.add_subplot(gs[:, 1])
-            self._style_axis(self.ax_acc, "Client Accuracy (Train & TA)", "", "Accuracy (%)")
+            self.ax_loss = self.fig.add_subplot(gs[0, 1], sharex=self.ax_acc)
+            self.ax_dist = self.fig.add_subplot(gs[0, 2])
+            self._style_axis(self.ax_acc, "Client Accuracy (Train & TA)", "Server Round", "Accuracy (%)")
             self._style_axis(self.ax_loss, "Client Loss (Train vs Eval)", "Server Round", "Loss")
             self._style_axis(self.ax_dist, "Data Distribution", "Class Label", "Sample Count")
         else:
-            # Vertically Stacked Panels: Accuracy (Top) and Loss (Bottom) sharing X-axis
-            self.fig = Figure(figsize=(7.5, 5.0), dpi=100, facecolor=T.resolve(T.PANEL), constrained_layout=True)
-            self.ax_acc = self.fig.add_subplot(2, 1, 1)
-            self.ax_loss = self.fig.add_subplot(2, 1, 2, sharex=self.ax_acc)
+            # 1x2 Side-by-Side Panels: Accuracy (Left) and Loss (Right) sharing X-axis
+            self.fig = Figure(figsize=(10.5, 3.8), dpi=100, facecolor=T.resolve(T.PANEL), constrained_layout=True)
+            self.ax_acc = self.fig.add_subplot(1, 2, 1)
+            self.ax_loss = self.fig.add_subplot(1, 2, 2, sharex=self.ax_acc)
             self.ax_dist = None
 
             if self.mode == "server":
-                self._style_axis(self.ax_acc, "Accuracy Progression (BTA / BMCTA)", "", "Accuracy")
+                self._style_axis(self.ax_acc, "Accuracy Progression (BTA / BMCTA)", "Communication Round", "Accuracy")
                 self._style_axis(self.ax_loss, "Evaluation Loss Reduction", "Communication Round", "Loss")
             else:
                 x_label = "Communication Round" if self.client_view_mode == "round" else "Epoch (Current Round)"
                 loss_title = "Local Round Loss" if self.client_view_mode == "round" else "Current Round Epoch Loss"
                 acc_title = "Local Round Accuracies" if self.client_view_mode == "round" else "Current Round Epoch Acc"
-                self._style_axis(self.ax_acc, acc_title, "", "Accuracy")
+                self._style_axis(self.ax_acc, acc_title, x_label, "Accuracy")
                 self._style_axis(self.ax_loss, loss_title, x_label, "Loss")
 
         self.canvas = FigureCanvasTkAgg(self.fig, master=self)
@@ -284,22 +335,48 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         if "right" in ax.spines:
             ax.spines["right"].set_visible(False)
 
+    def _sync_server_arrays(self):
+        """Rebuild sorted de-duplicated server arrays from _server_round_map."""
+        sorted_rounds = sorted(self._server_round_map.keys())
+        self.rounds = sorted_rounds
+        self.losses = [self._server_round_map[r]["loss"] for r in sorted_rounds if self._server_round_map[r]["loss"] is not None]
+        self.btas = [self._server_round_map[r]["bta"] for r in sorted_rounds if self._server_round_map[r]["bta"] is not None]
+        self.bmctas = [self._server_round_map[r]["bmcta"] for r in sorted_rounds if self._server_round_map[r]["bmcta"] is not None]
+        self.tas = [self._server_round_map[r]["ta"] for r in sorted_rounds if self._server_round_map[r]["ta"] is not None]
+        self.mctas = [self._server_round_map[r]["mcta"] for r in sorted_rounds if self._server_round_map[r]["mcta"] is not None]
+
+    def _sync_client_round_arrays(self):
+        """Rebuild sorted de-duplicated client round arrays from _client_round_map."""
+        sorted_rounds = sorted(self._client_round_map.keys())
+        self.client_round_data = {
+            "rounds": sorted_rounds,
+            "losses": [self._client_round_map[r]["loss"] for r in sorted_rounds if self._client_round_map[r]["loss"] is not None],
+            "train_accs": [self._client_round_map[r]["train_acc"] for r in sorted_rounds if self._client_round_map[r]["train_acc"] is not None],
+            "tas": [self._client_round_map[r]["ta"] for r in sorted_rounds if self._client_round_map[r]["ta"] is not None],
+            "btas": [self._client_round_map[r]["bta"] for r in sorted_rounds if self._client_round_map[r]["bta"] is not None],
+        }
+
     def update_server_metrics(self, r: int, loss: Optional[float] = None, bta: Optional[float] = None,
                               bmcta: Optional[float] = None, ta: Optional[float] = None, mcta: Optional[float] = None):
-        """Update live curves for server global metrics."""
-        self.rounds.append(r)
+        """Merge and plot live curves for server global metrics keyed by round."""
+        r_num = int(r)
+        entry = self._server_round_map.setdefault(
+            r_num, {"loss": None, "bta": None, "bmcta": None, "ta": None, "mcta": None}
+        )
         if loss is not None:
-            self.losses.append(loss)
+            entry["loss"] = float(loss)
         if bta is not None:
-            self.btas.append(bta)
+            entry["bta"] = float(bta)
         if bmcta is not None:
-            self.bmctas.append(bmcta)
+            entry["bmcta"] = float(bmcta)
         if ta is not None:
-            self.tas.append(ta)
+            entry["ta"] = float(ta)
         if mcta is not None:
-            self.mctas.append(mcta)
+            entry["mcta"] = float(mcta)
 
-        if self.server_active_view == "global":
+        self._sync_server_arrays()
+
+        if self.mode == "server" and self.server_active_view == "global":
             self._refresh_plots()
 
     def update_client_epoch(self, epoch: int, train_loss: float, train_acc: float, is_new_round: bool = False):
@@ -313,27 +390,32 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         self.client_epoch_data["losses"].append(train_loss)
         self.client_epoch_data["train_accs"].append(train_acc)
 
-        if self.client_view_mode == "epoch":
+        if self.mode == "client" and self.client_view_mode == "epoch":
             self._refresh_plots()
 
     def update_client_round(self, r: int, train_loss: Optional[float] = None, train_acc: Optional[float] = None,
                             ta: Optional[float] = None, bta: Optional[float] = None):
-        """Update client round metrics across rounds 1..R."""
-        self.client_round_data["rounds"].append(r)
+        """Merge and plot client round metrics keyed by round across 1..R."""
+        r_num = int(r)
+        entry = self._client_round_map.setdefault(
+            r_num, {"loss": None, "train_acc": None, "ta": None, "bta": None}
+        )
         if train_loss is not None:
-            self.client_round_data["losses"].append(train_loss)
+            entry["loss"] = float(train_loss)
         if train_acc is not None:
-            self.client_round_data["train_accs"].append(train_acc)
+            entry["train_acc"] = float(train_acc)
         if ta is not None:
-            self.client_round_data["tas"].append(ta)
+            entry["ta"] = float(ta)
         if bta is not None:
-            self.client_round_data["btas"].append(bta)
+            entry["bta"] = float(bta)
 
-        if self.client_view_mode == "round":
+        self._sync_client_round_arrays()
+
+        if self.mode == "client" and self.client_view_mode == "round":
             self._refresh_plots()
 
     def _refresh_plots(self):
-        """Re-render data points on active Matplotlib axes."""
+        """Re-render data points on active Matplotlib axes and force immediate canvas redraw."""
         if not hasattr(self, "ax_loss") or self.ax_loss is None:
             return
 
@@ -354,38 +436,42 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
             else:
                 self._render_client_epoch()
 
-        self.canvas.draw_idle()
+        if hasattr(self, "canvas") and self.canvas is not None:
+            try:
+                self.canvas.draw()
+            except Exception:
+                self.canvas.draw_idle()
 
     def _render_server_global(self):
-        """Render global server metrics curves."""
+        """Render global server metrics curves from consolidated round map."""
         self._style_axis(self.ax_loss, "Evaluation Loss", "Communication Round", "Loss")
         self._style_axis(self.ax_acc, "Accuracy Progression", "Communication Round", "Accuracy")
+        self.ax_loss.xaxis.set_major_locator(MaxNLocator(integer=True))
+        self.ax_acc.xaxis.set_major_locator(MaxNLocator(integer=True))
 
-        if self.losses and self.rounds:
-            x_l = self.rounds[:len(self.losses)]
-            self.ax_loss.plot(x_l, self.losses, color=T.resolve(T.WARNING), lw=2, marker="o", markersize=3)
-            self._set_axis_limits(self.ax_loss, x_l, self.losses)
+        sorted_rounds = sorted(self._server_round_map.keys())
+        loss_pts = [(r, self._server_round_map[r]["loss"]) for r in sorted_rounds if self._server_round_map[r]["loss"] is not None]
+        if loss_pts:
+            xs, ys = zip(*loss_pts)
+            self.ax_loss.plot(xs, ys, color=T.resolve(T.WARNING), lw=2, marker="o", markersize=4)
+            self._set_axis_limits(self.ax_loss, list(xs), list(ys))
 
         all_accs = []
-        if self.rounds:
-            if self.btas:
-                x = self.rounds[:len(self.btas)]
-                self.ax_acc.plot(x, self.btas, color=T.resolve(T.ACCENT), lw=2, label="BTA")
-                all_accs.extend(self.btas)
-            if self.bmctas:
-                x = self.rounds[:len(self.bmctas)]
-                self.ax_acc.plot(x, self.bmctas, color=T.resolve(T.BLUE), lw=2, label="BMCTA")
-                all_accs.extend(self.bmctas)
-            if self.tas:
-                x = self.rounds[:len(self.tas)]
-                self.ax_acc.plot(x, self.tas, color=T.resolve(T.SUCCESS), lw=1.2, linestyle=":", label="TA")
-                all_accs.extend(self.tas)
-            if self.mctas:
-                x = self.rounds[:len(self.mctas)]
-                self.ax_acc.plot(x, self.mctas, color=T.resolve(T.PURPLE), lw=1.2, linestyle="--", label="MCTA")
-                all_accs.extend(self.mctas)
-            if all_accs:
-                self._set_axis_limits(self.ax_acc, self.rounds, all_accs, is_acc=True)
+        acc_specs = [
+            ("bta", T.ACCENT, 2.0, "-", "BTA"),
+            ("bmcta", T.BLUE, 2.0, "-", "BMCTA"),
+            ("ta", T.SUCCESS, 1.5, ":", "TA"),
+            ("mcta", T.PURPLE, 1.5, "--", "MCTA"),
+        ]
+        for key, token, lw, ls, label in acc_specs:
+            pts = [(r, self._server_round_map[r][key]) for r in sorted_rounds if self._server_round_map[r][key] is not None]
+            if pts:
+                xs, ys = zip(*pts)
+                self.ax_acc.plot(xs, ys, color=T.resolve(token), lw=lw, linestyle=ls, marker="o", markersize=4, label=label)
+                all_accs.extend(ys)
+
+        if all_accs and sorted_rounds:
+            self._set_axis_limits(self.ax_acc, sorted_rounds, all_accs, is_acc=True)
 
     def _render_server_client(self, cid: int):
         """Render picked client's round curves and data distribution bar chart."""
@@ -456,33 +542,34 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
                 )
 
     def _render_client_round(self):
-        """Render client cumulative round curves."""
+        """Render client cumulative round curves from consolidated round map."""
         self._style_axis(self.ax_loss, "Local Round Loss", "Communication Round", "Loss")
         self._style_axis(self.ax_acc, "Local Round Accuracies", "Communication Round", "Accuracy")
+        self.ax_loss.xaxis.set_major_locator(MaxNLocator(integer=True))
+        self.ax_acc.xaxis.set_major_locator(MaxNLocator(integer=True))
 
-        r_data = self.client_round_data
-        rounds = r_data["rounds"]
-        if rounds and r_data["losses"]:
-            x = rounds[:len(r_data["losses"])]
-            self.ax_loss.plot(x, r_data["losses"], color=T.resolve(T.WARNING), lw=2, marker="o", markersize=3)
-            self._set_axis_limits(self.ax_loss, x, r_data["losses"])
+        sorted_rounds = sorted(self._client_round_map.keys())
+        loss_pts = [(r, self._client_round_map[r]["loss"]) for r in sorted_rounds if self._client_round_map[r]["loss"] is not None]
+        if loss_pts:
+            xs, ys = zip(*loss_pts)
+            self.ax_loss.plot(xs, ys, color=T.resolve(T.WARNING), lw=2, marker="o", markersize=4)
+            self._set_axis_limits(self.ax_loss, list(xs), list(ys))
 
         all_accs = []
-        if rounds:
-            if r_data["train_accs"]:
-                x = rounds[:len(r_data["train_accs"])]
-                self.ax_acc.plot(x, r_data["train_accs"], color=T.resolve(T.BLUE), lw=2, label="Train Acc")
-                all_accs.extend(r_data["train_accs"])
-            if r_data["tas"]:
-                x = rounds[:len(r_data["tas"])]
-                self.ax_acc.plot(x, r_data["tas"], color=T.resolve(T.ACCENT), lw=2, label="TA")
-                all_accs.extend(r_data["tas"])
-            if r_data["btas"]:
-                x = rounds[:len(r_data["btas"])]
-                self.ax_acc.plot(x, r_data["btas"], color=T.resolve(T.SUCCESS), lw=1.5, linestyle=":", label="Best TA")
-                all_accs.extend(r_data["btas"])
-            if all_accs:
-                self._set_axis_limits(self.ax_acc, rounds, all_accs, is_acc=True)
+        acc_specs = [
+            ("train_acc", T.BLUE, 2.0, "-", "Train Acc"),
+            ("ta", T.ACCENT, 2.0, "-", "TA"),
+            ("bta", T.SUCCESS, 1.5, ":", "Best TA"),
+        ]
+        for key, token, lw, ls, label in acc_specs:
+            pts = [(r, self._client_round_map[r][key]) for r in sorted_rounds if self._client_round_map[r][key] is not None]
+            if pts:
+                xs, ys = zip(*pts)
+                self.ax_acc.plot(xs, ys, color=T.resolve(token), lw=lw, linestyle=ls, marker="o", markersize=4, label=label)
+                all_accs.extend(ys)
+
+        if all_accs and sorted_rounds:
+            self._set_axis_limits(self.ax_acc, sorted_rounds, all_accs, is_acc=True)
 
     def _render_client_epoch(self):
         """Render client active round epoch curves (resets each round)."""
@@ -502,7 +589,11 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
     def _set_axis_limits(self, ax, x_vals, y_vals, is_acc: bool = False, max_val_100: bool = False):
         if not x_vals or not y_vals:
             return
-        ax.set_xlim(min(x_vals), max(x_vals) + 1 if len(x_vals) > 1 else max(x_vals) + 1)
+        min_x, max_x = min(x_vals), max(x_vals)
+        if min_x == max_x:
+            ax.set_xlim(max(0.0, min_x - 0.5), max_x + 0.5)
+        else:
+            ax.set_xlim(min_x - 0.15, max_x + 0.5)
         min_y, max_y = min(y_vals), max(y_vals)
         if is_acc:
             top_bound = 105.0 if max_val_100 else 1.05
@@ -512,24 +603,22 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
             ax.set_ylim(max(0.0, min_y - pad), max_y + pad)
 
     def clear(self):
-        """Reset curves."""
-        self.rounds.clear()
-        self.losses.clear()
-        self.btas.clear()
-        self.bmctas.clear()
-        self.tas.clear()
-        self.mctas.clear()
-
-        self.client_round_data = {"rounds": [], "losses": [], "train_accs": [], "tas": [], "btas": []}
+        """Reset curves and round maps."""
+        self._server_round_map.clear()
+        self._client_round_map.clear()
+        self._sync_server_arrays()
+        self._sync_client_round_arrays()
         self.client_epoch_data = {"epochs": [], "losses": [], "train_accs": []}
         self.client_packages.clear()
+        self.server_active_view = "global"
 
-        if self.mode == "server":
+        if self.mode == "server" and hasattr(self, "cmb_server_view") and self.cmb_server_view.winfo_exists():
             self.cmb_server_view.configure(values=["Global Server Metrics"])
             self.cmb_server_view.set("Global Server Metrics")
-            self.server_active_view = "global"
-            self.lbl_client_summary.configure(text="")
-            self.badge_box.pack(side="left", padx=6)
+            if hasattr(self, "lbl_client_summary") and self.lbl_client_summary.winfo_exists():
+                self.lbl_client_summary.configure(text="")
+            if hasattr(self, "badge_box") and self.badge_box.winfo_exists():
+                self.badge_box.pack(side="left", padx=6)
 
         self._build_figure()
         self._refresh_plots()
@@ -550,7 +639,7 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         import csv
         from tkinter import filedialog, messagebox
         if self.mode == "server":
-            if not self.rounds:
+            if not self._server_round_map:
                 if show_dialog:
                     messagebox.showinfo("Export CSV", "No server curve data to export yet.")
                 return
@@ -566,29 +655,40 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
                     return
             try:
                 os.makedirs(os.path.dirname(os.path.abspath(filepath)), exist_ok=True)
+                sorted_rounds = sorted(self._server_round_map.keys())
                 with open(filepath, "w", newline="", encoding="utf-8-sig") as f:
                     writer = csv.writer(f)
                     writer.writerow(["round", "loss", "bta", "bmcta", "ta", "mcta"])
-                    for i, r in enumerate(self.rounds):
-                        l = self.losses[i] if i < len(self.losses) else ""
-                        bta = self.btas[i] if i < len(self.btas) else ""
-                        bmcta = self.bmctas[i] if i < len(self.bmctas) else ""
-                        ta = self.tas[i] if i < len(self.tas) else ""
-                        mcta = self.mctas[i] if i < len(self.mctas) else ""
-                        writer.writerow([r, l, bta, bmcta, ta, mcta])
+                    for r in sorted_rounds:
+                        rec = self._server_round_map[r]
+                        writer.writerow([
+                            r,
+                            rec["loss"] if rec["loss"] is not None else "",
+                            rec["bta"] if rec["bta"] is not None else "",
+                            rec["bmcta"] if rec["bmcta"] is not None else "",
+                            rec["ta"] if rec["ta"] is not None else "",
+                            rec["mcta"] if rec["mcta"] is not None else "",
+                        ])
                 if show_dialog:
-                    messagebox.showinfo("Export Complete", f"Exported {len(self.rounds)} rounds to:\n{filepath}")
+                    messagebox.showinfo("Export Complete", f"Exported {len(sorted_rounds)} rounds to:\n{filepath}")
             except Exception as e:
                 print(f"[EXPORT CSV ERROR] {e}")
                 if show_dialog:
                     messagebox.showerror("Export Error", f"Failed to export CSV:\n{e}")
         else:
-            data = self.client_round_data if self.client_view_mode == "round" else self.client_epoch_data
-            r_or_e = data.get("rounds") or data.get("epochs") or []
-            if not r_or_e:
-                if show_dialog:
-                    messagebox.showinfo("Export CSV", "No client curve data to export yet.")
-                return
+            if self.client_view_mode == "round":
+                if not self._client_round_map:
+                    if show_dialog:
+                        messagebox.showinfo("Export CSV", "No client curve data to export yet.")
+                    return
+                count = len(self._client_round_map)
+            else:
+                epochs = self.client_epoch_data.get("epochs") or []
+                if not epochs:
+                    if show_dialog:
+                        messagebox.showinfo("Export CSV", "No client curve data to export yet.")
+                    return
+                count = len(epochs)
             if not filepath:
                 filepath = filedialog.asksaveasfilename(
                     title="Export Plotted Client Metrics CSV",
@@ -605,20 +705,24 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
                     writer = csv.writer(f)
                     if self.client_view_mode == "round":
                         writer.writerow(["round", "train_loss", "train_acc", "ta", "bta"])
-                        for i, r in enumerate(data["rounds"]):
-                            l = data["losses"][i] if i < len(data["losses"]) else ""
-                            acc = data["train_accs"][i] if i < len(data["train_accs"]) else ""
-                            ta = data["tas"][i] if i < len(data["tas"]) else ""
-                            bta = data["btas"][i] if i < len(data["btas"]) else ""
-                            writer.writerow([r, l, acc, ta, bta])
+                        for r in sorted(self._client_round_map.keys()):
+                            rec = self._client_round_map[r]
+                            writer.writerow([
+                                r,
+                                rec["loss"] if rec["loss"] is not None else "",
+                                rec["train_acc"] if rec["train_acc"] is not None else "",
+                                rec["ta"] if rec["ta"] is not None else "",
+                                rec["bta"] if rec["bta"] is not None else "",
+                            ])
                     else:
+                        data = self.client_epoch_data
                         writer.writerow(["epoch", "train_loss", "train_acc"])
                         for i, ep in enumerate(data["epochs"]):
                             l = data["losses"][i] if i < len(data["losses"]) else ""
                             acc = data["train_accs"][i] if i < len(data["train_accs"]) else ""
                             writer.writerow([ep, l, acc])
                 if show_dialog:
-                    messagebox.showinfo("Export Complete", f"Exported {len(r_or_e)} steps to:\n{filepath}")
+                    messagebox.showinfo("Export Complete", f"Exported {count} steps to:\n{filepath}")
             except Exception as e:
                 print(f"[EXPORT CSV ERROR] {e}")
                 if show_dialog:

@@ -312,7 +312,7 @@ class ClientTab(ctk.CTkFrame):
 
         title = ctk.CTkLabel(
             self.scroll,
-            text="02 / Client configuration",
+            text="Client configuration",
             font=ctk.CTkFont(size=11, weight="bold"),
             text_color=T.TEXT,
         )
@@ -560,7 +560,7 @@ class ClientTab(ctk.CTkFrame):
         self.fields["seed"].insert(0, "42")
         self.fields["seed"].bind("<KeyRelease>", lambda e: self._on_params_changed_unconfirm())
 
-        # --- ADVANCED CONFIGURATION SUB-WINDOW TRIGGER ---
+        # --- ADVANCED CONFIGURATION (managed via global Settings Tab; keep attributes unmounted for compatibility) ---
         self.btn_open_adv = ctk.CTkButton(
             self.scroll,
             text="Open Advanced Configuration...",
@@ -573,7 +573,6 @@ class ClientTab(ctk.CTkFrame):
             border_color=T.BORDER,
             command=self._open_advanced_dialog,
         )
-        self.btn_open_adv.pack(fill="x", padx=10, pady=(14, 4))
 
         self.lbl_adv_status = ctk.CTkLabel(
             self.scroll,
@@ -582,7 +581,6 @@ class ClientTab(ctk.CTkFrame):
             text_color=T.MUTED,
             anchor="center",
         )
-        self.lbl_adv_status.pack(fill="x", padx=10, pady=(0, 10))
 
         # Backward compatibility placeholders
         self.adv_container = ctk.CTkFrame(self.scroll, fg_color=T.SURFACE, corner_radius=6)
@@ -813,7 +811,7 @@ class ClientTab(ctk.CTkFrame):
         ds = self.fields["dataset"].get()
         pm = self.fields["partition_mode"].get()
         seed = int(self.fields["seed"].get().strip()) if self.fields["seed"].get().strip().isdigit() else 42
-        custom_path = self.adv_partition_path.get().strip() if hasattr(self, "adv_partition_path") else None
+        custom_path = self._get_custom_partition_path()
 
         if self.partition_confirmed:
             self.inspector.update_distribution(
@@ -826,6 +824,17 @@ class ClientTab(ctk.CTkFrame):
             )
         else:
             self.inspector.show_unconfirmed(num_clients=nc, dataset=ds, partition_mode=pm, client_id=cid, seed=seed)
+
+    def _get_custom_partition_path(self) -> Optional[str]:
+        """Resolve custom partition path from Settings Tab advanced_config (fallback to legacy widget)."""
+        cfg_path = str(self.advanced_config.get("partition_path", "")).strip()
+        if cfg_path:
+            return cfg_path
+        if hasattr(self, "adv_partition_path"):
+            legacy_path = self.adv_partition_path.get().strip()
+            if legacy_path:
+                return legacy_path
+        return None
 
     def _confirm_and_inspect_partition(self):
         """Confirm client count and load the class distribution plot, or report missing partition."""
@@ -840,7 +849,7 @@ class ClientTab(ctk.CTkFrame):
         ds = self.fields["dataset"].get()
         pm = self.fields["partition_mode"].get()
         seed = int(self.fields["seed"].get().strip()) if self.fields["seed"].get().strip().isdigit() else 42
-        custom_path = self.adv_partition_path.get().strip() if hasattr(self, "adv_partition_path") else None
+        custom_path = self._get_custom_partition_path()
 
         exists, p_file = check_partition_exists(ds, pm, nc, seed, custom_path or None)
         if exists:
@@ -914,7 +923,7 @@ class ClientTab(ctk.CTkFrame):
                         cid = int(self.fields["client_id"].get().strip())
                     except ValueError:
                         cid = 0
-                    custom_path = self.adv_partition_path.get().strip() if hasattr(self, "adv_partition_path") else None
+                    custom_path = self._get_custom_partition_path()
                     self.inspector.update_distribution(
                         dataset=dataset,
                         partition_mode=partition_mode,
@@ -1016,7 +1025,7 @@ class ClientTab(ctk.CTkFrame):
         ds = self.fields["dataset"].get()
         pm = self.fields["partition_mode"].get()
         seed = int(self.fields["seed"].get().strip()) if self.fields["seed"].get().strip().isdigit() else 42
-        custom_path = self.advanced_config.get("partition_path", "").strip() or None
+        custom_path = self._get_custom_partition_path()
 
         exists, p_file = check_partition_exists(ds, pm, nc, seed, custom_path or None)
         if exists:

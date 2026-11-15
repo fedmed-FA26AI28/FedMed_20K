@@ -20,7 +20,10 @@ class SettingsTab(ctk.CTkFrame):
         **kwargs,
     ):
         super().__init__(master, fg_color="transparent", **kwargs)
-        self.config: Dict[str, Any] = copy.deepcopy(DEFAULT_SERVER_ADVANCED)
+        self.config: Dict[str, Any] = {
+            **copy.deepcopy(DEFAULT_CLIENT_ADVANCED),
+            **copy.deepcopy(DEFAULT_SERVER_ADVANCED),
+        }
         if current_config:
             self.config.update(current_config)
         self.on_save = on_save
@@ -67,14 +70,19 @@ class SettingsTab(ctk.CTkFrame):
             fields_def=[
                 ("proximal_mu", "FedProx Proximal Mu (u):", ctk.CTkEntry, "0.01"),
                 ("fedsol_rho", "FedSOL Perturbation Rho (p):", ctk.CTkEntry, "2.0"),
-                ("fedsol_target", "FedSOL Perturb Target:", ctk.CTkComboBox, "head", ["head", "backbone", "all"]),
-                ("fedsol_loss_type", "FedSOL Distillation Loss:", ctk.CTkComboBox, "kl", ["kl", "trades"]),
+                ("fedsol_target", "FedSOL Perturb Target:", ctk.CTkComboBox, "head", ["head", "all"]),
+                ("fedsol_loss_type", "FedSOL Distillation Loss:", ctk.CTkComboBox, "kl", ["kl", "l2"]),
                 ("fedsol_temperature", "FedSOL Temperature (T):", ctk.CTkEntry, "3.0"),
                 ("fedsol_adaptive", "FedSOL Adaptive Perturbation:", ctk.CTkCheckBox, False),
                 ("switch_round", "FedSwitch Transition Round:", ctk.CTkEntry, "0"),
+                ("fedswitch_weighting_mode", "FedSwitch Weighting Mode:", ctk.CTkComboBox, "bounded_sum", ["bounded_sum", "stratified"]),
                 ("fedswitch_coverage", "FedSwitch Target Coverage:", ctk.CTkEntry, "0.9"),
+                ("fedswitch_epsilon", "FedSwitch DP Epsilon:", ctk.CTkEntry, "1.0"),
+                ("fedswitch_c_bound", "FedSwitch DP C-Bound:", ctk.CTkEntry, "50"),
                 ("scr_gamma", "SCR Class Weight Gamma:", ctk.CTkEntry, "1.0"),
+                ("scr_head_lambda", "SCR Head Anchor Lambda:", ctk.CTkEntry, "0.01"),
                 ("fedsld_epsilon", "FedSLD Smoothing Epsilon:", ctk.CTkEntry, "1e-6"),
+                ("fedsld_reduction", "FedSLD Loss Reduction:", ctk.CTkComboBox, "mean", ["mean", "sum"]),
             ],
         )
 
@@ -104,6 +112,7 @@ class SettingsTab(ctk.CTkFrame):
             fields_def=[
                 ("server_eval", "Server Centralized Evaluation:", ctk.CTkCheckBox, False),
                 ("local_test", "Client Local Test Evaluation:", ctk.CTkCheckBox, True),
+                ("augment", "Client Data Augmentation:", ctk.CTkCheckBox, False),
                 ("early_stop_patience", "Early Stopping Patience:", ctk.CTkEntry, "0"),
                 ("early_stop_metric", "Early Stopping Target Metric:", ctk.CTkComboBox, "accuracy", ["accuracy", "loss"]),
             ],
@@ -118,6 +127,7 @@ class SettingsTab(ctk.CTkFrame):
             fields_def=[
                 ("partition_path", "Partition JSON Path:", ctk.CTkEntry, ""),
                 ("save_dir", "Custom Results Save Directory:", ctk.CTkEntry, ""),
+                ("client_dir", "Client Working Directory:", ctk.CTkEntry, ""),
                 ("pin_memory", "CUDA Pin Memory:", ctk.CTkCheckBox, True),
                 ("num_workers", "PyTorch DataLoader Workers:", ctk.CTkEntry, "0"),
             ],
@@ -254,7 +264,8 @@ class SettingsTab(ctk.CTkFrame):
         self.after(3000, lambda: self.lbl_status.configure(text=""))
 
     def _on_restore_defaults(self):
-        for k, v in DEFAULT_SERVER_ADVANCED.items():
+        merged_defaults = {**DEFAULT_CLIENT_ADVANCED, **DEFAULT_SERVER_ADVANCED}
+        for k, v in merged_defaults.items():
             if k in self.fields:
                 w = self.fields[k]
                 if isinstance(w, tk.BooleanVar):
