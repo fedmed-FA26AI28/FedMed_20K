@@ -1,5 +1,10 @@
 # FedMedAI: Execution and Run Guide
 
+For research context and the next experiment, read [CHAT_HANDOFF.md](CHAT_HANDOFF.md)
+and the [SCR research plan](docs/research/RESEARCH_PLAN.md). Record findings in the
+[experiment log](docs/research/EXPERIMENT_LOG.md) so setup or bug-fixing conversations
+do not lose the research decisions.
+
 This document provides complete instructions for executing the **FedMedAI** system across three primary operational modes:
 1. **Centralized Baseline Training on PC**: Train CNN models on the full dataset without federation to establish the empirical upper-bound benchmark.
 2. **Distributed FL on Multiple Physical Devices (PC & Jetson Cluster)**: Run Federated Learning across real machines connected over local network (LAN) using TCP/gRPC sockets.

@@ -1,5 +1,12 @@
 # FedMedAI: Heterogeneous Edge-Device Federated Learning for Medical Image Classification
 
+## Research continuity
+
+Start a new research chat with [CHAT_HANDOFF.md](CHAT_HANDOFF.md). The
+[research plan](docs/research/RESEARCH_PLAN.md) preserves the SCR hypotheses and
+ordered experiments; the [experiment log](docs/research/EXPERIMENT_LOG.md) records
+evidence, decisions, and the next unfinished action.
+
 ## Web demonstration app
 
 The **FedMedAI portal** provides Coordinator and Institution workspaces for real
