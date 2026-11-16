@@ -571,14 +571,20 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
             self._refresh_plots()
 
     def update_client_round(self, r: int, train_loss: Optional[float] = None, train_acc: Optional[float] = None,
-                            ta: Optional[float] = None, bta: Optional[float] = None):
+                            ta: Optional[float] = None, bta: Optional[float] = None,
+                            eval_loss: Optional[float] = None):
         """Merge and plot client round metrics keyed by round across 1..R."""
         r_num = int(r)
         entry = self._client_round_map.setdefault(
-            r_num, {"loss": None, "train_acc": None, "ta": None, "bta": None}
+            r_num, {"loss": None, "train_acc": None, "ta": None, "bta": None, "eval_loss": None}
         )
         if train_loss is not None:
             entry["loss"] = float(train_loss)
+            entry["train_loss"] = float(train_loss)
+        if eval_loss is not None:
+            entry["eval_loss"] = float(eval_loss)
+            if entry.get("train_loss") is None and entry["loss"] is None:
+                entry["loss"] = float(eval_loss)
         if train_acc is not None:
             entry["train_acc"] = float(train_acc)
         if ta is not None:
@@ -838,13 +844,10 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
             pad = max(0.05, (max_y - min_y) * 0.1)
             ax.set_ylim(max(0.0, min_y - pad), max_y + pad)
 
-    def clear(self):
-        """Reset curves and round maps."""
+    def clear_server(self):
+        """Reset only server-side curves, round maps, and client telemetry packages."""
         self._server_round_map.clear()
-        self._client_round_map.clear()
         self._sync_server_arrays()
-        self._sync_client_round_arrays()
-        self.client_epoch_data = {"epochs": [], "losses": [], "train_accs": []}
         self.client_packages.clear()
         self.server_active_view = "global"
 
@@ -858,6 +861,20 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
 
         self._build_figure()
         self._refresh_plots()
+
+    def clear_client(self):
+        """Reset only client-side curves (rounds and local epochs)."""
+        self._client_round_map.clear()
+        self._sync_client_round_arrays()
+        self.client_epoch_data = {"epochs": [], "losses": [], "train_accs": []}
+
+        self._build_figure()
+        self._refresh_plots()
+
+    def clear(self):
+        """Reset all curves and round maps."""
+        self.clear_server()
+        self.clear_client()
 
     def export_plot_image(self):
         """Save plot snapshot to results or user folder."""

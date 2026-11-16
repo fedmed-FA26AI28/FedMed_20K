@@ -114,11 +114,26 @@ class AnalyticsTab(ctk.CTkFrame):
         if hasattr(self, "console") and self.console is not None:
             self.console.update_telemetry(info)
 
-    def clear(self):
+    def clear_server(self):
         self.server_logs.clear()
+        if hasattr(self, "console") and self.console is not None and self.active_log_source == "server":
+            self.console.clear()
+        if hasattr(self, "plot_canvas"):
+            self.plot_canvas.clear_server()
+        if hasattr(self, "metrics_table"):
+            self.metrics_table.clear_server()
+
+    def clear_client(self):
         self.client_logs.clear()
+        if hasattr(self, "console") and self.console is not None and self.active_log_source == "client":
+            self.console.clear()
+        if hasattr(self, "plot_canvas"):
+            self.plot_canvas.clear_client()
+        if hasattr(self, "metrics_table"):
+            self.metrics_table.clear_client()
+
+    def clear(self):
+        self.clear_server()
+        self.clear_client()
         if hasattr(self, "console") and self.console is not None:
             self.console.clear()
-        self.plot_canvas.clear()
-        if hasattr(self, "metrics_table"):
-            self.metrics_table.clear()

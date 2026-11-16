@@ -373,6 +373,8 @@ def run_single_experiment(
     fedswitch_epsilon: float = 1.0,
     fedswitch_c_bound: int = 50,
     clip_grad_norm: Optional[float] = None,
+    fedsld_epsilon: float = 1e-6,
+    fedsld_reduction: str = "mean",
 ) -> Dict[str, Any]:
     """Execute a single FL training run (1 Server + N Clients) as isolated subprocesses."""
     run_dir.mkdir(parents=True, exist_ok=True)
@@ -414,6 +416,8 @@ def run_single_experiment(
         "--proximal_mu", str(proximal_mu),
         "--scr_gamma", str(scr_gamma),
         "--scr_head_lambda", str(scr_head_lambda),
+        "--fedsld_epsilon", str(fedsld_epsilon),
+        "--fedsld_reduction", str(fedsld_reduction),
         "--fedsol_rho", str(fedsol_rho),
         "--fedsol_target", str(fedsol_target),
         "--fedsol_loss_type", str(fedsol_loss_type),
@@ -1242,6 +1246,8 @@ def main():
     parser.add_argument("--fedswitch_epsilon", type=float, default=None, help="FedSwitch DP privacy budget epsilon")
     parser.add_argument("--fedswitch_c_bound", type=int, default=None, help="FedSwitch DP sensitivity clipping bound C")
     parser.add_argument("--clip_grad_norm", type=float, default=None, help="Max gradient L2 norm for clipping")
+    parser.add_argument("--fedsld_epsilon", type=float, default=None, help="FedSLD smoothing epsilon")
+    parser.add_argument("--fedsld_reduction", type=str, choices=["mean", "sum"], default=None, help="FedSLD loss reduction mode")
 
     args = parser.parse_args()
     cfg = load_yaml_config(args.config)
@@ -1294,6 +1300,8 @@ def main():
     fedswitch_epsilon = args.fedswitch_epsilon if args.fedswitch_epsilon is not None else cfg.get("fedswitch_epsilon", 1.0)
     fedswitch_c_bound = args.fedswitch_c_bound if args.fedswitch_c_bound is not None else cfg.get("fedswitch_c_bound", 50)
     clip_grad_norm = args.clip_grad_norm if args.clip_grad_norm is not None else cfg.get("clip_grad_norm", None)
+    fedsld_epsilon = args.fedsld_epsilon if args.fedsld_epsilon is not None else cfg.get("fedsld_epsilon", 1e-6)
+    fedsld_reduction = args.fedsld_reduction if args.fedsld_reduction is not None else cfg.get("fedsld_reduction", "mean")
     early_stop_patience = args.early_stop_patience if args.early_stop_patience is not None else cfg.get("early_stop_patience", 0)
     early_stop_metric = args.early_stop_metric if args.early_stop_metric is not None else cfg.get("early_stop_metric", "accuracy")
     server_eval = args.server_eval if args.server_eval is not None else cfg.get("server_eval", True)
@@ -1428,6 +1436,8 @@ def main():
                     fedswitch_epsilon=fedswitch_epsilon,
                     fedswitch_c_bound=fedswitch_c_bound,
                     clip_grad_norm=clip_grad_norm,
+                    fedsld_epsilon=fedsld_epsilon,
+                    fedsld_reduction=fedsld_reduction,
                     early_stop_patience=early_stop_patience,
                     early_stop_metric=early_stop_metric,
                     server_eval=server_eval,

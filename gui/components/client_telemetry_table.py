@@ -156,8 +156,18 @@ class ClientTelemetryTable(ctk.CTkFrame):
         cid = int(payload.get("client_id", 0))
         merged_state = dict(self.latest_client_states.get(cid, {}))
         for k, v in payload.items():
-            if v is not None:
-                merged_state[k] = v
+            if v is None:
+                continue
+            if k in ("round_time", "training_time"):
+                old_rt = merged_state.get(k)
+                if float(v) <= 0.0 and old_rt is not None and float(old_rt) > 0.0:
+                    continue
+            if k == "ping_ms":
+                old_ping = merged_state.get(k)
+                is_eval_only = ("train_loss" not in payload and "eval_loss" in payload)
+                if old_ping is not None and float(old_ping) >= 0.0 and (float(v) < 0.0 or is_eval_only):
+                    continue
+            merged_state[k] = v
         self.latest_client_states[cid] = merged_state
 
         srv_r = payload.get("server_round")
@@ -175,8 +185,18 @@ class ClientTelemetryTable(ctk.CTkFrame):
             )
             if existing_rec is not None:
                 for k, v in payload.items():
-                    if v is not None:
-                        existing_rec[k] = v
+                    if v is None:
+                        continue
+                    if k in ("round_time", "training_time"):
+                        old_rt = existing_rec.get(k)
+                        if float(v) <= 0.0 and old_rt is not None and float(old_rt) > 0.0:
+                            continue
+                    if k == "ping_ms":
+                        old_ping = existing_rec.get(k)
+                        is_eval_only = ("train_loss" not in payload and "eval_loss" in payload)
+                        if old_ping is not None and float(old_ping) >= 0.0 and (float(v) < 0.0 or is_eval_only):
+                            continue
+                    existing_rec[k] = v
             else:
                 self.all_records.append({k: v for k, v in payload.items() if v is not None})
         else:
@@ -184,8 +204,24 @@ class ClientTelemetryTable(ctk.CTkFrame):
 
         payload = merged_state
 
-        loss_val = float(payload.get("train_loss", 0.0))
-        acc_val = float(payload.get("train_accuracy", 0.0))
+        train_l = payload.get("train_loss")
+        eval_l = payload.get("eval_loss")
+        if train_l is not None:
+            loss_val = float(train_l)
+        elif eval_l is not None:
+            loss_val = float(eval_l)
+        else:
+            loss_val = 0.0
+
+        train_a = payload.get("train_accuracy")
+        eval_a = payload.get("eval_accuracy")
+        if train_a is not None:
+            acc_val = float(train_a)
+        elif eval_a is not None:
+            acc_val = float(eval_a)
+        else:
+            acc_val = 0.0
+
         rtime_val = float(payload.get("round_time", payload.get("training_time", 0.0)))
         ping_val = float(payload.get("ping_ms", -1.0))
 

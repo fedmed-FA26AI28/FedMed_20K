@@ -194,7 +194,7 @@ class FLOrchestratorDashboard(ctk.CTk):
 
         self.btn_nav_analytics = ctk.CTkButton(
             self.sidebar,
-            text="  Plots & Live Console",
+            text="  Visualization",
             height=38,
             anchor="w",
             font=ctk.CTkFont(size=12, weight="bold"),
@@ -642,6 +642,7 @@ class FLOrchestratorDashboard(ctk.CTk):
             on_stop=self._stop_server,
             on_export=self._export_server_results,
             on_mode_change=self._on_server_mode_changed,
+            on_advanced_saved=self._on_subdialog_advanced_saved,
         )
         self.server_ctrl.pack(side="left", fill="both", padx=(0, 6), pady=0)
         self.server_ctrl.set_running_state(False)
@@ -662,6 +663,7 @@ class FLOrchestratorDashboard(ctk.CTk):
             on_stop=self._stop_client,
             on_clear=self._clear_client_plot,
             get_python_exe=lambda: self.active_venv,
+            on_advanced_saved=self._on_subdialog_advanced_saved,
         )
         self.client_ctrl.pack(fill="both", expand=True)
         self.client_ctrl.set_running_state(False)
@@ -723,11 +725,23 @@ class FLOrchestratorDashboard(ctk.CTk):
         )
         self.settings_tab.pack(fill="both", expand=True)
 
+    def _on_subdialog_advanced_saved(self, new_cfg: Dict[str, Any]):
+        self.server_ctrl.advanced_config.update(new_cfg)
+        self.client_ctrl.advanced_config.update(new_cfg)
+        if hasattr(self.server_ctrl, "_on_advanced_saved"):
+            self.server_ctrl._on_advanced_saved(new_cfg, notify_parent=False)
+        if hasattr(self.client_ctrl, "_on_advanced_saved"):
+            self.client_ctrl._on_advanced_saved(new_cfg, notify_parent=False)
+        if hasattr(self, "settings_tab") and hasattr(self.settings_tab, "sync_from_config"):
+            self.settings_tab.sync_from_config(new_cfg)
+
     def _on_settings_saved(self, new_cfg: Dict[str, Any]):
         self.server_ctrl.advanced_config.update(new_cfg)
         self.client_ctrl.advanced_config.update(new_cfg)
         if hasattr(self.server_ctrl, "_on_advanced_saved"):
-            self.server_ctrl._on_advanced_saved(new_cfg)
+            self.server_ctrl._on_advanced_saved(new_cfg, notify_parent=False)
+        if hasattr(self.client_ctrl, "_on_advanced_saved"):
+            self.client_ctrl._on_advanced_saved(new_cfg, notify_parent=False)
 
     def _refresh_workspace_state(self):
         self._sync_kpi_display()
@@ -738,7 +752,7 @@ class FLOrchestratorDashboard(ctk.CTk):
         role_map = {
             "server": ("FL Server", "FL Server Control & Client Connection Matrix"),
             "client": ("FL Client Node", "Client Node Setup & Data Partition Inspector"),
-            "analytics": ("Plots & Live Console", "Stacked Convergence Curves & Dynamic Terminal"),
+            "analytics": ("Visualization", "Stacked Convergence Curves & Dynamic Terminal"),
             "settings": ("Settings", "Federated Strategy & Hyperparameter Configuration"),
         }
         role, role_label = role_map.get(self.active_view, ("FL Platform", "Workspace"))
@@ -815,18 +829,12 @@ class FLOrchestratorDashboard(ctk.CTk):
             self.lbl_server_port_status.configure(text=f"Error: {e}", text_color=T.ERROR)
 
     def _ping_client_server(self):
-        addr = self.entry_client_server_addr.get().strip()
-        host = "127.0.0.1"
-        port = 8080
-        if ":" in addr:
-            parts = addr.split(":")
-            host = parts[0].strip()
-            try:
-                port = int(parts[1].strip())
-            except ValueError:
-                pass
-        else:
-            host = addr
+        from monitoring.network import parse_server_address
+        addr = self.entry_client_server_addr.get().strip() or "127.0.0.1:8080"
+        try:
+            host, port = parse_server_address(addr, default_port=8080)
+        except Exception:
+            host, port = "127.0.0.1", 8080
 
         res = ping_server(host, port)
         if res["success"]:
@@ -865,7 +873,7 @@ class FLOrchestratorDashboard(ctk.CTk):
         self.metric_parser.current_round = 0
         self.metric_parser.total_rounds = 0
         if hasattr(self, "analytics_tab"):
-            self.analytics_tab.clear()
+            self.analytics_tab.clear_server()
             self.analytics_tab.set_role("server", auto=True)
             self.analytics_tab.append_server_log(f"\n[{launch_tag}] Invoking command:\n{' '.join(cmd)}\n\n")
         self._role_metrics["server"].clear()
@@ -979,15 +987,26 @@ class FLOrchestratorDashboard(ctk.CTk):
                     histories = data.get("histories", {})
                     dists = data.get("distributions", {})
                     eval_hists = data.get("eval_histories", {})
-                    for cid_str, hist in histories.items():
-                        cid = int(cid_str)
+                    all_cids = sorted(
+                        set(list(histories.keys()) + list(eval_hists.keys()) + list(dists.keys())),
+                        key=lambda x: int(x) if str(x).isdigit() else str(x),
+                    )
+                    for cid_str in all_cids:
+                        cid = int(cid_str) if str(cid_str).isdigit() else cid_str
+                        hist = histories.get(cid_str, [])
+                        eval_hist = eval_hists.get(cid_str, [])
+                        samples = 0
+                        if hist:
+                            samples = hist[-1].get("num_samples", 0)
+                        elif eval_hist:
+                            samples = eval_hist[-1].get("num_samples", 0)
                         pkg = {
                             "client_id": cid,
-                            "rounds": len(hist),
-                            "samples": hist[-1].get("num_samples", 0) if hist else 0,
+                            "rounds": max(len(hist), len(eval_hist)),
+                            "samples": samples,
                             "distribution": dists.get(cid_str, {}),
                             "history": hist,
-                            "eval_history": eval_hists.get(cid_str, []),
+                            "eval_history": eval_hist,
                         }
                         if hasattr(self, "analytics_tab"):
                             self._run_on_main_thread(
@@ -1002,6 +1021,7 @@ class FLOrchestratorDashboard(ctk.CTk):
         server_addr = self.entry_client_server_addr.get().strip() or "127.0.0.1:8080"
         cmd = self.client_ctrl.build_command(python_exe, server_address=server_addr)
         if hasattr(self, "analytics_tab"):
+            self.analytics_tab.clear_client()
             self.analytics_tab.set_role("client", auto=True)
             self.analytics_tab.append_client_log(f"\n[CLIENT LAUNCH] Invoking command:\n{' '.join(cmd)}\n\n")
         self._role_metrics["client"].clear()
@@ -1022,7 +1042,7 @@ class FLOrchestratorDashboard(ctk.CTk):
 
     def _clear_client_plot(self):
         if hasattr(self, "analytics_tab"):
-            self.analytics_tab.clear()
+            self.analytics_tab.clear_client()
         self._role_metrics["client"].clear()
 
     def _on_client_log(self, line: str):
@@ -1124,15 +1144,18 @@ class FLOrchestratorDashboard(ctk.CTk):
             metrics.update({key: payload[key] for key in keys if payload.get(key) is not None})
             metrics["round"] = r
         elif source == "client_round_done":
+            cid = payload.get("client_id")
+            if cid is None:
+                raw_cid = self.client_ctrl.fields["client_id"].get().strip() if hasattr(self, "client_ctrl") else 0
+                cid = int(raw_cid) if str(raw_cid).isdigit() else 0
             if hasattr(self, "analytics_tab"):
                 self.analytics_tab.plot_canvas.update_client_round(
                     r, train_loss=payload.get("train_loss"), train_acc=payload.get("train_acc")
                 )
                 if hasattr(self.analytics_tab, "metrics_table"):
-                    cid = self.client_ctrl.fields["client_id"].get().strip() if hasattr(self, "client_ctrl") else 0
                     self.analytics_tab.metrics_table.add_client_metrics({
                         "server_round": r,
-                        "client_id": int(cid) if str(cid).isdigit() else 0,
+                        "client_id": int(cid),
                         "train_loss": payload.get("train_loss"),
                         "train_accuracy": payload.get("train_acc"),
                         "round_time": payload.get("round_time", 0.0),
@@ -1151,12 +1174,34 @@ class FLOrchestratorDashboard(ctk.CTk):
                 )
         elif source in ("client_eval_done", "client_eval"):
             rounds = self.analytics_tab.plot_canvas.client_round_data["rounds"] if hasattr(self, "analytics_tab") else []
-            r = rounds[-1] if rounds else 1
+            r = payload.get("round")
+            if r is None:
+                r = rounds[-1] if rounds else 1
             ta = payload.get("accuracy") if source == "client_eval_done" else payload.get("ta")
+            eval_loss = payload.get("loss") if source == "client_eval_done" else payload.get("test_loss")
             if hasattr(self, "analytics_tab"):
-                self.analytics_tab.plot_canvas.update_client_round(r, ta=ta, bta=payload.get("bta"))
+                self.analytics_tab.plot_canvas.update_client_round(
+                    r, ta=ta, bta=payload.get("bta"), eval_loss=eval_loss
+                )
+                if hasattr(self.analytics_tab, "metrics_table"):
+                    cid = payload.get("client_id")
+                    if cid is None:
+                        raw_cid = self.client_ctrl.fields["client_id"].get().strip() if hasattr(self, "client_ctrl") else 0
+                        cid = int(raw_cid) if str(raw_cid).isdigit() else 0
+                    tbl_payload = {
+                        "server_round": int(r),
+                        "client_id": int(cid),
+                        "eval_loss": eval_loss,
+                        "eval_accuracy": ta,
+                    }
+                    if payload.get("ping_ms") is not None:
+                        tbl_payload["ping_ms"] = payload.get("ping_ms")
+                    self.analytics_tab.metrics_table.add_client_metrics(tbl_payload)
             if ta is not None:
                 metrics["ta"] = ta
+            if metrics.get("loss") is None and eval_loss is not None:
+                metrics["loss"] = eval_loss
+            metrics["round"] = r
         self._sync_kpi_display()
 
     def _on_telemetry_update(self, info: Dict[str, Any]):

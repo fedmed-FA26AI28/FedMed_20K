@@ -252,16 +252,73 @@ class SettingsTab(ctk.CTkFrame):
 
     def _on_apply(self):
         new_cfg = {}
+        errors = []
+        float_keys = (
+            "proximal_mu",
+            "fedsol_rho",
+            "fedsol_temperature",
+            "fedswitch_coverage",
+            "fedswitch_epsilon",
+            "scr_gamma",
+            "scr_head_lambda",
+            "fedsld_epsilon",
+            "server_lr_decay_gamma",
+            "server_lr_min",
+            "client_lr_factor",
+            "client_lr_min",
+            "momentum",
+            "weight_decay",
+            "clip_grad_norm",
+        )
+        int_keys = (
+            "switch_round",
+            "fedswitch_c_bound",
+            "server_lr_decay_step",
+            "client_lr_patience",
+            "early_stop_patience",
+            "num_workers",
+        )
+
         for k, w in self.fields.items():
             if isinstance(w, tk.BooleanVar):
                 new_cfg[k] = w.get()
             elif isinstance(w, (ctk.CTkEntry, ctk.CTkComboBox)):
-                new_cfg[k] = w.get().strip()
+                val = w.get().strip()
+                if k in float_keys and val != "":
+                    try:
+                        float(val)
+                    except ValueError:
+                        errors.append(f"{k} must be a valid float")
+                elif k in int_keys and val != "":
+                    try:
+                        int(val)
+                    except ValueError:
+                        errors.append(f"{k} must be a valid integer")
+                new_cfg[k] = val
+
+        if errors:
+            self.lbl_status.configure(text=f"Validation Error: {errors[0]}", text_color=T.ERROR)
+            return
+
         self.config.update(new_cfg)
         if self.on_save:
             self.on_save(new_cfg)
-        self.lbl_status.configure(text="[OK] Settings Successfully Saved & Applied")
+        self.lbl_status.configure(text="[OK] Settings Successfully Saved & Applied", text_color=T.SUCCESS)
         self.after(3000, lambda: self.lbl_status.configure(text=""))
+
+    def sync_from_config(self, cfg: Dict[str, Any]):
+        """Synchronizes widget values when configuration is updated externally."""
+        self.config.update(cfg)
+        for k, v in cfg.items():
+            if k in self.fields:
+                w = self.fields[k]
+                if isinstance(w, tk.BooleanVar):
+                    w.set(bool(v))
+                elif isinstance(w, ctk.CTkEntry):
+                    w.delete(0, tk.END)
+                    w.insert(0, str(v))
+                elif isinstance(w, ctk.CTkComboBox):
+                    w.set(str(v))
 
     def _on_restore_defaults(self):
         merged_defaults = {**DEFAULT_CLIENT_ADVANCED, **DEFAULT_SERVER_ADVANCED}

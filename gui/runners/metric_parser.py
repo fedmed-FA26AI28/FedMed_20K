@@ -43,12 +43,14 @@ class MetricStreamParser:
             re.IGNORECASE
         )
         self.re_client_fit_done = re.compile(
-            r'\[Client\s+(\d+)\]\s+fit\s+done\s*\|\s*Round\s+(\d+).*?loss=([\d\.]+)\s+acc=([\d\.]+)',
-            re.IGNORECASE
+            r'\[Client\s+(\d+)\]\s+fit\s+done\s*\|\s*Round\s+(\d+).*?loss=([\d\.]+)\s+acc=([\d\.]+)'
+            r'(?:.*?round_time=([\d\.]+)s)?(?:.*?ping=([-\d\.]+)ms)?',
+            re.IGNORECASE,
         )
         self.re_client_evaluate_done = re.compile(
-            r'\[Client\s+(\d+)\]\s+evaluate\s*\|\s*loss=([\d\.]+)\s+acc=([\d\.]+)',
-            re.IGNORECASE
+            r'\[Client\s+(\d+)\]\s+evaluate\s*\|\s*(?:Round\s+(\d+)\s*\|\s*)?loss=([\d\.]+)\s+acc=([\d\.]+)'
+            r'(?:.*?ping=([-\d\.]+)ms)?',
+            re.IGNORECASE,
         )
         self.re_client_local_test = re.compile(
             r'Local\s+Test.*?(?:Loss\s*[:=]\s*([\d\.]+))?.*?(?:Acc(?:uracy)?|TA)\s*[:=]\s*([\d\.]+)%?.*?(?:BTA\s*[:=]\s*([\d\.]+)%?)?',
@@ -161,6 +163,10 @@ class MetricStreamParser:
                 "train_loss": float(m_fit.group(3)),
                 "train_acc": float(m_fit.group(4)),
             }
+            if m_fit.group(5) is not None:
+                payload["round_time"] = float(m_fit.group(5))
+            if m_fit.group(6) is not None:
+                payload["ping_ms"] = float(m_fit.group(6))
             if self.on_metric_callback:
                 self.on_metric_callback("client_round_done", payload)
             return
@@ -170,9 +176,13 @@ class MetricStreamParser:
         if m_eval_done:
             payload = {
                 "client_id": int(m_eval_done.group(1)),
-                "loss": float(m_eval_done.group(2)),
-                "accuracy": float(m_eval_done.group(3)),
+                "loss": float(m_eval_done.group(3)),
+                "accuracy": float(m_eval_done.group(4)),
             }
+            if m_eval_done.group(2) is not None:
+                payload["round"] = int(m_eval_done.group(2))
+            if m_eval_done.group(5) is not None:
+                payload["ping_ms"] = float(m_eval_done.group(5))
             if self.on_metric_callback:
                 self.on_metric_callback("client_eval_done", payload)
             return

@@ -181,6 +181,7 @@ class ClientPartitionInspector(ctk.CTkFrame):
         custom_path: Optional[str] = None,
         num_clients: Optional[int] = None,
         seed: int = 42,
+        local_test: Optional[bool] = None,
     ):
         data = load_partition_distribution(
             dataset=dataset,
@@ -189,6 +190,7 @@ class ClientPartitionInspector(ctk.CTkFrame):
             num_clients=num_clients,
             seed=seed,
             custom_path=custom_path,
+            local_test=local_test,
         )
         samples = data.get("samples", 0)
         dist = data.get("distribution", {})
@@ -284,6 +286,7 @@ class ClientTab(ctk.CTkFrame):
         on_stop: Optional[Callable[[], None]] = None,
         on_clear: Optional[Callable[[], None]] = None,
         get_python_exe: Optional[Callable[[], str]] = None,
+        on_advanced_saved: Optional[Callable[[Dict[str, Any]], None]] = None,
         **kwargs,
     ):
         super().__init__(master, fg_color="transparent", **kwargs)
@@ -291,6 +294,7 @@ class ClientTab(ctk.CTkFrame):
         self.on_stop = on_stop
         self.on_clear = on_clear
         self.get_python_exe = get_python_exe
+        self.on_advanced_saved_cb = on_advanced_saved
 
         self.advanced_config: Dict[str, Any] = copy.deepcopy(DEFAULT_CLIENT_ADVANCED)
         self.adv_expanded = False
@@ -698,7 +702,7 @@ class ClientTab(ctk.CTkFrame):
             on_save=self._on_advanced_saved,
         )
 
-    def _on_advanced_saved(self, new_cfg: Dict[str, Any]):
+    def _on_advanced_saved(self, new_cfg: Dict[str, Any], notify_parent: bool = True):
         """Persists updated client advanced configuration and updates visual indicator."""
         self.advanced_config.update(new_cfg)
         overrides = 0
@@ -717,6 +721,9 @@ class ClientTab(ctk.CTkFrame):
                 text_color=T.MUTED,
             )
             self.btn_open_adv.configure(border_color=T.BORDER)
+
+        if notify_parent and getattr(self, "on_advanced_saved_cb", None):
+            self.on_advanced_saved_cb(new_cfg)
 
     def _toggle_advanced(self):
         """Backward compatibility helper for headless test suites."""
@@ -850,8 +857,9 @@ class ClientTab(ctk.CTkFrame):
         pm = self.fields["partition_mode"].get()
         seed = int(self.fields["seed"].get().strip()) if self.fields["seed"].get().strip().isdigit() else 42
         custom_path = self._get_custom_partition_path()
+        lt = bool(self.advanced_config.get("local_test", True))
 
-        exists, p_file = check_partition_exists(ds, pm, nc, seed, custom_path or None)
+        exists, p_file = check_partition_exists(ds, pm, nc, seed, custom_path or None, local_test=lt)
         if exists:
             self.partition_confirmed = True
             self.inspector.update_distribution(
@@ -861,6 +869,7 @@ class ClientTab(ctk.CTkFrame):
                 custom_path=custom_path or None,
                 num_clients=nc,
                 seed=seed,
+                local_test=lt,
             )
             self.btn_gen_partition.configure(state="disabled", fg_color=T.BORDER)
             self.lbl_partition_status.configure(
@@ -904,6 +913,7 @@ class ClientTab(ctk.CTkFrame):
         )
 
         py_exe = self.get_python_exe() if self.get_python_exe else get_default_venv_path()
+        lt = bool(self.advanced_config.get("local_test", True))
 
         def worker():
             ok, msg = generate_partition_subprocess(
@@ -911,7 +921,7 @@ class ClientTab(ctk.CTkFrame):
                 partition_mode=partition_mode,
                 num_clients=num_clients,
                 seed=seed,
-                local_test=True,
+                local_test=lt,
                 python_exe=py_exe,
             )
             def done():
@@ -992,8 +1002,10 @@ class ClientTab(ctk.CTkFrame):
             cmd.append("--no-augment")
 
         # 5. Local Test
-        if adv.get("local_test", False):
+        if adv.get("local_test", True):
             cmd.append("--local_test")
+        else:
+            cmd.append("--no-local_test")
 
         # 6. Momentum & Optimizer
         opt = self.fields["optimizer"].get()
@@ -1002,7 +1014,31 @@ class ClientTab(ctk.CTkFrame):
             if mom:
                 cmd.extend(["--momentum", mom])
 
-        # 7. Strategy Hyperparameters (e.g. FedSOL)
+        # 7. Weight decay & Grad clipping
+        wd = str(adv.get("weight_decay", "")).strip()
+        if wd:
+            cmd.extend(["--weight_decay", wd])
+        cgn = str(adv.get("clip_grad_norm", "")).strip()
+        if cgn:
+            cmd.extend(["--clip_grad_norm", cgn])
+
+        # 8. Client LR schedule (patience, factor, min)
+        clp = str(adv.get("client_lr_patience", "")).strip()
+        if clp:
+            cmd.extend(["--lr_patience", clp])
+        clf = str(adv.get("client_lr_factor", "")).strip()
+        if clf:
+            cmd.extend(["--lr_factor", clf])
+        clm = str(adv.get("client_lr_min", "")).strip()
+        if clm:
+            cmd.extend(["--lr_min", clm])
+
+        # 9. Num workers
+        nw = str(adv.get("num_workers", "")).strip()
+        if nw:
+            cmd.extend(["--num_workers", nw])
+
+        # 10. Strategy Hyperparameters (e.g. FedSOL)
         strat = self.fields["strategy"].get().lower()
         if "sol" in strat:
             cmd.extend(["--fedsol_rho", str(adv.get("fedsol_rho", "2.0"))])

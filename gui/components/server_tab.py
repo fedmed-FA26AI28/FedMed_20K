@@ -29,6 +29,7 @@ class ServerTab(ctk.CTkFrame):
         on_stop: Optional[Callable[[], None]] = None,
         on_export: Optional[Callable[[], None]] = None,
         on_mode_change: Optional[Callable[[str], None]] = None,
+        on_advanced_saved: Optional[Callable[[Dict[str, Any]], None]] = None,
         **kwargs,
     ):
         super().__init__(master, fg_color="transparent", **kwargs)
@@ -36,6 +37,7 @@ class ServerTab(ctk.CTkFrame):
         self.on_stop = on_stop
         self.on_export = on_export
         self.on_mode_change = on_mode_change
+        self.on_advanced_saved_cb = on_advanced_saved
 
         self.run_mode: str = "standalone"  # "standalone" or "simulation"
         self._is_running: bool = False
@@ -293,7 +295,7 @@ class ServerTab(ctk.CTkFrame):
             on_save=self._on_advanced_saved,
         )
 
-    def _on_advanced_saved(self, new_cfg: Dict[str, Any]):
+    def _on_advanced_saved(self, new_cfg: Dict[str, Any], notify_parent: bool = True):
         """Persists updated advanced configuration and updates visual indicator."""
         self.advanced_config.update(new_cfg)
         overrides = 0
@@ -312,6 +314,9 @@ class ServerTab(ctk.CTkFrame):
                 text_color=T.MUTED,
             )
             self.btn_open_adv.configure(border_color=T.BORDER)
+
+        if notify_parent and getattr(self, "on_advanced_saved_cb", None):
+            self.on_advanced_saved_cb(new_cfg)
 
     def _toggle_advanced(self):
         """Backward compatibility helper for headless test suites."""
@@ -366,20 +371,18 @@ class ServerTab(ctk.CTkFrame):
         lr_gamma = str(adv.get("server_lr_decay_gamma", "")).strip()
         if lr_gamma:
             cmd.extend(["--lr_decay_gamma", lr_gamma])
-        if include_sim_extras:
-            s_lr_min = str(adv.get("server_lr_min", "")).strip()
-            if s_lr_min:
-                cmd.extend(["--server_lr_min", s_lr_min])
+        s_lr_min = str(adv.get("server_lr_min", "")).strip()
+        if s_lr_min:
+            cmd.extend(["--server_lr_min", s_lr_min])
         c_pat = str(adv.get("client_lr_patience", "")).strip()
         if c_pat:
             cmd.extend(["--client_lr_patience", c_pat])
         c_fac = str(adv.get("client_lr_factor", "")).strip()
         if c_fac:
             cmd.extend(["--client_lr_factor", c_fac])
-        if include_sim_extras:
-            c_min = str(adv.get("client_lr_min", "")).strip()
-            if c_min:
-                cmd.extend(["--client_lr_min", c_min])
+        c_min = str(adv.get("client_lr_min", "")).strip()
+        if c_min:
+            cmd.extend(["--client_lr_min", c_min])
 
         if optimizer == "sgd":
             mom = str(adv.get("momentum", "0.9")).strip()
@@ -388,8 +391,7 @@ class ServerTab(ctk.CTkFrame):
         wd = str(adv.get("weight_decay", "")).strip()
         if wd:
             try:
-                if float(wd) > 0:
-                    cmd.extend(["--weight_decay", wd])
+                cmd.extend(["--weight_decay", wd])
             except ValueError:
                 pass
         cgn = str(adv.get("clip_grad_norm", "")).strip()
@@ -463,11 +465,15 @@ class ServerTab(ctk.CTkFrame):
         if include_all_strats or "scr" in strat_lower:
             cmd.extend(["--scr_gamma", str(adv.get("scr_gamma", "1.0"))])
             cmd.extend(["--scr_head_lambda", str(adv.get("scr_head_lambda", "0.01"))])
+        if include_all_strats or "sld" in strat_lower:
+            cmd.extend(["--fedsld_epsilon", str(adv.get("fedsld_epsilon", "1e-6"))])
+            cmd.extend(["--fedsld_reduction", str(adv.get("fedsld_reduction", "mean"))])
 
         self._append_opt_eval_common(cmd, adv, opt, include_sim_extras=True)
 
         cmd.append("--server_eval" if adv.get("server_eval", True) else "--no-server_eval")
         cmd.append("--local_test" if adv.get("local_test", False) else "--no-local_test")
+        cmd.append("--augment" if adv.get("augment", False) else "--no-augment")
 
         es_p = str(adv.get("early_stop_patience", "0")).strip()
         try:
@@ -509,6 +515,11 @@ class ServerTab(ctk.CTkFrame):
 
         adv = self.advanced_config
 
+        # 0. Partition Mode
+        pt_val = self.fields["partition_mode"].get() if "partition_mode" in self.fields else "practical"
+        if pt_val and pt_val != "All Partitions":
+            cmd.extend(["--partition_mode", pt_val])
+
         # 1. Partition Path Override
         part = adv.get("partition_path", "").strip()
         if part:
@@ -534,8 +545,11 @@ class ServerTab(ctk.CTkFrame):
                 cmd.append("--fedsol_adaptive")
         elif "switch" in strat:
             sw_r = str(adv.get("switch_round", "0")).strip()
-            if sw_r and int(sw_r) > 0:
-                cmd.extend(["--switch_round", sw_r])
+            try:
+                if sw_r and int(sw_r) > 0:
+                    cmd.extend(["--switch_round", sw_r])
+            except ValueError:
+                pass
             cmd.extend(["--fedswitch_weighting_mode", str(adv.get("fedswitch_weighting_mode", "bounded_sum"))])
             cmd.extend(["--fedswitch_coverage", str(adv.get("fedswitch_coverage", "0.9"))])
             cmd.extend(["--fedswitch_epsilon", str(adv.get("fedswitch_epsilon", "1.0"))])
@@ -555,11 +569,17 @@ class ServerTab(ctk.CTkFrame):
             cmd.append("--no-server_eval")
         if adv.get("local_test", False):
             cmd.append("--local_test")
+        else:
+            cmd.append("--no-local_test")
 
         es_p = str(adv.get("early_stop_patience", "0")).strip()
-        if es_p and int(es_p) > 0:
-            cmd.extend(["--early_stop_patience", es_p])
-            cmd.extend(["--early_stop_metric", str(adv.get("early_stop_metric", "accuracy"))])
+        try:
+            val_esp = int(es_p) if es_p else 0
+            cmd.extend(["--early_stop_patience", str(val_esp)])
+            if val_esp > 0:
+                cmd.extend(["--early_stop_metric", str(adv.get("early_stop_metric", "accuracy"))])
+        except ValueError:
+            pass
 
         return cmd
 

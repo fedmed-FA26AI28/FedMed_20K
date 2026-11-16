@@ -158,24 +158,48 @@ def check_port_in_use(port: int, host: str = "127.0.0.1") -> bool:
         return res == 0
 
 
+def partition_has_local_test(path: Path) -> bool:
+    """Check if a partition file contains client test indices for local evaluation."""
+    if not path or not path.is_file():
+        return False
+    if "_localtest_" in path.name:
+        return True
+    try:
+        with open(path, "r", encoding="utf-8") as f:
+            data = json.load(f)
+        clients = data.get("clients") or data.get("client_data") or data
+        if isinstance(clients, dict):
+            first_client = next(iter(clients.values()), None)
+            if isinstance(first_client, dict) and "test_indices" in first_client:
+                return bool(first_client["test_indices"])
+    except Exception:
+        pass
+    return False
+
+
 def kill_processes_on_port(port: int) -> List[int]:
     """Find and kill processes listening on the designated port (Windows compatible)."""
     killed = []
     try:
-        cmd = f"netstat -ano | findstr :{port}"
+        cmd = "netstat -ano -p tcp"
         out = subprocess.check_output(cmd, shell=True, text=True, stderr=subprocess.DEVNULL)
+        target_suffix = f":{port}"
         for line in out.splitlines():
             parts = line.strip().split()
-            if len(parts) >= 5 and "LISTENING" in parts:
-                pid = int(parts[-1])
-                if pid > 0 and pid not in killed and pid != os.getpid():
-                    subprocess.run(
-                        f"taskkill /F /PID {pid}",
-                        shell=True,
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL,
-                    )
-                    killed.append(pid)
+            # Expect: ['TCP', '127.0.0.1:8080', '0.0.0.0:0', 'LISTENING', '<PID>']
+            if len(parts) >= 5 and parts[0].upper() == "TCP" and "LISTENING" in parts:
+                local_addr = parts[1]
+                state = parts[3]
+                if state == "LISTENING" and (local_addr.endswith(target_suffix) or local_addr == f"[{target_suffix.lstrip(':')}]"):
+                    pid = int(parts[-1])
+                    if pid > 0 and pid not in killed and pid != os.getpid():
+                        subprocess.run(
+                            f"taskkill /F /PID {pid}",
+                            shell=True,
+                            stdout=subprocess.DEVNULL,
+                            stderr=subprocess.DEVNULL,
+                        )
+                        killed.append(pid)
     except Exception:
         pass
     return killed
@@ -188,6 +212,7 @@ def resolve_partition_file(
     client_id: Optional[int] = None,
     seed: int = 42,
     custom_path: Optional[str] = None,
+    local_test: Optional[bool] = None,
 ) -> Optional[Path]:
     """Locate partition JSON matching dataset, partition configuration, and client constraints."""
     if custom_path:
@@ -201,16 +226,31 @@ def resolve_partition_file(
 
     # 1. If explicit num_clients is provided, look for exact files with that client count
     if num_clients is not None and num_clients > 0:
-        candidates = [
-            partitions_dir / f"partition_{dataset}_{partition_mode}_localtest_seed{seed}_clients{num_clients}.json",
-            partitions_dir / f"partition_{dataset}_{partition_mode}_seed{seed}_clients{num_clients}.json",
-        ]
+        if local_test is True:
+            candidates = [
+                partitions_dir / f"partition_{dataset}_{partition_mode}_localtest_seed{seed}_clients{num_clients}.json",
+                partitions_dir / f"partition_{dataset}_{partition_mode}_seed{seed}_clients{num_clients}.json",
+            ]
+        elif local_test is False:
+            candidates = [
+                partitions_dir / f"partition_{dataset}_{partition_mode}_seed{seed}_clients{num_clients}.json",
+                partitions_dir / f"partition_{dataset}_{partition_mode}_localtest_seed{seed}_clients{num_clients}.json",
+            ]
+        else:
+            candidates = [
+                partitions_dir / f"partition_{dataset}_{partition_mode}_localtest_seed{seed}_clients{num_clients}.json",
+                partitions_dir / f"partition_{dataset}_{partition_mode}_seed{seed}_clients{num_clients}.json",
+            ]
         for c in candidates:
             if c.is_file():
+                if local_test is True and not partition_has_local_test(c):
+                    continue
                 return c
 
         for p in partitions_dir.glob(f"*{dataset}*{partition_mode}*seed{seed}*clients{num_clients}*.json"):
             if p.is_file():
+                if local_test is True and not partition_has_local_test(p):
+                    continue
                 return p
 
     # 2. If client_id is given (e.g. client 15), prioritize a partition file that contains this client ID
@@ -221,6 +261,8 @@ def resolve_partition_file(
             try:
                 m = re.search(r"clients(\d+)", p.name)
                 if m and int(m.group(1)) > client_id:
+                    if local_test is True and not partition_has_local_test(p):
+                        continue
                     return p
             except Exception:
                 pass
@@ -232,21 +274,38 @@ def resolve_partition_file(
                     meta = json.load(f)
                 clients = meta.get("clients") or meta.get("client_data") or meta
                 if isinstance(clients, dict) and str(client_id) in clients:
+                    if local_test is True and not partition_has_local_test(p):
+                        continue
                     return p
             except Exception:
                 pass
 
     # 3. Default priority pattern: clients12 then wildcard with target seed
-    candidates = [
-        partitions_dir / f"partition_{dataset}_{partition_mode}_localtest_seed{seed}_clients12.json",
-        partitions_dir / f"partition_{dataset}_{partition_mode}_seed{seed}_clients12.json",
-    ]
+    if local_test is True:
+        candidates = [
+            partitions_dir / f"partition_{dataset}_{partition_mode}_localtest_seed{seed}_clients12.json",
+            partitions_dir / f"partition_{dataset}_{partition_mode}_seed{seed}_clients12.json",
+        ]
+    elif local_test is False:
+        candidates = [
+            partitions_dir / f"partition_{dataset}_{partition_mode}_seed{seed}_clients12.json",
+            partitions_dir / f"partition_{dataset}_{partition_mode}_localtest_seed{seed}_clients12.json",
+        ]
+    else:
+        candidates = [
+            partitions_dir / f"partition_{dataset}_{partition_mode}_localtest_seed{seed}_clients12.json",
+            partitions_dir / f"partition_{dataset}_{partition_mode}_seed{seed}_clients12.json",
+        ]
     for c in candidates:
         if c.is_file():
+            if local_test is True and not partition_has_local_test(c):
+                continue
             return c
 
     for p in partitions_dir.glob(f"*{dataset}*{partition_mode}*seed{seed}*.json"):
         if p.is_file():
+            if local_test is True and not partition_has_local_test(p):
+                continue
             return p
 
     return None
@@ -259,6 +318,7 @@ def load_partition_distribution(
     num_clients: Optional[int] = None,
     seed: int = 42,
     custom_path: Optional[str] = None,
+    local_test: Optional[bool] = None,
 ) -> Dict[str, Any]:
     """Load sample counts and label class breakdown for a specific client."""
     path = resolve_partition_file(
@@ -268,6 +328,7 @@ def load_partition_distribution(
         client_id=client_id,
         seed=seed,
         custom_path=custom_path,
+        local_test=local_test,
     )
     if not path or not path.is_file():
         return {
@@ -335,22 +396,37 @@ def check_partition_exists(
     num_clients: int,
     seed: int = 42,
     custom_path: Optional[str] = None,
+    local_test: Optional[bool] = None,
 ) -> Tuple[bool, Path]:
     """Check if the designated partition file exists, returning (exists, path)."""
     if custom_path:
         p = Path(custom_path)
+        if local_test is True:
+            return (p.is_file() and partition_has_local_test(p)), p
         return p.is_file(), p
 
     partitions_dir = PROJECT_ROOT / "data" / "partitions"
-    candidate = partitions_dir / f"partition_{dataset}_{partition_mode}_localtest_seed{seed}_clients{num_clients}.json"
-    if candidate.is_file():
-        return True, candidate
+    localtest_cand = partitions_dir / f"partition_{dataset}_{partition_mode}_localtest_seed{seed}_clients{num_clients}.json"
+    fallback_cand = partitions_dir / f"partition_{dataset}_{partition_mode}_seed{seed}_clients{num_clients}.json"
 
-    fallback = partitions_dir / f"partition_{dataset}_{partition_mode}_seed{seed}_clients{num_clients}.json"
-    if fallback.is_file():
-        return True, fallback
-
-    return False, candidate
+    if local_test is True:
+        if localtest_cand.is_file():
+            return True, localtest_cand
+        if fallback_cand.is_file() and partition_has_local_test(fallback_cand):
+            return True, fallback_cand
+        return False, localtest_cand
+    elif local_test is False:
+        if fallback_cand.is_file():
+            return True, fallback_cand
+        if localtest_cand.is_file():
+            return True, localtest_cand
+        return False, fallback_cand
+    else:
+        if localtest_cand.is_file():
+            return True, localtest_cand
+        if fallback_cand.is_file():
+            return True, fallback_cand
+        return False, localtest_cand
 
 
 def generate_partition_subprocess(

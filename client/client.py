@@ -989,7 +989,7 @@ class FedMedAIClient(fl.client.NumPyClient):
             f"[Client {self.client_id}] fit done | Round {server_round} | IPv4: {self.device_ipv4} | "
             f"loss={metrics['train_loss']:.4f} acc={metrics['train_accuracy']:.4f} "
             f"| round_time={training_time:.2f}s | avg_epoch={metrics['epoch_time_avg']:.2f}s "
-            f"| weights={weight_size_kb:.1f}KB"
+            f"| weights={weight_size_kb:.1f}KB | ping={metrics['ping_ms']:.2f}ms"
         )
 
         # Check if this is the final round
@@ -1249,8 +1249,10 @@ class FedMedAIClient(fl.client.NumPyClient):
     def evaluate(self, parameters: NDArrays, config: dict):
         """Evaluate the global model on the local test set."""
         eval_round = config.get("server_round")
+        eval_ping_ms = None
         if eval_round is not None:
-            self.ping_logger.log_ping(server_round=int(eval_round), event="evaluate")
+            eval_ping_res = self.ping_logger.log_ping(server_round=int(eval_round), event="evaluate")
+            eval_ping_ms = eval_ping_res.get("ping_ms")
 
         strategy = str(config.get("strategy", self.strategy or "fedavg")).lower()
         fedbn_eval_strats = (
@@ -1318,9 +1320,10 @@ class FedMedAIClient(fl.client.NumPyClient):
             self._save_client_csvs()
             self._save_client_plots()
 
+        ping_str = f" | ping={eval_ping_ms:.2f}ms" if eval_ping_ms is not None and eval_ping_ms >= 0 else ""
         print(
-            f"[Client {self.client_id}] evaluate | "
-            f"loss={avg_loss:.4f} acc={accuracy:.4f}"
+            f"[Client {self.client_id}] evaluate | Round {resolved_round} | "
+            f"loss={avg_loss:.4f} acc={accuracy:.4f}{ping_str}"
         )
 
         return float(avg_loss), total, {

@@ -230,14 +230,29 @@ class RecordedMetricsTable(ctk.CTkFrame):
             ),
             None,
         )
+        reordered = False
         if existing is not None:
             for k, v in payload.items():
-                if v is not None:
-                    existing[k] = v
+                if v is None:
+                    continue
+                if k in ("round_time", "training_time"):
+                    old_rt = existing.get(k)
+                    if float(v) <= 0.0 and old_rt is not None and float(old_rt) > 0.0:
+                        continue
+                if k == "ping_ms":
+                    old_ping = existing.get(k)
+                    is_eval_only = ("train_loss" not in payload and "eval_loss" in payload)
+                    if old_ping is not None and float(old_ping) >= 0.0 and (float(v) < 0.0 or is_eval_only):
+                        continue
+                existing[k] = v
             record = existing
         else:
             record = dict(payload)
             self.client_records.append(record)
+            self.client_records.sort(
+                key=lambda r: (int(r.get("server_round", r.get("round", 0))), int(r.get("client_id", 0)))
+            )
+            reordered = bool(self.client_records and self.client_records[-1] is not record)
 
         # Update filter dropdown values only when a new client id appears
         if is_new_cid:
@@ -245,17 +260,19 @@ class RecordedMetricsTable(ctk.CTkFrame):
             self.cmb_client_filter.configure(values=c_vals)
 
         if self.active_view == "client":
-            filtered_count = sum(
-                1 for r in self.client_records
+            filtered = [
+                r for r in self.client_records
                 if self.client_filter == "All Clients" or self.client_filter == f"Client #{r.get('client_id')}"
-            )
-            cnt_txt = f"{filtered_count} Reports"
+            ]
+            cnt_txt = f"{len(filtered)} Reports"
             if cnt_txt != self._last_counter_text:
                 self._last_counter_text = cnt_txt
                 self.lbl_counter.configure(text=cnt_txt)
             if self.client_filter == "All Clients" or self.client_filter == f"Client #{cid}":
                 if key in self.client_row_widgets:
                     self._update_client_row_widgets(key, record)
+                elif reordered and filtered and filtered[-1] is not record:
+                    self._refresh_table()
                 else:
                     self._render_single_client_row(record, len(self.client_row_widgets))
 
@@ -331,8 +348,12 @@ class RecordedMetricsTable(ctk.CTkFrame):
     def _client_cell_specs(rec: Dict[str, Any]):
         r_val = rec.get("server_round", rec.get("round", 0))
         cid = rec.get("client_id", 0)
-        t_loss = rec.get("train_loss", rec.get("loss"))
-        t_acc = rec.get("train_accuracy", rec.get("ta"))
+        t_loss = rec.get("train_loss")
+        if t_loss is None:
+            t_loss = rec.get("loss", rec.get("eval_loss"))
+        t_acc = rec.get("train_accuracy")
+        if t_acc is None:
+            t_acc = rec.get("ta", rec.get("eval_accuracy"))
         r_time = rec.get("round_time", rec.get("training_time", 0.0))
         r_time_val = float(r_time) if r_time is not None else 0.0
         ping = rec.get("ping_ms", -1.0)
@@ -433,16 +454,28 @@ class RecordedMetricsTable(ctk.CTkFrame):
             if show_dialog:
                 messagebox.showerror("Export Error", f"Failed to export metrics CSV:\n{e}")
 
-    def clear(self):
-        """Clear all historical records and rows."""
+    def clear_server(self):
+        """Clear only server records and rows."""
         self.server_records.clear()
-        self.client_records.clear()
         self.server_row_widgets.clear()
+        if self.active_view == "server":
+            self._refresh_table()
+
+    def clear_client(self):
+        """Clear only client records, rows, and client filter."""
+        self.client_records.clear()
         self.client_row_widgets.clear()
         self.client_ids.clear()
         self.cmb_client_filter.configure(values=["All Clients"])
         self.cmb_client_filter.set("All Clients")
         self.client_filter = "All Clients"
+        if self.active_view == "client":
+            self._refresh_table()
+
+    def clear(self):
+        """Clear all historical records and rows."""
+        self.clear_server()
+        self.clear_client()
         for w in self.scroll_frame.winfo_children():
             w.destroy()
         self.lbl_counter.configure(text="0 Records")

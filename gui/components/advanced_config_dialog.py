@@ -545,7 +545,7 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
                 body,
                 "lr_mode",
                 "LR Schedule Policy Mode:",
-                ["fixed", "server_decay", "client_adaptive"],
+                ["fixed", "server_decay", "client_loss"],
                 "fixed",
             )
             self._add_entry_row(
@@ -816,6 +816,7 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
                     "client_lr_min",
                     "momentum",
                     "weight_decay",
+                    "clip_grad_norm",
                 ):
                     if val != "":
                         try:
