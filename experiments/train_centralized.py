@@ -294,12 +294,9 @@ def run_centralized(
     epochs: int = 100,
     batch_size: int = 32,
     learning_rate: float = 0.001,
-    lr_mode: str = "fixed",
     lr_patience: int = 3,
     lr_factor: float = 0.5,
     min_lr: float = 1e-6,
-    lr_decay_steps: int = 15,
-    lr_decay_gamma: float = 0.5,
     early_stop_patience: int = 8,
     early_stop_metric: str = "accuracy",
     config_source: str = "configs/experiment.yaml",
@@ -336,8 +333,8 @@ def run_centralized(
         f"Config ({config_source}): dataset={dataset_name}, model={model_name}, optimizer={opt_name.upper()}"
         + (f"(momentum={momentum})" if opt_name == "sgd" else "")
         + f", weight_decay={wd}, clip_grad_norm={clip_val}, run_name={run_name or timestamp}, seed={seed}, "
-        + f"epochs={epochs}, batch_size={batch_size}, learning_rate={learning_rate}, lr_mode={lr_mode}, "
-        + f"lr_patience={lr_patience}, lr_factor={lr_factor}, lr_decay_steps={lr_decay_steps}, lr_decay_gamma={lr_decay_gamma}, "
+        + f"epochs={epochs}, batch_size={batch_size}, learning_rate={learning_rate}, "
+        + f"lr_patience={lr_patience}, lr_factor={lr_factor}, "
         + f"early_stop_patience={early_stop_patience}, early_stop_metric={early_stop_metric}, "
         + f"augment={augment}, random_crop={random_crop}, random_flip={random_flip}"
     )
@@ -384,12 +381,9 @@ def run_centralized(
         device,
         val_loader=val_loader,
         test_loader=test_loader,
-        lr_mode=lr_mode,
         lr_patience=lr_patience,
         lr_factor=lr_factor,
         min_lr=min_lr,
-        lr_decay_steps=lr_decay_steps,
-        lr_decay_gamma=lr_decay_gamma,
         early_stop_patience=early_stop_patience,
         early_stop_metric=early_stop_metric,
         clip_grad_norm=clip_val,
@@ -490,12 +484,9 @@ def run_centralized(
             "epochs": epochs,
             "batch_size": batch_size,
             "learning_rate": learning_rate,
-            "lr_mode": lr_mode,
             "lr_patience": lr_patience,
             "lr_factor": lr_factor,
             "min_lr": min_lr,
-            "lr_decay_steps": lr_decay_steps,
-            "lr_decay_gamma": lr_decay_gamma,
             "early_stop_patience": early_stop_patience,
             "early_stop_metric": early_stop_metric,
             "augment": augment,
@@ -559,12 +550,9 @@ def parse_args():
     default_epochs = cen_cfg.get("epochs", yaml_cfg.get("centralized_epochs", 100))
     default_batch_size = cen_cfg.get("batch_size", yaml_cfg.get("centralized_batch_size", 32))
     default_lr = cen_cfg.get("learning_rate", yaml_cfg.get("centralized_learning_rate", yaml_cfg.get("learning_rate", 0.001)))
-    default_lr_mode = cen_cfg.get("lr_mode", yaml_cfg.get("centralized_lr_mode", yaml_cfg.get("lr_mode", "fixed")))
     default_lr_patience = cen_cfg.get("lr_patience", yaml_cfg.get("centralized_lr_patience", 3))
     default_lr_factor = cen_cfg.get("lr_factor", yaml_cfg.get("centralized_lr_factor", 0.5))
     default_min_lr = cen_cfg.get("min_lr", yaml_cfg.get("centralized_min_lr", 1e-6))
-    default_lr_decay_steps = cen_cfg.get("lr_decay_steps", yaml_cfg.get("centralized_lr_decay_steps", yaml_cfg.get("lr_decay_steps", 15)))
-    default_lr_decay_gamma = cen_cfg.get("lr_decay_gamma", yaml_cfg.get("centralized_lr_decay_gamma", yaml_cfg.get("lr_decay_gamma", 0.5)))
     default_early_stop = cen_cfg.get("early_stop_patience", yaml_cfg.get("centralized_early_stop_patience", 8))
     default_early_stop_metric = cen_cfg.get("early_stop_metric", yaml_cfg.get("centralized_early_stop_metric", yaml_cfg.get("early_stop_metric", "accuracy")))
     default_model = cen_cfg.get("model", yaml_cfg.get("model", "cnn"))
@@ -612,19 +600,12 @@ def parse_args():
                         help=f"Batch size (default: {default_batch_size}).")
     parser.add_argument("--lr", "--learning_rate", type=float, default=default_lr, dest="learning_rate",
                         help=f"Initial learning rate for optimizer (default: {default_lr}).")
-    parser.add_argument("--lr_mode", type=str, default=default_lr_mode,
-                        choices=["fixed", "client_loss", "val_loss", "plateau", "server_decay"],
-                        help=f"LR scheduling mode (default: {default_lr_mode}).")
     parser.add_argument("--lr_patience", type=int, default=default_lr_patience,
-                        help=f"Epochs without val loss improvement before reducing LR (default: {default_lr_patience}).")
+                        help=f"Epochs without val loss improvement before reducing LR (0 = disabled) (default: {default_lr_patience}).")
     parser.add_argument("--lr_factor", type=float, default=default_lr_factor,
                         help=f"Multiplicative factor for LR reduction (default: {default_lr_factor}).")
     parser.add_argument("--min_lr", type=float, default=default_min_lr,
                         help=f"Minimum learning rate lower bound (default: {default_min_lr}).")
-    parser.add_argument("--lr_decay_steps", type=int, default=default_lr_decay_steps,
-                        help=f"Epoch interval for server_decay step reduction (default: {default_lr_decay_steps}).")
-    parser.add_argument("--lr_decay_gamma", type=float, default=default_lr_decay_gamma,
-                        help=f"Multiplicative decay factor for server_decay mode (default: {default_lr_decay_gamma}).")
     parser.add_argument("--early_stop_patience", type=int, default=default_early_stop,
                         help=f"Early stopping patience in epochs (0 = disabled) (default: {default_early_stop}).")
     parser.add_argument("--early_stop_metric", type=str, default=default_early_stop_metric,
@@ -640,12 +621,9 @@ if __name__ == "__main__":
         epochs=args.epochs,
         batch_size=args.batch_size,
         learning_rate=args.learning_rate,
-        lr_mode=args.lr_mode,
         lr_patience=args.lr_patience,
         lr_factor=args.lr_factor,
         min_lr=args.min_lr,
-        lr_decay_steps=args.lr_decay_steps,
-        lr_decay_gamma=args.lr_decay_gamma,
         early_stop_patience=args.early_stop_patience,
         early_stop_metric=args.early_stop_metric,
         config_source=args.config,

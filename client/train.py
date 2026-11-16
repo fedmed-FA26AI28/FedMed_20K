@@ -1,7 +1,7 @@
 """Local training loop for client / centralized models.
 
 Performs forward and backward passes, optionally tracks validation and test
-metrics per epoch, manages LR scheduling (fixed, server_decay, or ReduceLROnPlateau),
+metrics per epoch, manages ReduceLROnPlateau LR scheduling (when lr_patience > 0),
 gradient clipping, and decoupled best-checkpoint / early-stopping tracking.
 """
 
@@ -39,12 +39,9 @@ def train(
     device,
     val_loader=None,
     test_loader=None,
-    lr_mode: str = None,
     lr_patience: int = 3,
     lr_factor: float = 0.5,
     min_lr: float = 1e-6,
-    lr_decay_steps: int = 15,
-    lr_decay_gamma: float = 0.5,
     early_stop_patience: int = 8,
     early_stop_metric: str = "accuracy",
     clip_grad_norm: float = None,
@@ -53,18 +50,10 @@ def train(
     model.train()
 
     start_time = time.time()
-    initial_lr = float(optimizer.param_groups[0]["lr"])
 
-    # 1. Resolve Learning Rate Scheduling Mode (matching client/client.py semantics)
-    # Preserve backward compatibility if callers pass lr_mode=None:
-    # use 'plateau' when lr_patience > 0, otherwise 'fixed'.
-    if lr_mode is None:
-        mode_str = "plateau" if (lr_patience is not None and int(lr_patience) > 0) else "fixed"
-    else:
-        mode_str = str(lr_mode).lower().strip()
-
+    # 1. Initialize Learning Rate Scheduler (lr_patience <= 0 disables reduction and keeps LR fixed)
     scheduler = None
-    if mode_str in ("client_loss", "val_loss", "plateau") and lr_patience is not None and int(lr_patience) > 0:
+    if lr_patience is not None and int(lr_patience) > 0:
         scheduler = ReduceLROnPlateau(
             optimizer, mode="min", factor=lr_factor, patience=int(lr_patience), min_lr=min_lr
         )
@@ -103,12 +92,6 @@ def train(
 
     total = 0
     for epoch in range(epochs):
-        # Apply step decay when configured with server_decay mode
-        if mode_str == "server_decay" and lr_decay_steps is not None and int(lr_decay_steps) > 0:
-            decayed_lr = max(initial_lr * (lr_decay_gamma ** (epoch // int(lr_decay_steps))), min_lr)
-            for param_group in optimizer.param_groups:
-                param_group["lr"] = decayed_lr
-
         model.train()
         running_loss = 0.0
         correct = 0
@@ -180,7 +163,7 @@ def train(
 
         print(print_str)
 
-        # Step plateau scheduler only when active in client_loss / val_loss / plateau mode
+        # Step plateau scheduler when enabled (lr_patience > 0)
         if scheduler is not None:
             old_lr = float(optimizer.param_groups[0]["lr"])
             scheduler_metric = val_epoch_loss if val_epoch_loss is not None else epoch_loss
@@ -240,7 +223,6 @@ def train(
         "final_accuracy": history["accuracy"][-1] if history["accuracy"] else 0.0,
         "num_samples": total,
         "history": history,
-        "lr_mode": mode_str,
         "best_weights": best_weights,
         "final_weights": final_weights,
     }
