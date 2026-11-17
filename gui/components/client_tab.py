@@ -85,14 +85,25 @@ class ClientPartitionInspector(ctk.CTkFrame):
         if event.width > 20 and event.height > 20 and self._cached_draw:
             self._cached_draw()
 
+    def _get_canvas_scale(self) -> float:
+        """Return physical-to-logical pixel ratio for raw tk.Canvas geometry & Tk fonts."""
+        try:
+            import sys
+            if sys.platform == "win32":
+                return max(1.0, round(float(self.canvas.tk.call("tk", "scaling")) / (96.0 / 72.0), 2))
+        except Exception:
+            pass
+        return T.get_widget_scale(self)
+
     def _get_canvas_dims(self):
+        sc = self._get_canvas_scale()
         w = self.canvas.winfo_width()
         h = self.canvas.winfo_height()
         if w <= 20:
             parent_w = self.winfo_width()
-            w = (parent_w - 20) if parent_w > 50 else 340
+            w = (parent_w - round(24 * sc)) if parent_w > 50 else round(340 * sc)
         if h <= 20:
-            h = 130
+            h = round(140 * sc)
         return w, h
 
     def show_unconfirmed(self, num_clients: int, dataset: str, partition_mode: str, client_id: int = 0, seed: int = 42):
@@ -104,18 +115,19 @@ class ClientPartitionInspector(ctk.CTkFrame):
         def _draw():
             self.canvas.delete("all")
             w, h = self._get_canvas_dims()
+            sc = self._get_canvas_scale()
             self.canvas.create_text(
-                w / 2, h / 2 - 16,
+                w / 2, h / 2 - round(16 * sc),
                 text="Partition Not Confirmed",
                 fill=T.resolve(T.TEXT),
                 font=("Segoe UI", 11, "bold"),
             )
             self.canvas.create_text(
-                w / 2, h / 2 + 14,
+                w / 2, h / 2 + round(14 * sc),
                 text=f"Target: {dataset.upper()} | {partition_mode} | {num_clients} clients | Seed {seed}\nClick [Confirm & Inspect Partition] to verify or generate.",
                 fill=T.resolve(T.MUTED),
                 justify="center",
-                width=w - 24,
+                width=max(80, w - round(24 * sc)),
                 font=("Segoe UI", 9),
             )
         self._cached_draw = _draw
@@ -130,18 +142,19 @@ class ClientPartitionInspector(ctk.CTkFrame):
         def _draw():
             self.canvas.delete("all")
             w, h = self._get_canvas_dims()
+            sc = self._get_canvas_scale()
             self.canvas.create_text(
-                w / 2, h / 2 - 16,
+                w / 2, h / 2 - round(16 * sc),
                 text=f"[!] Partition for {num_clients} Clients Missing",
                 fill=T.resolve(T.ERROR),
                 font=("Segoe UI", 10, "bold"),
             )
             self.canvas.create_text(
-                w / 2, h / 2 + 14,
+                w / 2, h / 2 + round(14 * sc),
                 text=f"Expected: {filename}\nClick [Generate Partition] below, or start client to auto-generate.",
                 fill=T.resolve(T.MUTED),
                 justify="center",
-                width=w - 24,
+                width=max(80, w - round(24 * sc)),
                 font=("Segoe UI", 9),
             )
         self._cached_draw = _draw
@@ -156,18 +169,19 @@ class ClientPartitionInspector(ctk.CTkFrame):
         def _draw():
             self.canvas.delete("all")
             w, h = self._get_canvas_dims()
+            sc = self._get_canvas_scale()
             self.canvas.create_text(
-                w / 2, h / 2 - 14,
+                w / 2, h / 2 - round(14 * sc),
                 text=f"Generating {num_clients}-Client Partition...",
                 fill=T.resolve(T.WARNING),
                 font=("Segoe UI", 11, "bold"),
             )
             self.canvas.create_text(
-                w / 2, h / 2 + 14,
+                w / 2, h / 2 + round(14 * sc),
                 text=f"Running partitioner for {dataset} ({partition_mode}). Please wait...",
                 fill=T.resolve(T.MUTED),
                 justify="center",
-                width=w - 24,
+                width=max(80, w - round(24 * sc)),
                 font=("Segoe UI", 9),
             )
         self._cached_draw = _draw
@@ -204,6 +218,7 @@ class ClientPartitionInspector(ctk.CTkFrame):
         def _draw():
             self.canvas.delete("all")
             w, h = self._get_canvas_dims()
+            sc = self._get_canvas_scale()
 
             if not file_name:
                 self.lbl_samples.configure(text="No Partition", text_color=T.ERROR, fg_color=T.SURFACE)
@@ -212,7 +227,7 @@ class ClientPartitionInspector(ctk.CTkFrame):
                     text="No partition file found for selection\nGenerate partitions or specify custom path in Advanced",
                     fill=T.resolve(T.MUTED),
                     justify="center",
-                    width=w - 24,
+                    width=max(80, w - round(24 * sc)),
                     font=("Segoe UI", 9),
                 )
                 return
@@ -220,17 +235,17 @@ class ClientPartitionInspector(ctk.CTkFrame):
             if not client_exists:
                 self.lbl_samples.configure(text="Out of Range", text_color=T.ERROR, fg_color=T.SURFACE)
                 self.canvas.create_text(
-                    w / 2, h / 2 - 14,
+                    w / 2, h / 2 - round(14 * sc),
                     text=f"[!] Client {client_id} exceeds partition bounds",
                     fill=T.resolve(T.ERROR),
                     font=("Segoe UI", 10, "bold"),
                 )
                 self.canvas.create_text(
-                    w / 2, h / 2 + 14,
+                    w / 2, h / 2 + round(14 * sc),
                     text=f"'{file_name}' contains {total_cls} clients (IDs 0-{max(0, total_cls-1)})",
                     fill=T.resolve(T.MUTED),
                     justify="center",
-                    width=w - 24,
+                    width=max(80, w - round(24 * sc)),
                     font=("Segoe UI", 9),
                 )
                 return
@@ -251,16 +266,21 @@ class ClientPartitionInspector(ctk.CTkFrame):
                 return
 
             max_val = max(dist.values()) if dist.values() else 1
-            bar_w = max(8, min(24, int((w - 40) / (num_classes * 1.4))))
-            spacing = int((w - 40) / num_classes)
-            start_x = 25
-            base_y = h - 22
+            pad_x = round(20 * sc)
+            top_pad = round(24 * sc)
+            bottom_pad = round(24 * sc)
+            usable_w = max(60, w - 2 * pad_x)
+            usable_h = max(30, h - top_pad - bottom_pad)
+            bar_w = max(round(8 * sc), min(round(28 * sc), int(usable_w / (num_classes * 1.4))))
+            spacing = usable_w / num_classes
+            start_x = pad_x + max(0.0, (spacing - bar_w) / 2.0)
+            base_y = h - bottom_pad
 
-            self.canvas.create_line(15, base_y, w - 15, base_y, fill=T.resolve(T.TEXT), width=1)
+            self.canvas.create_line(round(14 * sc), base_y, w - round(14 * sc), base_y, fill=T.resolve(T.TEXT), width=max(1, round(sc)))
 
             for i, c in enumerate(classes):
                 val = dist[c]
-                bar_h = int((val / max_val) * (h - 50)) if max_val > 0 else 0
+                bar_h = int((val / max_val) * usable_h) if max_val > 0 else 0
                 x1 = start_x + i * spacing
                 x2 = x1 + bar_w
                 y1 = base_y - bar_h
@@ -268,9 +288,9 @@ class ClientPartitionInspector(ctk.CTkFrame):
 
                 color = T.PRIMARY if val > (max_val * 0.4) else T.MUTED
                 self.canvas.create_rectangle(x1, y1, x2, y2, fill=T.resolve(color), outline="")
-                if bar_h > 14:
-                    self.canvas.create_text((x1 + x2) / 2, y1 - 7, text=str(val), fill=T.resolve(T.MUTED), font=("Segoe UI", 8))
-                self.canvas.create_text((x1 + x2) / 2, base_y + 10, text=f"C{c}", fill=T.resolve(T.MUTED), font=("Segoe UI", 8))
+                if bar_h > round(14 * sc):
+                    self.canvas.create_text((x1 + x2) / 2, y1 - round(8 * sc), text=str(val), fill=T.resolve(T.MUTED), font=("Segoe UI", 8))
+                self.canvas.create_text((x1 + x2) / 2, base_y + round(11 * sc), text=f"C{c}", fill=T.resolve(T.MUTED), font=("Segoe UI", 8))
 
         self._cached_draw = _draw
         _draw()
@@ -307,7 +327,7 @@ class ClientTab(ctk.CTkFrame):
         self.columns = ctk.CTkFrame(self, fg_color="transparent")
         self.columns.pack(fill="both", expand=True)
 
-        left_col = ctk.CTkFrame(self.columns, width=380, fg_color="transparent")
+        left_col = ctk.CTkFrame(self.columns, width=355, fg_color="transparent")
         left_col.pack(side="left", fill="both", padx=(0, 6), pady=0)
         left_col.pack_propagate(False)
 

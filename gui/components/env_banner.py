@@ -13,8 +13,8 @@ class VenvDiagnosticModal(ctk.CTkToplevel):
     def __init__(self, master, python_exe: str):
         super().__init__(master)
         self.title("Environment Health Diagnostic")
-        self.geometry("560x420")
-        self.resizable(False, False)
+        T.fit_window_to_screen(self, 580, 440, min_w=460, min_h=360, parent=master)
+        self.resizable(True, True)
         self.configure(fg_color=T.SIDEBAR)
 
         self.transient(master)
@@ -34,8 +34,13 @@ class VenvDiagnosticModal(ctk.CTkToplevel):
             text=f"Probing: {python_exe}",
             font=ctk.CTkFont(family="monospace", size=10),
             text_color=T.MUTED,
+            wraplength=500,
         )
-        lbl_path.pack(pady=(0, 14))
+        lbl_path.pack(pady=(0, 14), padx=20)
+        self.bind(
+            "<Configure>",
+            lambda e: lbl_path.configure(wraplength=max(260, int((e.width / T.get_widget_scale(self)) - 48))),
+        )
 
         # Checklist Container
         self.box = ctk.CTkFrame(self, fg_color=T.PANEL, corner_radius=12)
@@ -106,7 +111,7 @@ class VenvDiagnosticModal(ctk.CTkToplevel):
                 row,
                 text=title,
                 font=ctk.CTkFont(size=12, weight="bold"),
-                text_color=T.SURFACE,
+                text_color=T.TEXT,
             )
             lbl_title.pack(side="left", padx=6)
 

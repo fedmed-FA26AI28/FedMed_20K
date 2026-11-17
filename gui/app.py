@@ -50,17 +50,9 @@ class FLOrchestratorDashboard(ctk.CTk):
         super().__init__()
         ctk.set_appearance_mode("Dark")
 
-        # Dynamic screen-aware geometry sizing for cross-device consistency
-        screen_w = self.winfo_screenwidth()
-        screen_h = self.winfo_screenheight()
-        win_w = min(1480, max(1024, screen_w - 60))
-        win_h = min(920, max(640, screen_h - 80))
-        pos_x = max(0, (screen_w - win_w) // 2)
-        pos_y = max(0, (screen_h - win_h) // 2)
-
+        # Dynamic DPI-aware screen sizing for cross-device consistency
+        T.fit_window_to_screen(self, 1480, 920, min_w=1024, min_h=600)
         self.title("FL Orchestrator | Federated Learning Operations")
-        self.geometry(f"{win_w}x{win_h}+{pos_x}+{pos_y}")
-        self.minsize(1024, 600)
         self.configure(fg_color=T.BACKGROUND)
 
         # Active Virtual Environment Interpreter
@@ -263,16 +255,19 @@ class FLOrchestratorDashboard(ctk.CTk):
         self.main_container = ctk.CTkFrame(self, fg_color=T.BACKGROUND, corner_radius=0)
         self.main_container.pack(side="right", fill="both", expand=True)
 
-        # 2A. Breadcrumb and network controls (Single compact row matching reference)
-        self.topbar = ctk.CTkFrame(self.main_container, height=52, corner_radius=0, fg_color=T.PANEL)
+        # 2A. Breadcrumb bar + dedicated network ribbon row (never collides on 1024px / High-DPI)
+        self.topbar = ctk.CTkFrame(self.main_container, corner_radius=0, fg_color=T.PANEL)
         self.topbar.pack(fill="x")
-        self.topbar.pack_propagate(False)
+
+        self.topbar_main = ctk.CTkFrame(self.topbar, height=44, corner_radius=0, fg_color="transparent")
+        self.topbar_main.pack(fill="x")
+        self.topbar_main.pack_propagate(False)
 
         topbar_border = ctk.CTkFrame(self.main_container, height=1, corner_radius=0, fg_color=T.BORDER)
         topbar_border.pack(fill="x")
 
         self.btn_sidebar_reopen = ctk.CTkButton(
-            self.topbar, text="", image=self._sidebar_icon,
+            self.topbar_main, text="", image=self._sidebar_icon,
             width=26, height=26, corner_radius=6, border_spacing=0,
             fg_color=T.SURFACE, hover_color=T.BORDER,
             command=self._toggle_sidebar,
@@ -280,7 +275,7 @@ class FLOrchestratorDashboard(ctk.CTk):
 
         # Topbar Left: Breadcrumb
         self.lbl_breadcrumb = ctk.CTkLabel(
-            self.topbar,
+            self.topbar_main,
             text="FL Platform  ›  FL Server  ›  FL Server Control & Live Monitor",
             font=ctk.CTkFont(size=12),
             text_color=T.MUTED,
@@ -289,7 +284,7 @@ class FLOrchestratorDashboard(ctk.CTk):
 
         # Topbar Right: Theme button, Quick Stop & Global Live Console Popup Toggle
         self.theme_button = ctk.CTkButton(
-            self.topbar, text="◐", width=28, height=28, corner_radius=14,
+            self.topbar_main, text="◐", width=28, height=28, corner_radius=14,
             font=ctk.CTkFont(family="Segoe UI Symbol", size=18),
             fg_color="transparent", hover_color=T.SURFACE, text_color=T.TEXT,
             command=self._toggle_theme,
@@ -297,7 +292,7 @@ class FLOrchestratorDashboard(ctk.CTk):
         self.theme_button.pack(side="right", padx=(4, 16))
 
         self.btn_quick_stop = ctk.CTkButton(
-            self.topbar, text="Stop Server", width=90, height=28,
+            self.topbar_main, text="Stop Server", width=96, height=28,
             font=ctk.CTkFont(size=11, weight="bold"),
             fg_color=T.DANGER, hover_color=T.DANGER_HOVER, text_color=T.ON_ACCENT,
             command=self._stop_active_role, state="disabled",
@@ -305,7 +300,7 @@ class FLOrchestratorDashboard(ctk.CTk):
         self.btn_quick_stop.pack(side="right", padx=4)
 
         self.btn_live_console = ctk.CTkButton(
-            self.topbar, text="Live Console", width=106, height=28,
+            self.topbar_main, text="Live Console", width=106, height=28,
             font=ctk.CTkFont(size=11, weight="bold"),
             fg_color=T.SURFACE, hover_color=T.BORDER, text_color=T.TEXT,
             border_width=1, border_color=T.BORDER,
@@ -313,9 +308,10 @@ class FLOrchestratorDashboard(ctk.CTk):
         )
         self.btn_live_console.pack(side="right", padx=4)
 
-        # Topbar Right: Dynamic Host / Target Ribbon
-        self.ribbon_frame = ctk.CTkFrame(self.topbar, fg_color="transparent")
-        self.ribbon_frame.pack(side="right", padx=(0, 8))
+        # Second Topbar Strip: Dynamic Host / Target Ribbon (full width for Server/Client)
+        self.ribbon_frame = ctk.CTkFrame(self.topbar, height=38, corner_radius=0, fg_color=T.SURFACE)
+        self.ribbon_frame.pack(fill="x")
+        self.ribbon_frame.pack_propagate(False)
 
         self._build_server_topbar_ribbon(self.ribbon_frame)
         self._build_client_topbar_ribbon(self.ribbon_frame)
@@ -456,11 +452,12 @@ class FLOrchestratorDashboard(ctk.CTk):
     # --- 4x KPI METRIC CARDS ROW ---
 
     def _build_kpi_row(self):
-        self.kpi_frame = ctk.CTkFrame(self.main_container, fg_color="transparent", height=100)
+        self._kpi_sub_wraplength = 175
+        self.kpi_frame = ctk.CTkFrame(self.main_container, fg_color="transparent")
         self.kpi_frame.pack(fill="x", padx=16, pady=(8, 10))
-        self.kpi_frame.grid_propagate(False)
+        self.kpi_frame.bind("<Configure>", self._on_kpi_frame_configure)
 
-        self.kpi_frame.grid_rowconfigure(0, weight=1)
+        self.kpi_frame.grid_rowconfigure(0, weight=1, minsize=94)
         self.kpi_frame.grid_columnconfigure((0, 1, 2, 3), weight=1, uniform="kpi")
         self._kpi_column = 0
 
@@ -469,6 +466,23 @@ class FLOrchestratorDashboard(ctk.CTk):
         self.kpi_card_2 = self._create_kpi_card("FL ROUNDS PROGRESS", "Round 0 / 40", "Local Epochs: 5 · Min Clients: 12", T.BLUE)
         self.kpi_card_3 = self._create_kpi_card("BEST TEST ACCURACY (BTA)", "—", "Waiting for evaluation", T.SUCCESS)
         self.kpi_card_4 = self._create_kpi_card("CURRENT LOSS", "—", "Waiting for metrics", T.WARNING)
+
+    def _on_kpi_frame_configure(self, event=None):
+        """Adapt KPI subtitle wraplength to actual card width across window sizes and DPIs."""
+        try:
+            total_w = int(event.width) if event is not None else int(self.kpi_frame.winfo_width())
+            if total_w <= 40:
+                return
+            scale = T.get_widget_scale(self.kpi_frame)
+            logical_card_w = (total_w / scale) / 4.0
+            new_wrap = max(110, int(logical_card_w - 34))
+            if abs(new_wrap - self._kpi_sub_wraplength) >= 4:
+                self._kpi_sub_wraplength = new_wrap
+                for card in (self.kpi_card_1, self.kpi_card_2, self.kpi_card_3, self.kpi_card_4):
+                    if int(card.lbl_sub.cget("wraplength") or 0) > 0:
+                        self._cfg_if_changed(card.lbl_sub, wraplength=new_wrap)
+        except Exception:
+            pass
 
     def _create_kpi_card(self, title: str, default_val: str, default_sub: str, accent_color: str):
         card = ctk.CTkFrame(self.kpi_frame, fg_color=T.PANEL, corner_radius=12, border_width=1, border_color=T.BORDER)
@@ -546,6 +560,7 @@ class FLOrchestratorDashboard(ctk.CTk):
             cfg(self.kpi_card_4.lbl_val, text="—" if loss is None else f"{loss:.4f}")
             cfg(self.kpi_card_4.lbl_sub, text="Waiting for metrics" if loss is None else f"Latest report · Round {round_number}")
             if is_sim:
+                wrap_w = getattr(self, "_kpi_sub_wraplength", 175)
                 if self._sim_matrix_state:
                     ms = self._sim_matrix_state
                     cfg(self.kpi_card_1.lbl_title, text="SIMULATION MATRIX")
@@ -553,7 +568,7 @@ class FLOrchestratorDashboard(ctk.CTk):
                     cfg(
                         self.kpi_card_1.lbl_sub,
                         text=f"{ms['dataset']} · {ms['partition']} · {ms['strategy'].upper()}",
-                        wraplength=195,
+                        wraplength=wrap_w,
                     )
                 else:
                     part_m = (
@@ -563,12 +578,13 @@ class FLOrchestratorDashboard(ctk.CTk):
                     )
                     cfg(self.kpi_card_1.lbl_title, text="SIMULATION MODE")
                     cfg(self.kpi_card_1.lbl_val, text=f"{value('min_clients', '12')} Clients")
-                    cfg(self.kpi_card_1.lbl_sub, text=f"Partition: {part_m} · Localhost", wraplength=195)
+                    cfg(self.kpi_card_1.lbl_sub, text=f"Partition: {part_m} · Localhost", wraplength=wrap_w)
             else:
+                wrap_w = getattr(self, "_kpi_sub_wraplength", 175)
                 cfg(self.kpi_card_1.lbl_title, text="NETWORK / TARGET")
                 cfg(self.kpi_card_1.lbl_val, text=f"Port {self.entry_server_port.get().strip() or '8080'}" if mode == "server" else f"Client #{value('client_id', '0')}")
                 address = self.cmb_server_ip.get() if mode == "server" else self.entry_client_server_addr.get()
-                cfg(self.kpi_card_1.lbl_sub, text=address, wraplength=195)
+                cfg(self.kpi_card_1.lbl_sub, text=address, wraplength=wrap_w)
         elif mode == "analytics":
             srv_run = self.server_runner.is_running()
             clt_run = self.client_runner.is_running()
@@ -634,10 +650,10 @@ class FLOrchestratorDashboard(ctk.CTk):
     def _build_server_workspace(self):
         self.workspace_server = ctk.CTkFrame(self.workspace_body, fg_color="transparent")
         
-        # Left Panel: Server Parameter Configuration Form (width 380)
+        # Left Panel: Server Parameter Configuration Form (width 355)
         self.server_ctrl = ServerTab(
             self.workspace_server,
-            width=380,
+            width=355,
             on_start=self._start_server,
             on_stop=self._stop_server,
             on_export=self._export_server_results,
@@ -777,20 +793,27 @@ class FLOrchestratorDashboard(ctk.CTk):
                     workspace.pack_forget()
 
         # Ribbon visibility
+        if hasattr(self, "ribbon_frame"):
+            if mode in ("server", "client"):
+                self.ribbon_frame.pack(fill="x")
+            else:
+                self.ribbon_frame.pack_forget()
+
         if hasattr(self, "server_ribbon"):
             if mode == "server":
-                self.server_ribbon.pack(side="left")
+                self.server_ribbon.pack(side="left", padx=12)
             else:
                 self.server_ribbon.pack_forget()
 
         if hasattr(self, "client_ribbon"):
             if mode == "client":
-                self.client_ribbon.pack(side="left")
+                self.client_ribbon.pack(side="left", padx=12)
             else:
                 self.client_ribbon.pack_forget()
 
         if mode == "analytics" and hasattr(self, "analytics_tab"):
             self.analytics_tab.plot_canvas._refresh_plots()
+            self.after_idle(self.analytics_tab.plot_canvas._sync_figure_to_host)
 
         self._sync_kpi_display()
         self._on_workspace_tab_changed()

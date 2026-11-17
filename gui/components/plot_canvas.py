@@ -47,8 +47,14 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         self.client_packages: Dict[int, Dict[str, Any]] = {}
         self.server_active_view: str = "global"  # "global" or "client_<id>"
         self._draw_after_id: Optional[str] = None
+        self._resize_after_id: Optional[str] = None
+        self._syncing_host: bool = False
 
         self._build_legend_ribbon()
+        self.plot_host = ctk.CTkFrame(self, fg_color="transparent")
+        self.plot_host.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+        self.plot_host.pack_propagate(False)
+        self.plot_host.bind("<Configure>", self._on_plot_host_configure)
         self._build_figure()
 
     def _build_legend_ribbon(self):
@@ -73,15 +79,11 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         self.seg_role.set("Server" if self.mode == "server" else "Client")
         self.seg_role.pack(side="left", padx=(10, 6))
 
-        # Dynamic container for Server vs Client specific controls
-        self.ribbon_mode_frame = ctk.CTkFrame(self.legend_frame, fg_color="transparent")
-        self.ribbon_mode_frame.pack(side="left", fill="both", expand=True)
-
-        # Action buttons: Export CSV + Save Plot (always on Right)
+        # Action buttons packed FIRST on Right so narrow screens never push them off
         btn_save = ctk.CTkButton(
             self.legend_frame,
             text="Save Plot",
-            width=88,
+            width=78,
             height=28,
             font=ctk.CTkFont(size=11, weight="bold"),
             fg_color=T.PANEL,
@@ -96,7 +98,7 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         btn_csv = ctk.CTkButton(
             self.legend_frame,
             text="Export CSV",
-            width=88,
+            width=82,
             height=28,
             font=ctk.CTkFont(size=11, weight="bold"),
             fg_color=T.PRIMARY,
@@ -106,7 +108,32 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         )
         btn_csv.pack(side="right", padx=4)
 
+        # Dynamic container for Server vs Client specific controls
+        self.ribbon_mode_frame = ctk.CTkFrame(self.legend_frame, fg_color="transparent")
+        self.ribbon_mode_frame.pack(side="left", fill="both", expand=True)
+        self.legend_frame.bind("<Configure>", self._on_ribbon_configure)
+
         self._populate_mode_ribbon()
+
+    def _on_ribbon_configure(self, event=None):
+        """Show or hide optional legend chips when ribbon width is tight."""
+        try:
+            w = int(event.width) if event is not None else int(self.legend_frame.winfo_width())
+            if w <= 20:
+                return
+            logical_w = w / T.get_widget_scale(self.legend_frame)
+            if self.mode == "server" and self.server_active_view == "global" and hasattr(self, "badge_box"):
+                if logical_w < 820 and self.badge_box.winfo_manager():
+                    self.badge_box.pack_forget()
+                elif logical_w >= 820 and not self.badge_box.winfo_manager():
+                    self.badge_box.pack(side="left", padx=4)
+            elif self.mode == "client" and hasattr(self, "client_badge_box"):
+                if logical_w < 760 and self.client_badge_box.winfo_manager():
+                    self.client_badge_box.pack_forget()
+                elif logical_w >= 760 and not self.client_badge_box.winfo_manager():
+                    self.client_badge_box.pack(side="left", padx=4)
+        except Exception:
+            pass
 
     def _populate_mode_ribbon(self):
         """Populate Server or Client controls inside the ribbon container."""
@@ -158,8 +185,8 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
 
             self.badge_box = ctk.CTkFrame(self.ribbon_mode_frame, fg_color="transparent")
             badges = [
-                ("● BTA", T.PRIMARY),
-                ("● BMCTA", T.BLUE),
+                ("┄ BTA", T.ACCENT),
+                ("┄ BMCTA", T.BLUE),
                 ("● TA", T.SUCCESS),
                 ("● MCTA", T.PURPLE),
                 ("● Loss", T.WARNING),
@@ -451,6 +478,91 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
             self.fig.set_facecolor(T.resolve(T.PANEL))
             self._refresh_plots()
 
+    def _compute_initial_figsize(self, default_w: float, default_h: float) -> Tuple[float, float]:
+        """Compute initial figure size in inches matching the host container if already laid out."""
+        host = getattr(self, "plot_host", None)
+        if host is not None and host.winfo_exists():
+            host_w = host.winfo_width()
+            host_h = host.winfo_height()
+            if host_w > 20 and host_h > 20:
+                try:
+                    import sys
+                    if sys.platform == "win32":
+                        ratio = round(float(host.tk.call("tk", "scaling")) / (96.0 / 72.0), 2)
+                    else:
+                        ratio = 1.0
+                    ratio = max(1.0, ratio)
+                except Exception:
+                    ratio = 1.0
+                eff_dpi = 100.0 * ratio
+                return max(2.0, host_w / eff_dpi), max(1.2, host_h / eff_dpi)
+        return default_w, default_h
+
+    def _on_plot_host_configure(self, event=None):
+        """Debounce figure resizing to match the plot host widget bounds across DPIs."""
+        if self._syncing_host:
+            return
+        if getattr(self, "_resize_after_id", None) is not None:
+            try:
+                self.after_cancel(self._resize_after_id)
+            except Exception:
+                pass
+            self._resize_after_id = None
+        try:
+            if self.winfo_exists():
+                self._resize_after_id = self.after(15, self._sync_figure_to_host)
+        except Exception:
+            self._resize_after_id = None
+
+    def _sync_figure_to_host(self):
+        """Force Matplotlib Figure and TkAgg backing canvas to match plot_host pixel bounds."""
+        self._resize_after_id = None
+        if self._syncing_host:
+            return
+        host = getattr(self, "plot_host", None)
+        canvas = getattr(self, "canvas", None)
+        fig = getattr(self, "fig", None)
+        if host is None or canvas is None or fig is None:
+            return
+        try:
+            if not host.winfo_exists():
+                return
+            host_w = int(host.winfo_width())
+            host_h = int(host.winfo_height())
+        except Exception:
+            return
+        if host_w <= 20 or host_h <= 20:
+            return
+
+        dpival = float(getattr(fig, "dpi", 100.0) or 100.0)
+        cur_w_px = fig.get_figwidth() * dpival
+        cur_h_px = fig.get_figheight() * dpival
+        try:
+            photo_w = int(canvas._tkphoto.width())
+            photo_h = int(canvas._tkphoto.height())
+        except Exception:
+            photo_w, photo_h = int(round(cur_w_px)), int(round(cur_h_px))
+
+        if (
+            abs(cur_w_px - host_w) <= 2
+            and abs(cur_h_px - host_h) <= 2
+            and abs(photo_w - host_w) <= 2
+            and abs(photo_h - host_h) <= 2
+        ):
+            return
+
+        self._syncing_host = True
+        try:
+            evt = type("_HostResizeEvent", (), {"width": host_w, "height": host_h})()
+            canvas.resize(evt)
+        except Exception:
+            try:
+                fig.set_size_inches(max(2.0, host_w / dpival), max(1.2, host_h / dpival), forward=False)
+            except Exception:
+                pass
+        finally:
+            self._syncing_host = False
+
     def _build_figure(self):
         """Create Matplotlib figure layout (Accuracy left, Loss right, optional Distribution far right)."""
         if getattr(self, "_draw_after_id", None) is not None:
@@ -459,14 +571,22 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
             except Exception:
                 pass
             self._draw_after_id = None
+        if getattr(self, "_resize_after_id", None) is not None:
+            try:
+                self.after_cancel(self._resize_after_id)
+            except Exception:
+                pass
+            self._resize_after_id = None
 
         if hasattr(self, "canvas") and self.canvas is not None:
             self.canvas.get_tk_widget().destroy()
 
+        host = getattr(self, "plot_host", None) or self
+
         if self.mode == "server" and self.server_active_view.startswith("client_"):
             # 1x3 panels: Accuracy | Loss | Data Distribution
-            self.fig = Figure(figsize=(11.5, 3.8), dpi=100, facecolor=T.resolve(T.PANEL))
-            self.fig.subplots_adjust(left=0.06, right=0.98, top=0.88, bottom=0.16, wspace=0.28)
+            fig_w, fig_h = self._compute_initial_figsize(11.5, 3.6)
+            self.fig = Figure(figsize=(fig_w, fig_h), dpi=100, facecolor=T.resolve(T.PANEL), layout="constrained")
             gs = self.fig.add_gridspec(1, 3, width_ratios=[1.1, 1.1, 1.0])
             self.ax_acc = self.fig.add_subplot(gs[0, 0])
             self.ax_loss = self.fig.add_subplot(gs[0, 1], sharex=self.ax_acc)
@@ -476,14 +596,14 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
             self._style_axis(self.ax_dist, "Data Distribution", "Class Label", "Sample Count")
         else:
             # 1x2 panels: Accuracy (Left) and Loss (Right) sharing X-axis
-            self.fig = Figure(figsize=(10.5, 3.8), dpi=100, facecolor=T.resolve(T.PANEL))
-            self.fig.subplots_adjust(left=0.07, right=0.98, top=0.88, bottom=0.16, wspace=0.25)
+            fig_w, fig_h = self._compute_initial_figsize(10.5, 3.6)
+            self.fig = Figure(figsize=(fig_w, fig_h), dpi=100, facecolor=T.resolve(T.PANEL), layout="constrained")
             self.ax_acc = self.fig.add_subplot(1, 2, 1)
             self.ax_loss = self.fig.add_subplot(1, 2, 2, sharex=self.ax_acc)
             self.ax_dist = None
 
             if self.mode == "server":
-                self._style_axis(self.ax_acc, "Accuracy Progression (BTA / BMCTA)", "Communication Round", "Accuracy")
+                self._style_axis(self.ax_acc, "Accuracy Progression", "Communication Round", "Accuracy")
                 self._style_axis(self.ax_loss, "Evaluation Loss Reduction", "Communication Round", "Loss")
             else:
                 x_label = "Communication Round" if self.client_view_mode == "round" else "Epoch (Current Round)"
@@ -492,16 +612,24 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
                 self._style_axis(self.ax_acc, acc_title, x_label, "Accuracy")
                 self._style_axis(self.ax_loss, loss_title, x_label, "Loss")
 
-        self.canvas = FigureCanvasTkAgg(self.fig, master=self)
-        self.canvas.get_tk_widget().pack(fill="both", expand=True, padx=8, pady=(0, 8))
+        self.canvas = FigureCanvasTkAgg(self.fig, master=host)
+        tk_widget = self.canvas.get_tk_widget()
+        if host is self.plot_host:
+            tk_widget.place(x=0, y=0, relwidth=1.0, relheight=1.0)
+        else:
+            tk_widget.pack(fill="both", expand=True, padx=8, pady=(0, 8))
+        tk_widget.bind("<Map>", lambda _e: self.after_idle(self._sync_figure_to_host), add="+")
+        self._sync_figure_to_host()
 
     def _style_axis(self, ax, title: str, xlabel: str, ylabel: str):
+        host_h = self.plot_host.winfo_height() if getattr(self, "plot_host", None) is not None else 0
+        compact = (host_h > 20 and host_h < 280)
         ax.set_facecolor(T.resolve(T.PANEL))
-        ax.set_title(title, color=T.resolve(T.TEXT), fontsize=11, fontweight="bold", pad=6)
-        ax.set_xlabel(xlabel, color=T.resolve(T.MUTED), fontsize=9.5)
-        ax.set_ylabel(ylabel, color=T.resolve(T.MUTED), fontsize=9.5)
+        ax.set_title(title, color=T.resolve(T.TEXT), fontsize=10 if compact else 10.5, fontweight="bold", pad=5)
+        ax.set_xlabel(xlabel, color=T.resolve(T.MUTED), fontsize=8.5 if compact else 9.0)
+        ax.set_ylabel(ylabel, color=T.resolve(T.MUTED), fontsize=8.5 if compact else 9.0)
         ax.grid(True, linestyle="--", alpha=0.6, color=T.resolve(T.BORDER))
-        ax.tick_params(colors=T.resolve(T.MUTED), labelsize=9)
+        ax.tick_params(colors=T.resolve(T.MUTED), labelsize=8.0 if compact else 8.5)
         if "bottom" in ax.spines:
             ax.spines["bottom"].set_color(T.resolve(T.MUTED))
         if "left" in ax.spines:
@@ -622,6 +750,7 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
             return
         try:
             if self.winfo_exists():
+                self._sync_figure_to_host()
                 self.canvas.draw_idle()
         except Exception:
             pass
@@ -651,7 +780,7 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         self._schedule_canvas_draw()
 
     def _render_server_global(self):
-        """Render global server metrics curves from consolidated round map."""
+        """Render global server curves (TA/MCTA lines + BTA/BMCTA horizontal dashed lines)."""
         self._style_axis(self.ax_loss, "Evaluation Loss", "Communication Round", "Loss")
         self._style_axis(self.ax_acc, "Accuracy Progression", "Communication Round", "Accuracy")
         self.ax_loss.xaxis.set_major_locator(MaxNLocator(integer=True))
@@ -664,22 +793,84 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
             self.ax_loss.plot(xs, ys, color=T.resolve(T.WARNING), lw=2, marker="o", markersize=4)
             self._set_axis_limits(self.ax_loss, list(xs), list(ys))
 
-        all_accs = []
-        acc_specs = [
-            ("bta", T.ACCENT, 2.0, "-", "BTA"),
-            ("bmcta", T.BLUE, 2.0, "-", "BMCTA"),
-            ("ta", T.SUCCESS, 1.5, ":", "TA"),
-            ("mcta", T.PURPLE, 1.5, "--", "MCTA"),
-        ]
-        for key, token, lw, ls, label in acc_specs:
-            pts = [(r, self._server_round_map[r][key]) for r in sorted_rounds if self._server_round_map[r][key] is not None]
-            if pts:
-                xs, ys = zip(*pts)
-                self.ax_acc.plot(xs, ys, color=T.resolve(token), lw=lw, linestyle=ls, marker="o", markersize=4, label=label)
-                all_accs.extend(ys)
+        all_accs: List[float] = []
+        ta_pts = [(r, self._server_round_map[r]["ta"]) for r in sorted_rounds if self._server_round_map[r]["ta"] is not None]
+        mcta_pts = [(r, self._server_round_map[r]["mcta"]) for r in sorted_rounds if self._server_round_map[r]["mcta"] is not None]
+        bta_vals = [float(self._server_round_map[r]["bta"]) for r in sorted_rounds if self._server_round_map[r]["bta"] is not None]
+        bmcta_vals = [float(self._server_round_map[r]["bmcta"]) for r in sorted_rounds if self._server_round_map[r]["bmcta"] is not None]
+
+        # Plot TA as wider solid line underneath MCTA so overlapping TA==MCTA values remain distinct
+        if ta_pts:
+            xs_ta, ys_ta = zip(*ta_pts)
+            self.ax_acc.plot(
+                xs_ta,
+                ys_ta,
+                color=T.resolve(T.SUCCESS),
+                lw=2.8,
+                linestyle="-",
+                marker="o",
+                markersize=5.5,
+                alpha=0.9,
+                zorder=2,
+                label=f"TA ({ys_ta[-1] * 100:.2f}%)",
+            )
+            all_accs.extend(ys_ta)
+
+        if mcta_pts:
+            xs_mcta, ys_mcta = zip(*mcta_pts)
+            self.ax_acc.plot(
+                xs_mcta,
+                ys_mcta,
+                color=T.resolve(T.PURPLE),
+                lw=1.8,
+                linestyle="--",
+                marker="^",
+                markersize=4.5,
+                zorder=3,
+                label=f"MCTA ({ys_mcta[-1] * 100:.2f}%)",
+            )
+            all_accs.extend(ys_mcta)
+
+        # Horizontal dashed lines for overall best TA (with max(TA) fallback) and best MCTA
+        bta_best = max(bta_vals) if bta_vals else (max(v for _, v in ta_pts) if ta_pts else None)
+        if bta_best is not None:
+            self.ax_acc.axhline(
+                y=bta_best,
+                color=T.resolve(T.ACCENT),
+                lw=2.0,
+                linestyle=(0, (5, 4)),
+                zorder=4,
+                label=f"BTA ({bta_best * 100:.2f}%)",
+            )
+            all_accs.append(bta_best)
+
+        bmcta_best = max(bmcta_vals) if bmcta_vals else None
+        if bmcta_best is not None:
+            # Phase-shifted dash sequence keeps BTA and BMCTA alternating when values are equal
+            self.ax_acc.axhline(
+                y=bmcta_best,
+                color=T.resolve(T.BLUE),
+                lw=2.0,
+                linestyle=(4.5, (5, 4)),
+                zorder=5,
+                label=f"BMCTA ({bmcta_best * 100:.2f}%)",
+            )
+            all_accs.append(bmcta_best)
 
         if all_accs and sorted_rounds:
             self._set_axis_limits(self.ax_acc, sorted_rounds, all_accs, is_acc=True)
+            self.ax_acc.legend(
+                facecolor=T.resolve(T.PANEL),
+                edgecolor=T.resolve(T.BORDER),
+                labelcolor=T.resolve(T.TEXT),
+                fontsize=8.0,
+                loc="lower right",
+                ncol=2,
+                columnspacing=1.0,
+                handlelength=2.0,
+                borderpad=0.35,
+                framealpha=0.9,
+            )
 
     def _render_server_client(self, cid: int):
         """Render picked client's round curves and data distribution bar chart."""
@@ -843,6 +1034,17 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         else:
             pad = max(0.05, (max_y - min_y) * 0.1)
             ax.set_ylim(max(0.0, min_y - pad), max_y + pad)
+
+    def destroy(self):
+        for attr in ("_draw_after_id", "_resize_after_id"):
+            aid = getattr(self, attr, None)
+            if aid is not None:
+                try:
+                    self.after_cancel(aid)
+                except Exception:
+                    pass
+                setattr(self, attr, None)
+        super().destroy()
 
     def clear_server(self):
         """Reset only server-side curves, round maps, and client telemetry packages."""

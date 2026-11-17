@@ -22,7 +22,9 @@ class ClientTelemetryTable(ctk.CTkFrame):
         self.total_clients = total_clients
         self.latest_client_states: Dict[int, Dict[str, Any]] = {}
         self.all_records: List[Dict[str, Any]] = []
-        self.client_rows: Dict[int, Dict[str, ctk.CTkLabel]] = {}
+        self.client_rows: Dict[Any, Dict[str, ctk.CTkLabel]] = {}
+        self.round_filter: str = "Latest Round"
+        self.recorded_rounds: set = set()
         self._font_bold = ctk.CTkFont(size=11, weight="bold")
         self._font_mono = ctk.CTkFont(family=T.MONO_FONT, size=11, weight="normal")
         self._font_mono_bold = ctk.CTkFont(family=T.MONO_FONT, size=11, weight="bold")
@@ -33,18 +35,19 @@ class ClientTelemetryTable(ctk.CTkFrame):
         self._build_footer()
 
     def _build_header(self):
-        self.header_frame = ctk.CTkFrame(self, fg_color="transparent", height=46)
-        self.header_frame.pack(fill="x", padx=14, pady=(12, 6))
+        self.header_frame = ctk.CTkFrame(self, fg_color="transparent")
+        self.header_frame.pack(fill="x", padx=14, pady=(10, 4))
 
         # Title & Subtitle on Left
         title_box = ctk.CTkFrame(self.header_frame, fg_color="transparent")
-        title_box.pack(side="left", fill="y", anchor="w")
+        title_box.pack(side="left", fill="both", expand=True, anchor="w")
 
         self.lbl_title = ctk.CTkLabel(
             title_box,
             text="CLIENT TELEMETRY & ROUND STATS",
-            font=ctk.CTkFont(size=13, weight="bold"),
+            font=ctk.CTkFont(size=12, weight="bold"),
             text_color=T.TEXT,
+            anchor="w",
         )
         self.lbl_title.pack(anchor="w")
 
@@ -53,14 +56,15 @@ class ClientTelemetryTable(ctk.CTkFrame):
             text=f"Reporting: 0/{self.total_clients} Nodes Connected | Synced Each Round from Clients",
             font=ctk.CTkFont(size=11),
             text_color=T.MUTED,
+            anchor="w",
         )
         self.lbl_subtitle.pack(anchor="w")
 
-        # Download CSV Button on Right (Plenty of horizontal space, never overlaps title)
+        # Download CSV Button on Right
         self.btn_export_csv = ctk.CTkButton(
             self.header_frame,
             text="Download Clients CSV",
-            height=32,
+            height=30,
             font=ctk.CTkFont(size=11, weight="bold"),
             fg_color=T.PRIMARY,
             hover_color=T.PRIMARY_HOVER,
@@ -69,9 +73,37 @@ class ClientTelemetryTable(ctk.CTkFrame):
         )
         self.btn_export_csv.pack(side="right", padx=(8, 0))
 
+        # Filter bar for Round selection (never crowds header on compact screens)
+        filter_bar = ctk.CTkFrame(self, fg_color="transparent")
+        filter_bar.pack(fill="x", padx=14, pady=(0, 4))
+
+        lbl_rf = ctk.CTkLabel(
+            filter_bar,
+            text="Filter Round:",
+            font=ctk.CTkFont(size=11, weight="bold"),
+            text_color=T.MUTED,
+        )
+        lbl_rf.pack(side="left", padx=(0, 6))
+
+        self.cmb_round_filter = ctk.CTkComboBox(
+            filter_bar,
+            values=["Latest Round", "All Rounds"],
+            width=130,
+            height=26,
+            font=ctk.CTkFont(size=11),
+            fg_color=T.SURFACE,
+            border_color=T.BORDER,
+            text_color=T.TEXT,
+            button_color=T.PRIMARY,
+            button_hover_color=T.PRIMARY_HOVER,
+            command=self._on_round_filter_changed,
+        )
+        self.cmb_round_filter.set("Latest Round")
+        self.cmb_round_filter.pack(side="left")
+
         # Divider
         divider = ctk.CTkFrame(self, height=1, fg_color=T.BORDER)
-        divider.pack(fill="x", padx=14, pady=(4, 6))
+        divider.pack(fill="x", padx=14, pady=(2, 6))
 
     def _build_table_headers(self):
         """Header row with clean column alignment."""
@@ -80,25 +112,26 @@ class ClientTelemetryTable(ctk.CTkFrame):
         self.th_frame.pack_propagate(False)
 
         cols = [
-            ("CLIENT", 0, 95, "w"),
-            ("TRAIN LOSS", 1, 95, "w"),
-            ("LOCAL ACC", 2, 95, "w"),
-            ("TIME", 3, 75, "w"),
-            ("PING", 4, 70, "w"),
-            ("STATUS", 5, 80, "w"),
+            ("ROUND", 0, 52, "w"),
+            ("CLIENT", 1, 78, "w"),
+            ("TRAIN LOSS", 2, 84, "w"),
+            ("LOCAL ACC", 3, 84, "w"),
+            ("TIME", 4, 65, "w"),
+            ("PING", 5, 60, "w"),
+            ("STATUS", 6, 65, "w"),
         ]
 
         for col_name, col_idx, width, anchor in cols:
             lbl = ctk.CTkLabel(
                 self.th_frame,
                 text=col_name,
-                font=ctk.CTkFont(size=11, weight="bold"),
+                font=ctk.CTkFont(size=10, weight="bold"),
                 text_color=T.MUTED,
                 width=width,
                 anchor=anchor,
             )
-            lbl.grid(row=0, column=col_idx, padx=6, pady=4, sticky="w")
-            self.th_frame.grid_columnconfigure(col_idx, weight=1 if col_idx in (1, 2) else 0)
+            lbl.grid(row=0, column=col_idx, padx=5, pady=4, sticky="ew")
+            self.th_frame.grid_columnconfigure(col_idx, weight=1, uniform="clt_tele_cols")
 
     def _build_scrollable_rows(self):
         self.scroll_frame = ctk.CTkScrollableFrame(
@@ -107,8 +140,8 @@ class ClientTelemetryTable(ctk.CTkFrame):
             border_width=0,
         )
         self.scroll_frame.pack(fill="both", expand=True, padx=10, pady=(2, 6))
-        for i in range(6):
-            self.scroll_frame.grid_columnconfigure(i, weight=1 if i in (1, 2) else 0)
+        for i in range(7):
+            self.scroll_frame.grid_columnconfigure(i, weight=1, uniform="clt_tele_cols")
 
     def _build_footer(self):
         self.footer_frame = ctk.CTkFrame(self, fg_color=T.SURFACE, corner_radius=6, border_width=1, border_color=T.BORDER)
@@ -151,6 +184,134 @@ class ClientTelemetryTable(ctk.CTkFrame):
             text=f"Reporting: {reporting}/{self.total_clients} Nodes Connected | Synced Each Round from Clients",
         )
 
+    def _on_round_filter_changed(self, choice: str):
+        self.round_filter = choice
+        self._refresh_visible_rows()
+
+    def _sync_round_filter_options(self):
+        vals = ["Latest Round", "All Rounds"] + [f"Round {r}" for r in sorted(self.recorded_rounds)]
+        try:
+            current_vals = list(self.cmb_round_filter.cget("values") or [])
+        except Exception:
+            current_vals = []
+        if current_vals != vals:
+            self.cmb_round_filter.configure(values=vals)
+
+    def _extract_row_display(self, payload: Dict[str, Any]):
+        cid = int(payload.get("client_id", 0))
+        srv_r = payload.get("server_round", payload.get("round"))
+        rnd_txt = f"R{int(srv_r)}" if srv_r is not None else "—"
+
+        train_l = payload.get("train_loss")
+        eval_l = payload.get("eval_loss")
+        if train_l is not None:
+            loss_val = float(train_l)
+        elif eval_l is not None:
+            loss_val = float(eval_l)
+        else:
+            loss_val = 0.0
+
+        train_a = payload.get("train_accuracy")
+        eval_a = payload.get("eval_accuracy")
+        if train_a is not None:
+            acc_val = float(train_a)
+        elif eval_a is not None:
+            acc_val = float(eval_a)
+        else:
+            acc_val = 0.0
+
+        rtime_val = float(payload.get("round_time", payload.get("training_time", 0.0)))
+        ping_val = float(payload.get("ping_ms", -1.0))
+
+        other_times = [
+            float(p.get("round_time", p.get("training_time", 0.0)))
+            for c, p in self.latest_client_states.items()
+            if c != cid and float(p.get("round_time", p.get("training_time", 0.0))) > 0
+        ]
+        base_time = (sum(other_times) / len(other_times)) if other_times else rtime_val
+        is_slow = (rtime_val > base_time * 1.30 and rtime_val > 5.0)
+        status_text = "SLOW" if is_slow else "DONE"
+        status_color = T.WARNING if is_slow else T.SUCCESS
+
+        return {
+            "cid": cid,
+            "rnd_txt": rnd_txt,
+            "loss_txt": f"{loss_val:.4f}",
+            "acc_txt": f"{acc_val * 100:.2f}%",
+            "time_txt": f"{rtime_val:.2f}s",
+            "ping_txt": f"{ping_val:.0f}ms" if ping_val >= 0 else "—",
+            "status_txt": status_text,
+            "status_color": status_color,
+            "rtime_val": rtime_val,
+        }
+
+    def _create_row_widgets(self, row_idx: int, disp: Dict[str, Any]) -> Dict[str, ctk.CTkLabel]:
+        row_widgets: Dict[str, ctk.CTkLabel] = {}
+        specs = [
+            ("round", disp["rnd_txt"], self._font_bold, T.ACCENT, 52),
+            ("cid", f"Client #{disp['cid']}", self._font_bold, T.TEXT, 78),
+            ("loss", disp["loss_txt"], self._font_mono_bold, T.WARNING, 84),
+            ("acc", disp["acc_txt"], self._font_mono_bold, T.SUCCESS, 84),
+            ("time", disp["time_txt"], self._font_mono, T.MUTED, 65),
+            ("ping", disp["ping_txt"], self._font_mono, T.BLUE, 60),
+            ("status", disp["status_txt"], self._font_bold, disp["status_color"], 65),
+        ]
+        for col_idx, (key, text, font, color, width) in enumerate(specs):
+            lbl = ctk.CTkLabel(
+                self.scroll_frame,
+                text=text,
+                font=font,
+                text_color=color,
+                width=width,
+                anchor="w",
+            )
+            lbl._last_cfg = {"text": text, "text_color": color}
+            lbl.grid(row=row_idx, column=col_idx, padx=5, pady=4, sticky="ew")
+            row_widgets[key] = lbl
+        return row_widgets
+
+    def _update_row_widgets(self, row_widgets: Dict[str, ctk.CTkLabel], disp: Dict[str, Any]):
+        cfg = self._cfg_if_changed
+        cfg(row_widgets["round"], text=disp["rnd_txt"])
+        cfg(row_widgets["cid"], text=f"Client #{disp['cid']}")
+        cfg(row_widgets["loss"], text=disp["loss_txt"])
+        cfg(row_widgets["acc"], text=disp["acc_txt"])
+        cfg(row_widgets["time"], text=disp["time_txt"])
+        cfg(row_widgets["ping"], text=disp["ping_txt"])
+        cfg(row_widgets["status"], text=disp["status_txt"], text_color=disp["status_color"])
+
+    def _refresh_visible_rows(self):
+        for w in self.scroll_frame.winfo_children():
+            w.destroy()
+        self.client_rows.clear()
+
+        if self.round_filter == "Latest Round":
+            records = [self.latest_client_states[c] for c in sorted(self.latest_client_states.keys())]
+            key_fn = lambda rec: int(rec.get("client_id", 0))
+        elif self.round_filter == "All Rounds":
+            records = sorted(
+                self.all_records,
+                key=lambda r: (int(r.get("server_round", r.get("round", 0)) or 0), int(r.get("client_id", 0))),
+            )
+            key_fn = lambda rec: (int(rec.get("server_round", rec.get("round", 0)) or 0), int(rec.get("client_id", 0)))
+        else:
+            try:
+                target_r = int(self.round_filter.split()[-1])
+            except Exception:
+                target_r = None
+            records = sorted(
+                [
+                    r for r in self.all_records
+                    if target_r is None or int(r.get("server_round", r.get("round", -1)) or -1) == target_r
+                ],
+                key=lambda r: int(r.get("client_id", 0)),
+            )
+            key_fn = lambda rec: int(rec.get("client_id", 0))
+
+        for idx, rec in enumerate(records):
+            disp = self._extract_row_display(rec)
+            self.client_rows[key_fn(rec)] = self._create_row_widgets(idx, disp)
+
     def update_client_round(self, payload: Dict[str, Any]):
         """Receive round metrics for a client and update live row in real-time."""
         cid = int(payload.get("client_id", 0))
@@ -170,9 +331,11 @@ class ClientTelemetryTable(ctk.CTkFrame):
             merged_state[k] = v
         self.latest_client_states[cid] = merged_state
 
-        srv_r = payload.get("server_round")
+        srv_r = payload.get("server_round", payload.get("round"))
         if srv_r is not None:
             r_int = int(srv_r)
+            self.recorded_rounds.add(r_int)
+            self._sync_round_filter_options()
             existing_rec = next(
                 (
                     rec for rec in self.all_records
@@ -197,135 +360,24 @@ class ClientTelemetryTable(ctk.CTkFrame):
                         if old_ping is not None and float(old_ping) >= 0.0 and (float(v) < 0.0 or is_eval_only):
                             continue
                     existing_rec[k] = v
+                active_rec = existing_rec
             else:
-                self.all_records.append({k: v for k, v in payload.items() if v is not None})
+                active_rec = {k: v for k, v in payload.items() if v is not None}
+                self.all_records.append(active_rec)
         else:
-            self.all_records.append({k: v for k, v in payload.items() if v is not None})
+            active_rec = {k: v for k, v in payload.items() if v is not None}
+            self.all_records.append(active_rec)
 
-        payload = merged_state
+        disp = self._extract_row_display(merged_state if self.round_filter == "Latest Round" else active_rec)
+        rtime_val = disp["rtime_val"]
 
-        train_l = payload.get("train_loss")
-        eval_l = payload.get("eval_loss")
-        if train_l is not None:
-            loss_val = float(train_l)
-        elif eval_l is not None:
-            loss_val = float(eval_l)
+        if self.round_filter == "Latest Round":
+            if cid not in self.client_rows:
+                self.client_rows[cid] = self._create_row_widgets(len(self.client_rows), disp)
+            else:
+                self._update_row_widgets(self.client_rows[cid], disp)
         else:
-            loss_val = 0.0
-
-        train_a = payload.get("train_accuracy")
-        eval_a = payload.get("eval_accuracy")
-        if train_a is not None:
-            acc_val = float(train_a)
-        elif eval_a is not None:
-            acc_val = float(eval_a)
-        else:
-            acc_val = 0.0
-
-        rtime_val = float(payload.get("round_time", payload.get("training_time", 0.0)))
-        ping_val = float(payload.get("ping_ms", -1.0))
-
-        # Check straggler condition (> 1.30x baseline of other peers, or median)
-        other_times = [
-            float(p.get("round_time", p.get("training_time", 0.0)))
-            for c, p in self.latest_client_states.items()
-            if c != cid and float(p.get("round_time", p.get("training_time", 0.0))) > 0
-        ]
-        base_time = (sum(other_times) / len(other_times)) if other_times else rtime_val
-        is_slow = (rtime_val > base_time * 1.30 and rtime_val > 5.0)
-
-        status_text = "SLOW" if is_slow else "DONE"
-        status_color = T.WARNING if is_slow else T.SUCCESS
-
-        if cid not in self.client_rows:
-            row_idx = len(self.client_rows)
-            row_widgets = {}
-
-            lbl_cid = ctk.CTkLabel(
-                self.scroll_frame,
-                text=f"Client #{cid}",
-                font=self._font_bold,
-                text_color=T.TEXT,
-                width=95,
-                anchor="w",
-            )
-            lbl_cid.grid(row=row_idx, column=0, padx=6, pady=4, sticky="w")
-            row_widgets["cid"] = lbl_cid
-
-            loss_txt = f"{loss_val:.4f}"
-            lbl_loss = ctk.CTkLabel(
-                self.scroll_frame,
-                text=loss_txt,
-                font=self._font_mono_bold,
-                text_color=T.WARNING,
-                width=95,
-                anchor="w",
-            )
-            lbl_loss._last_cfg = {"text": loss_txt}
-            lbl_loss.grid(row=row_idx, column=1, padx=6, pady=4, sticky="w")
-            row_widgets["loss"] = lbl_loss
-
-            acc_txt = f"{acc_val * 100:.2f}%"
-            lbl_acc = ctk.CTkLabel(
-                self.scroll_frame,
-                text=acc_txt,
-                font=self._font_mono_bold,
-                text_color=T.SUCCESS,
-                width=95,
-                anchor="w",
-            )
-            lbl_acc._last_cfg = {"text": acc_txt}
-            lbl_acc.grid(row=row_idx, column=2, padx=6, pady=4, sticky="w")
-            row_widgets["acc"] = lbl_acc
-
-            time_txt = f"{rtime_val:.2f}s"
-            lbl_time = ctk.CTkLabel(
-                self.scroll_frame,
-                text=time_txt,
-                font=self._font_mono,
-                text_color=T.MUTED,
-                width=75,
-                anchor="w",
-            )
-            lbl_time._last_cfg = {"text": time_txt}
-            lbl_time.grid(row=row_idx, column=3, padx=6, pady=4, sticky="w")
-            row_widgets["time"] = lbl_time
-
-            ping_str = f"{ping_val:.0f}ms" if ping_val >= 0 else "—"
-            lbl_ping = ctk.CTkLabel(
-                self.scroll_frame,
-                text=ping_str,
-                font=self._font_mono,
-                text_color=T.BLUE,
-                width=70,
-                anchor="w",
-            )
-            lbl_ping._last_cfg = {"text": ping_str}
-            lbl_ping.grid(row=row_idx, column=4, padx=6, pady=4, sticky="w")
-            row_widgets["ping"] = lbl_ping
-
-            lbl_status = ctk.CTkLabel(
-                self.scroll_frame,
-                text=status_text,
-                font=self._font_bold,
-                text_color=status_color,
-                width=80,
-                anchor="w",
-            )
-            lbl_status._last_cfg = {"text": status_text, "text_color": status_color}
-            lbl_status.grid(row=row_idx, column=5, padx=6, pady=4, sticky="w")
-            row_widgets["status"] = lbl_status
-
-            self.client_rows[cid] = row_widgets
-        else:
-            row_widgets = self.client_rows[cid]
-            cfg = self._cfg_if_changed
-            cfg(row_widgets["loss"], text=f"{loss_val:.4f}")
-            cfg(row_widgets["acc"], text=f"{acc_val * 100:.2f}%")
-            cfg(row_widgets["time"], text=f"{rtime_val:.2f}s")
-            ping_str = f"{ping_val:.0f}ms" if ping_val >= 0 else "—"
-            cfg(row_widgets["ping"], text=ping_str)
-            cfg(row_widgets["status"], text=status_text, text_color=status_color)
+            self._refresh_visible_rows()
 
         # Update header and footer
         reporting = len(self.latest_client_states)
@@ -371,9 +423,12 @@ class ClientTelemetryTable(ctk.CTkFrame):
         """Clear all rows and reset telemetry table state."""
         self.latest_client_states.clear()
         self.all_records.clear()
-        for widgets in self.client_rows.values():
-            for w in widgets.values():
-                w.destroy()
+        self.recorded_rounds.clear()
+        self.round_filter = "Latest Round"
+        self.cmb_round_filter.configure(values=["Latest Round", "All Rounds"])
+        self.cmb_round_filter.set("Latest Round")
+        for w in self.scroll_frame.winfo_children():
+            w.destroy()
         self.client_rows.clear()
         self._cfg_if_changed(
             self.lbl_subtitle,

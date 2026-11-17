@@ -22,8 +22,7 @@ class LiveLogConsoleDialog(ctk.CTkToplevel):
         self._is_open = False
 
         self.title("FedMedAI — Live Orchestration Console")
-        self.geometry("920x520")
-        self.minsize(640, 360)
+        T.fit_window_to_screen(self, 920, 520, min_w=560, min_h=340, parent=master)
         self.configure(fg_color=T.BACKGROUND)
 
         # Hide immediately at startup so it only appears when user opens Live Console

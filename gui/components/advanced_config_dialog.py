@@ -121,40 +121,37 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
     def _init_window(self, parent):
         title_tag = "FL Server" if self.mode == "server" else "FL Client"
         self.title(f"{title_tag} — Advanced Configuration & Hyperparameters")
-        self.geometry("1060x780")
-        self.minsize(920, 640)
+        T.fit_window_to_screen(self, 1060, 780, min_w=820, min_h=540, parent=parent)
         self.configure(fg_color=T.BACKGROUND)
 
         # Make modal & stay on top
         self.transient(parent)
         self.grab_set()
-
-        # Center on parent window
-        self.update_idletasks()
-        try:
-            px = parent.winfo_rootx()
-            py = parent.winfo_rooty()
-            pw = parent.winfo_width()
-            ph = parent.winfo_height()
-            x = px + max(0, (pw - 1060) // 2)
-            y = py + max(0, (ph - 780) // 2)
-            self.geometry(f"+{x}+{y}")
-        except Exception:
-            pass
-
         self.protocol("WM_DELETE_WINDOW", self._on_cancel)
 
     def _build_ui(self):
         # 1. Header with clinical teal accent
-        header = ctk.CTkFrame(self, height=72, corner_radius=0, fg_color=T.PANEL)
+        header = ctk.CTkFrame(self, corner_radius=0, fg_color=T.PANEL)
         header.pack(fill="x")
-        header.pack_propagate(False)
 
         header_border = ctk.CTkFrame(self, height=1, corner_radius=0, fg_color=T.BORDER)
         header_border.pack(fill="x")
 
+        btn_close_top = ctk.CTkButton(
+            header,
+            text="X",
+            width=34,
+            height=34,
+            font=ctk.CTkFont(size=13, weight="bold"),
+            fg_color=T.SURFACE,
+            hover_color=T.BORDER,
+            text_color=T.MUTED,
+            command=self._on_cancel,
+        )
+        btn_close_top.pack(side="right", padx=20, pady=14)
+
         title_container = ctk.CTkFrame(header, fg_color="transparent")
-        title_container.pack(side="left", padx=20, pady=12)
+        title_container.pack(side="left", fill="x", expand=True, padx=20, pady=12)
 
         pill_accent = ctk.CTkFrame(
             title_container, width=4, height=40, corner_radius=2, fg_color=T.PRIMARY
@@ -162,7 +159,7 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
         pill_accent.pack(side="left", padx=(0, 12))
 
         text_box = ctk.CTkFrame(title_container, fg_color="transparent")
-        text_box.pack(side="left")
+        text_box.pack(side="left", fill="x", expand=True)
 
         title_text = (
             "FL SERVER - ADVANCED CONFIGURATION"
@@ -179,7 +176,8 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
             text_box,
             text=title_text,
             font=ctk.CTkFont(size=15, weight="bold"),
-            text_color=T.SIDEBAR,
+            text_color=T.TEXT,
+            anchor="w",
         )
         lbl_t.pack(anchor="w")
 
@@ -188,21 +186,15 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
             text=sub_text,
             font=ctk.CTkFont(size=11),
             text_color=T.MUTED,
+            anchor="w",
+            justify="left",
+            wraplength=700,
         )
-        lbl_s.pack(anchor="w")
-
-        btn_close_top = ctk.CTkButton(
-            header,
-            text="X",
-            width=34,
-            height=34,
-            font=ctk.CTkFont(size=13, weight="bold"),
-            fg_color=T.SURFACE,
-            hover_color=T.BORDER,
-            text_color=T.MUTED,
-            command=self._on_cancel,
+        lbl_s.pack(anchor="w", fill="x")
+        header.bind(
+            "<Configure>",
+            lambda e: lbl_s.configure(wraplength=max(300, int((e.width / T.get_widget_scale(header)) - 120))),
         )
-        btn_close_top.pack(side="right", padx=20)
 
         # 2. SCROLLABLE BODY (2-Column Grid of 4 Cards)
         self.scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
@@ -344,7 +336,7 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
             text=label_text,
             font=ctk.CTkFont(size=11, weight="bold" if is_highlight else "normal"),
             text_color=T.ACCENT if is_highlight else T.MUTED,
-            width=180,
+            width=165,
             anchor="w",
         )
         lbl.pack(side="left", padx=(2, 4))
@@ -379,7 +371,7 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
             text=label_text,
             font=ctk.CTkFont(size=11),
             text_color=T.MUTED,
-            width=180,
+            width=165,
             anchor="w",
         )
         lbl.pack(side="left", padx=(2, 4))

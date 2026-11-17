@@ -25,7 +25,10 @@ class RecordedMetricsTable(ctk.CTkFrame):
         self.client_row_widgets: Dict[Any, Dict[str, Any]] = {}
         self.active_view = "server"  # "server" or "client"
         self.client_filter = "All Clients"
+        self.round_filter = "All Rounds"
         self.client_ids = set()
+        self.server_rounds = set()
+        self.client_rounds = set()
         self._last_counter_text: Optional[str] = None
         self._font_regular = ctk.CTkFont(size=10, weight="normal")
         self._font_bold = ctk.CTkFont(size=10, weight="bold")
@@ -40,13 +43,36 @@ class RecordedMetricsTable(ctk.CTkFrame):
         self.header_frame.pack(fill="x", padx=8, pady=(8, 4))
         self.header_frame.pack_propagate(False)
 
+        # Export CSV Button on Right (packed first so narrow screens never clip it)
+        self.btn_export = ctk.CTkButton(
+            self.header_frame,
+            text="Export CSV",
+            width=84,
+            height=28,
+            font=ctk.CTkFont(size=11, weight="bold"),
+            fg_color=T.PRIMARY,
+            hover_color=T.PRIMARY_HOVER,
+            text_color=T.ON_ACCENT,
+            command=self.export_csv,
+        )
+        self.btn_export.pack(side="right", padx=(4, 8))
+
+        # Subtitle counter on Right
+        self.lbl_counter = ctk.CTkLabel(
+            self.header_frame,
+            text="0 Server Rounds",
+            font=ctk.CTkFont(size=11),
+            text_color=T.MUTED,
+        )
+        self.lbl_counter.pack(side="right", padx=6)
+
         lbl_title = ctk.CTkLabel(
             self.header_frame,
             text="RECORDED METRICS",
-            font=ctk.CTkFont(size=12, weight="bold"),
+            font=ctk.CTkFont(size=11, weight="bold"),
             text_color=T.TEXT,
         )
-        lbl_title.pack(side="left", padx=(10, 8))
+        lbl_title.pack(side="left", padx=(10, 6))
 
         # View Switcher (Server vs Client)
         self.seg_view = ctk.CTkSegmentedButton(
@@ -65,11 +91,28 @@ class RecordedMetricsTable(ctk.CTkFrame):
         self.seg_view.set("Server Global")
         self.seg_view.pack(side="left", padx=4)
 
+        # Round Filter Dropdown (available for both Server Global and Client Nodes)
+        self.cmb_round_filter = ctk.CTkComboBox(
+            self.header_frame,
+            values=["All Rounds"],
+            width=105,
+            height=28,
+            font=ctk.CTkFont(size=11),
+            fg_color=T.PANEL,
+            border_color=T.BORDER,
+            text_color=T.TEXT,
+            button_color=T.PRIMARY,
+            button_hover_color=T.PRIMARY_HOVER,
+            command=self._on_round_filter_changed,
+        )
+        self.cmb_round_filter.set("All Rounds")
+        self.cmb_round_filter.pack(side="left", padx=4)
+
         # Client Filter Dropdown (shown only when in Client Nodes view)
         self.cmb_client_filter = ctk.CTkComboBox(
             self.header_frame,
             values=["All Clients"],
-            width=125,
+            width=105,
             height=28,
             font=ctk.CTkFont(size=11),
             fg_color=T.PANEL,
@@ -79,29 +122,6 @@ class RecordedMetricsTable(ctk.CTkFrame):
             button_hover_color=T.PRIMARY_HOVER,
             command=self._on_client_filter_changed,
         )
-
-        # Export CSV Button on Right
-        self.btn_export = ctk.CTkButton(
-            self.header_frame,
-            text="Export CSV",
-            width=88,
-            height=28,
-            font=ctk.CTkFont(size=11, weight="bold"),
-            fg_color=T.PRIMARY,
-            hover_color=T.PRIMARY_HOVER,
-            text_color=T.ON_ACCENT,
-            command=self.export_csv,
-        )
-        self.btn_export.pack(side="right", padx=(4, 8))
-
-        # Subtitle counter on Right
-        self.lbl_counter = ctk.CTkLabel(
-            self.header_frame,
-            text="0 Server Rounds",
-            font=ctk.CTkFont(size=11),
-            text_color=T.MUTED,
-        )
-        self.lbl_counter.pack(side="right", padx=8)
 
         # 2. Table Column Headers
         self.th_frame = ctk.CTkFrame(self, fg_color=T.PANEL, height=28, corner_radius=4)
@@ -129,14 +149,41 @@ class RecordedMetricsTable(ctk.CTkFrame):
     def _on_view_changed(self, choice: str):
         self.active_view = "server" if "Server" in choice else "client"
         if self.active_view == "client":
-            self.cmb_client_filter.pack(side="left", padx=4, after=self.seg_view)
+            self.cmb_client_filter.pack(side="left", padx=4, after=self.cmb_round_filter)
         else:
             self.cmb_client_filter.pack_forget()
+        self._sync_round_filter_options()
         self._refresh_table()
 
     def _on_client_filter_changed(self, choice: str):
         self.client_filter = choice
         self._refresh_table()
+
+    def _on_round_filter_changed(self, choice: str):
+        self.round_filter = choice
+        self._refresh_table()
+
+    def _sync_round_filter_options(self):
+        rounds_set = self.server_rounds if self.active_view == "server" else self.client_rounds
+        vals = ["All Rounds"] + [f"Round {r}" for r in sorted(rounds_set)]
+        try:
+            current_vals = list(self.cmb_round_filter.cget("values") or [])
+        except Exception:
+            current_vals = []
+        if current_vals != vals:
+            self.cmb_round_filter.configure(values=vals)
+        if self.round_filter not in vals:
+            self.round_filter = "All Rounds"
+            self.cmb_round_filter.set("All Rounds")
+
+    def _matches_round_filter(self, r_val: Optional[int]) -> bool:
+        if self.round_filter == "All Rounds":
+            return True
+        try:
+            target = int(self.round_filter.split()[-1])
+            return r_val is not None and int(r_val) == target
+        except Exception:
+            return True
 
     def _build_table_headers(self):
         for w in self.th_frame.winfo_children():
@@ -205,15 +252,19 @@ class RecordedMetricsTable(ctk.CTkFrame):
             self.server_records.append(record)
             self.server_records.sort(key=lambda r: int(r.get("round", 0)))
 
+        self.server_rounds.add(r_num)
         if self.active_view == "server":
-            cnt_txt = f"{len(self.server_records)} Server Rounds"
+            self._sync_round_filter_options()
+            filtered = [r for r in self.server_records if self._matches_round_filter(r.get("round"))]
+            cnt_txt = f"{len(filtered)} Server Rounds"
             if cnt_txt != self._last_counter_text:
                 self._last_counter_text = cnt_txt
                 self.lbl_counter.configure(text=cnt_txt)
-            if r_num in self.server_row_widgets:
-                self._update_server_row_widgets(r_num, record)
-            else:
-                self._render_single_server_row(record, len(self.server_records) - 1)
+            if self._matches_round_filter(r_num):
+                if r_num in self.server_row_widgets:
+                    self._update_server_row_widgets(r_num, record)
+                else:
+                    self._render_single_server_row(record, len(self.server_row_widgets))
 
     def add_client_metrics(self, payload: Dict[str, Any]):
         """Insert or consolidate client round telemetry report keyed by (round, client_id)."""
@@ -254,21 +305,26 @@ class RecordedMetricsTable(ctk.CTkFrame):
             )
             reordered = bool(self.client_records and self.client_records[-1] is not record)
 
-        # Update filter dropdown values only when a new client id appears
+        # Update filter dropdown values only when a new client id or round appears
         if is_new_cid:
             c_vals = ["All Clients"] + [f"Client #{c}" for c in sorted(self.client_ids)]
             self.cmb_client_filter.configure(values=c_vals)
+        is_new_round = r_val not in self.client_rounds
+        self.client_rounds.add(r_val)
 
         if self.active_view == "client":
+            if is_new_round:
+                self._sync_round_filter_options()
             filtered = [
                 r for r in self.client_records
-                if self.client_filter == "All Clients" or self.client_filter == f"Client #{r.get('client_id')}"
+                if (self.client_filter == "All Clients" or self.client_filter == f"Client #{r.get('client_id')}")
+                and self._matches_round_filter(r.get("server_round", r.get("round")))
             ]
             cnt_txt = f"{len(filtered)} Reports"
             if cnt_txt != self._last_counter_text:
                 self._last_counter_text = cnt_txt
                 self.lbl_counter.configure(text=cnt_txt)
-            if self.client_filter == "All Clients" or self.client_filter == f"Client #{cid}":
+            if (self.client_filter == "All Clients" or self.client_filter == f"Client #{cid}") and self._matches_round_filter(r_val):
                 if key in self.client_row_widgets:
                     self._update_client_row_widgets(key, record)
                 elif reordered and filtered and filtered[-1] is not record:
@@ -285,15 +341,17 @@ class RecordedMetricsTable(ctk.CTkFrame):
             w.destroy()
 
         if self.active_view == "server":
-            cnt_txt = f"{len(self.server_records)} Server Rounds"
+            filtered = [r for r in self.server_records if self._matches_round_filter(r.get("round"))]
+            cnt_txt = f"{len(filtered)} Server Rounds"
             self._last_counter_text = cnt_txt
             self.lbl_counter.configure(text=cnt_txt)
-            for i, rec in enumerate(self.server_records):
+            for i, rec in enumerate(filtered):
                 self._render_single_server_row(rec, i)
         else:
             filtered = [
                 rec for rec in self.client_records
-                if self.client_filter == "All Clients" or self.client_filter == f"Client #{rec.get('client_id')}"
+                if (self.client_filter == "All Clients" or self.client_filter == f"Client #{rec.get('client_id')}")
+                and self._matches_round_filter(rec.get("server_round", rec.get("round")))
             ]
             cnt_txt = f"{len(filtered)} Reports"
             self._last_counter_text = cnt_txt
@@ -458,7 +516,9 @@ class RecordedMetricsTable(ctk.CTkFrame):
         """Clear only server records and rows."""
         self.server_records.clear()
         self.server_row_widgets.clear()
+        self.server_rounds.clear()
         if self.active_view == "server":
+            self._sync_round_filter_options()
             self._refresh_table()
 
     def clear_client(self):
@@ -466,10 +526,12 @@ class RecordedMetricsTable(ctk.CTkFrame):
         self.client_records.clear()
         self.client_row_widgets.clear()
         self.client_ids.clear()
+        self.client_rounds.clear()
         self.cmb_client_filter.configure(values=["All Clients"])
         self.cmb_client_filter.set("All Clients")
         self.client_filter = "All Clients"
         if self.active_view == "client":
+            self._sync_round_filter_options()
             self._refresh_table()
 
     def clear(self):

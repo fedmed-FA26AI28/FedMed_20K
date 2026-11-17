@@ -152,17 +152,18 @@ class ServerTab(ctk.CTkFrame):
         self._min_clients_row = self.fields["min_clients"].master
         self.field_rows["min_clients"] = self._min_clients_row
 
-        # 6B. Simulation-only fields (hidden in Standalone Server mode)
+        # 6B. Partition Mode (important in both Standalone and Simulation modes for SCR/FedSLD/FedSwitch & recorder)
         self.fields["partition_mode"] = add_field(
             "Partition Mode:",
             ctk.CTkComboBox,
-            values=PARTITION_MODES + ["All Partitions"],
+            values=PARTITION_MODES,
             height=28,
             font=ctk.CTkFont(size=11),
         )
         self.fields["partition_mode"].set("practical")
         self.field_rows["partition_mode"] = self.fields["partition_mode"].master
 
+        # 6C. Simulation-only fields (hidden in Standalone Server mode)
         self.fields["batch_size"] = add_field("Batch Size:", ctk.CTkEntry, height=28, font=ctk.CTkFont(size=11))
         self.fields["batch_size"].insert(0, "256")
         self.field_rows["batch_size"] = self.fields["batch_size"].master
@@ -178,7 +179,6 @@ class ServerTab(ctk.CTkFrame):
         self.field_rows["client_execution"] = self.fields["client_execution"].master
 
         self._sim_row_frames = [
-            self.field_rows["partition_mode"],
             self.field_rows["batch_size"],
             self.field_rows["client_execution"],
         ]
@@ -344,7 +344,8 @@ class ServerTab(ctk.CTkFrame):
         if is_sim:
             self.fields["dataset"].configure(values=DATASETS + ["All Datasets"])
             self.fields["strategy"].configure(values=STRATEGIES + ["All Strategies"])
-            prev = self._min_clients_row
+            self.fields["partition_mode"].configure(values=PARTITION_MODES + ["All Partitions"])
+            prev = self.field_rows["partition_mode"]
             for row_frame in self._sim_row_frames:
                 row_frame.pack(fill="x", padx=10, pady=4, after=prev)
                 prev = row_frame
@@ -355,6 +356,9 @@ class ServerTab(ctk.CTkFrame):
             self.fields["strategy"].configure(values=STRATEGIES)
             if self.fields["strategy"].get() == "All Strategies":
                 self.fields["strategy"].set(STRATEGIES[0])
+            self.fields["partition_mode"].configure(values=PARTITION_MODES)
+            if self.fields["partition_mode"].get() == "All Partitions":
+                self.fields["partition_mode"].set(PARTITION_MODES[0])
             for row_frame in self._sim_row_frames:
                 row_frame.pack_forget()
 

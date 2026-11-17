@@ -33,25 +33,32 @@ class SettingsTab(ctk.CTkFrame):
 
     def _build_ui(self):
         # 1. Header Banner
-        header = ctk.CTkFrame(self, fg_color=T.PANEL, corner_radius=8, border_width=1, border_color=T.BORDER, height=52)
+        header = ctk.CTkFrame(self, fg_color=T.PANEL, corner_radius=8, border_width=1, border_color=T.BORDER)
         header.pack(fill="x", padx=4, pady=(4, 6))
-        header.pack_propagate(False)
 
         lbl_title = ctk.CTkLabel(
             header,
             text="SETTINGS & HYPERPARAMETER CONFIGURATION",
             font=ctk.CTkFont(size=14, weight="bold"),
             text_color=T.TEXT,
+            anchor="w",
         )
-        lbl_title.pack(side="left", padx=16, pady=10)
+        lbl_title.pack(anchor="w", padx=16, pady=(8, 0))
 
         lbl_sub = ctk.CTkLabel(
             header,
             text="Deep algorithmic hyperparameters, optimization policies, evaluation, and system paths",
-            font=ctk.CTkFont(size=12),
+            font=ctk.CTkFont(size=11),
             text_color=T.MUTED,
+            anchor="w",
+            justify="left",
+            wraplength=680,
         )
-        lbl_sub.pack(side="left", padx=8, pady=10)
+        lbl_sub.pack(anchor="w", fill="x", padx=16, pady=(1, 8))
+        header.bind(
+            "<Configure>",
+            lambda e: lbl_sub.configure(wraplength=max(280, int((e.width / T.get_widget_scale(header)) - 40))),
+        )
 
         # 2. 4-Card Scrollable Grid
         self.scroll = ctk.CTkScrollableFrame(self, fg_color="transparent")
@@ -191,16 +198,18 @@ class SettingsTab(ctk.CTkFrame):
             key, label_txt, w_cls, def_val = item[0], item[1], item[2], item[3]
             extra_vals = item[4] if len(item) > 4 else None
 
-            row_frame = ctk.CTkFrame(card, fg_color="transparent", height=34)
-            row_frame.pack(fill="x", padx=14, pady=3)
+            row_frame = ctk.CTkFrame(card, fg_color="transparent", height=36)
+            row_frame.pack(fill="x", padx=12, pady=3)
             row_frame.pack_propagate(False)
 
             lbl = ctk.CTkLabel(
                 row_frame,
                 text=label_txt,
-                font=ctk.CTkFont(size=12, weight="bold"),
+                font=ctk.CTkFont(size=11, weight="bold"),
                 text_color=T.TEXT,
-                width=220,
+                width=185,
+                wraplength=180,
+                justify="left",
                 anchor="w",
             )
             lbl.pack(side="left")
@@ -227,8 +236,8 @@ class SettingsTab(ctk.CTkFrame):
                     row_frame,
                     values=extra_vals or [],
                     height=28,
-                    width=160,
-                    font=ctk.CTkFont(size=12),
+                    width=130,
+                    font=ctk.CTkFont(size=11),
                     fg_color=T.SURFACE,
                     border_color=T.BORDER,
                     text_color=T.TEXT,
@@ -240,8 +249,8 @@ class SettingsTab(ctk.CTkFrame):
                 w = ctk.CTkEntry(
                     row_frame,
                     height=28,
-                    width=160,
-                    font=ctk.CTkFont(family=T.MONO_FONT, size=12),
+                    width=130,
+                    font=ctk.CTkFont(family=T.MONO_FONT, size=11),
                     fg_color=T.SURFACE,
                     border_color=T.BORDER,
                     text_color=T.TEXT,
