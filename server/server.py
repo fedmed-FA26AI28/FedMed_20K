@@ -1,7 +1,7 @@
 """FL Server entry point with Step LR Decay, Early Stopping, and YAML config support.
 
 Starts a Flower server with a user-selectable aggregation strategy from
-the algorithms/ folder (FedAvg, FedProx, FedNova, FedBN, SCAFFOLD, FedBNS, SCR, FedSLD, FedSOL, FedSwitch).
+the algorithms/ folder (FedAvg, FedProx, FedBN, SCAFFOLD, FedBNS, FedSLD, FedSOL, FedSwitch).
 
 Usage:
     # Run with default settings from configs/experiment.yaml:
@@ -225,7 +225,7 @@ def _get_evaluate_fn(
     dataset_name: str = "bloodmnist",
     num_classes: int = 8,
     recorder: Optional[FLMetricsRecorder] = None,
-    model_name: str = "cnn",
+    model_name: str = "baseline_bn",
 ):
     """Return a server-side evaluation function for centralized evaluation on test set."""
     from datasets.medmnist_code import get_medmnist_datasets
@@ -449,7 +449,7 @@ def main():
     )
     parser.add_argument("--partition_path", type=str,
                         default=yaml_cfg.get("partition_path"),
-                        help="Training partition JSON required by SCR and FedSLD")
+                        help="Training partition JSON required by FedSLD and FedSwitch")
     parser.add_argument(
         "--partition_mode",
         type=str,
@@ -463,13 +463,11 @@ def main():
         choices=[
             "fedavg",
             "fedprox",
-            "fednova",
             "fedbn",
             "scaffold",
             "fedbns",
             "proposed",
             "fedbn_scaffold",
-            "scr",
             "fedsld",
             "fed_sld",
             "fedsol",
@@ -555,12 +553,6 @@ def main():
         default=yaml_cfg.get("proximal_mu", 0.01),
         help=f"FedProx proximal mu parameter (default: {yaml_cfg.get('proximal_mu', 0.01)})",
     )
-    parser.add_argument("--scr_gamma", type=float,
-                        default=yaml_cfg.get("scr_gamma", 1.0),
-                        help="SCR class-client support smoothing gamma")
-    parser.add_argument("--scr_head_lambda", type=float,
-                        default=yaml_cfg.get("scr_head_lambda", 0.01),
-                        help="SCR support-dependent classifier anchor strength")
     parser.add_argument(
         "--fedsld_epsilon",
         type=float,
@@ -684,9 +676,9 @@ def main():
     parser.add_argument(
         "--model",
         type=str,
-        default=yaml_cfg.get("model", "cnn"),
-        choices=["cnn", "baseline", "paper", "classic_cnn", "baseline_bn", "baselinecnn_bn", "classic_bn"],
-        help=f"Model architecture to train (default: {yaml_cfg.get('model', 'cnn')})",
+        default=yaml_cfg.get("model", "baseline_bn"),
+        choices=["baseline", "paper", "classic_cnn", "baseline_bn", "baselinecnn_bn", "classic_bn"],
+        help=f"Model architecture to train (default: {yaml_cfg.get('model', 'baseline_bn')})",
     )
     parser.add_argument(
         "--optimizer",
@@ -745,7 +737,7 @@ def main():
             args.partition_path = str(candidate_p)
         else:
             strat_key = args.strategy.lower()
-            if strat_key in ("scr", "fedsld", "fed_sld", "fedswitch", "fed_switch"):
+            if strat_key in ("fedsld", "fed_sld", "fedswitch", "fed_switch"):
                 print(f"[Server] Strategy {args.strategy.upper()} requires partition but {candidate_p.name} does not exist.")
                 print(f"[Server] Auto-generating missing partition for dataset={args.dataset}, mode={args.partition_mode}, clients={args.min_clients} (seed={args.seed})...")
                 try:
@@ -794,8 +786,6 @@ def main():
         print(f"  LR Policy    : Fixed constant learning rate across all rounds")
     if args.strategy == "fedprox":
         print(f"  Proximal mu  : {args.proximal_mu}")
-    if args.strategy.lower() == "scr":
-        print(f"  SCR          : gamma={args.scr_gamma}, head_lambda={args.scr_head_lambda}, partition={args.partition_path}")
     if args.strategy.lower() in ("fedsld", "fed_sld"):
         print(f"  FedSLD       : partition={args.partition_path}")
     if args.strategy.lower() in ("fedsol", "fed_sol"):
@@ -892,18 +882,8 @@ def main():
     strat_key = args.strategy.lower()
     if strat_key == "fedprox":
         strategy_kwargs["proximal_mu"] = args.proximal_mu
-    elif strat_key in ("fedbn", "fednova"):
+    elif strat_key == "fedbn":
         strategy_kwargs["model"] = initial_model
-    elif strat_key == "scr":
-        if not args.partition_path:
-            raise ValueError("SCR requires --partition_path with training class distributions")
-        strategy_kwargs.update({
-            "model": initial_model,
-            "partition_path": args.partition_path,
-            "num_total_clients": args.min_clients,
-            "scr_gamma": args.scr_gamma,
-            "scr_head_lambda": args.scr_head_lambda,
-        })
     elif strat_key in ("fedsld", "fed_sld"):
         strategy_kwargs.update({
             "model": initial_model,
@@ -992,8 +972,6 @@ def main():
         print(f"  Aggregated Non-BN: {summary.get('num_non_bn_layers_aggregated', 'N/A')}")
     if "server_c_norm" in summary:
         print(f"  Final Server c Norm: {summary.get('server_c_norm', 'N/A')}")
-    if "tau_eff" in summary:
-        print(f"  Final tau_eff  : {summary.get('tau_eff', 'N/A')}")
     print(f"{'='*60}\n")
 
     timestamp = datetime.datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -1036,8 +1014,6 @@ def main():
         extra_metadata["num_non_bn_layers_aggregated"] = summary.get("num_non_bn_layers_aggregated")
     if "server_c_norm" in summary:
         extra_metadata["server_c_norm"] = summary.get("server_c_norm")
-    if "tau_eff" in summary:
-        extra_metadata["tau_eff"] = summary.get("tau_eff")
 
     # Save model weights checkpoints
     best_pth_size = None

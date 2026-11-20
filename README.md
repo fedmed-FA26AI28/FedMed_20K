@@ -2,10 +2,6 @@
 
 FedMedAI is an enterprise-grade Federated Learning (FL) framework designed for medical imaging classification benchmarks under severe non-IID data distributions (Dirichlet, Pathological, and Practical cross-institution partitions). It provides seamless support for centralized baselines, distributed physical multi-device execution (PC server and NVIDIA Jetson Orin/Nano edge clients over LAN), and automated local multi-client simulation.
 
-The Flower `--strategies scr` option runs support-calibrated risk. See the
-[SCR Dirichlet experiment guide](algorithms/SCR.md) for a matched FedAvg/SCR
-run on the `baseline_bn` CNN with 12 clients and zero weight decay.
-
 ---
 
 ## 1. Key Features
@@ -18,10 +14,12 @@ run on the `baseline_bn` CNN with 12 clients and zero weight decay.
 - **Aggregation Strategies**:
   - `fedavg`: Vanilla Federated Averaging (McMahan et al., 2017)
   - `fedprox`: Proximal regularization for system heterogeneity (Li et al., 2020)
-  - `fednova`: Normalized averaging for step-count heterogeneity (Wang et al., 2020)
   - `fedbn`: Local Batch Normalization for feature/domain shift (Li et al., 2021)
   - `scaffold`: Control variates for client drift correction (Karimireddy et al., 2020)
   - `proposed`: Synergistic integration of FedBN and SCAFFOLD (alias: `fedbns`, `fedbn_scaffold`)
+  - `fedsld`: Shared Label Distribution (Luo & Wu, IEEE ISBI 2022)
+  - `fedsol`: Self-Centered Optimization with ExpSAM (Lee et al., NeurIPS 2024)
+  - `fedswitch`: Stage-Switching FL with DP Histogram Estimation
 - **Non-IID Partition Schemes**:
   - `practical`: Shards per class modeling clinical institution size disparity (FedSLD benchmark). Fully generalized for arbitrary client counts $K \ge 1$ with exact 100% FedSLD reproduction when $K = 12$.
   - `pathological`: Subsets of classes assigned to clients, dynamically scaling to guarantee 100% class coverage across the federation without sample loss.
@@ -52,10 +50,12 @@ FedMedAI_Study/
 │   ├── base.py                 # Unified base FL strategy class with metrics aggregation
 │   ├── fedavg.py               # Vanilla FedAvg
 │   ├── fedprox.py              # FedProx strategy
-│   ├── fednova.py              # FedNova strategy
 │   ├── fedbn.py                # FedBN strategy
 │   ├── scaffold.py             # SCAFFOLD strategy with control variates
-│   └── proposed.py             # Proposed Strategy (FedBN + SCAFFOLD)
+│   ├── fedbns.py               # FedBNS Strategy (FedBN + SCAFFOLD)
+│   ├── fedsld.py               # FedSLD strategy
+│   ├── fedsol.py               # FedSOL strategy
+│   └── fedswitch.py            # FedSwitch strategy
 ├── client/                     # FL Client execution logic
 │   ├── client.py               # Main Flower client implementation and CLI
 │   ├── train.py                # Local training loop and optimizer handlers
@@ -73,8 +73,9 @@ FedMedAI_Study/
 │   ├── train_centralized.py    # Centralized upper-bound benchmark training
 │   └── run_simulation.py       # Automated multi-client simulation harness
 ├── models/                     # Deep learning architectures
-│   ├── cnn.py                  # Modern CNN (~20K parameters, BatchNorm)
 │   ├── baseline.py             # Classic 4-layer CNN (~570K parameters, no BatchNorm)
+│   ├── baseline_bn.py          # Classic 4-layer CNN (~570K parameters, with BatchNorm)
+│   ├── utils.py                # Shared parameter & BatchNorm mask utilities
 │   └── factory.py              # Model instantiation factory
 ├── monitoring/                 # Metrics recording and dashboard utilities
 │   ├── metrics.py              # FL metrics tracking and publication figures
@@ -103,7 +104,7 @@ Activate the virtual environment:
 
 Train a centralized upper-bound model on the entire dataset:
 ```bash
-python -m experiments.train_centralized --dataset pathmnist --model cnn --epochs 100 --batch_size 256 --lr 0.01
+python -m experiments.train_centralized --dataset pathmnist --model baseline_bn --epochs 100 --batch_size 256 --lr 0.01
 ```
 
 ### 4.3. Data Partitioning

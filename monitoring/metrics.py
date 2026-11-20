@@ -1755,7 +1755,7 @@ class FLMetricsRecorder:
                 y = draw_entry(ax, y, "FedProx Proximal Mu (μ)", str(self.proximal_mu), next_bg())
 
             # Model Architecture info
-            m_name_disp = (self.model_name or "CNN").upper()
+            m_name_disp = (self.model_name or "BASELINE_BN").upper()
             y = draw_entry(ax, y, "Model Architecture", m_name_disp, next_bg())
 
             # Total Parameters

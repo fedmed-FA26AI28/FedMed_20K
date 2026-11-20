@@ -13,7 +13,7 @@
 # --- Dataset and Architecture ---
 # Supported datasets: 'bloodmnist', 'pathmnist', 'organamnist', 'dermamnist'
 dataset: pathmnist
-# Supported models: 'cnn' (Modern ~20K params with BatchNorm), 'baseline_bn' (FedSLD CNN with BatchNorm), or 'baseline' (Classic CNN without BatchNorm)
+# Supported models: 'baseline_bn' (FedSLD CNN with BatchNorm) or 'baseline' (Classic CNN without BatchNorm)
 model: baseline_bn
 optimizer: sgd                   # Client optimizer: 'adam', 'sgd', or 'adamw'
 momentum: 0.9                     # SGD momentum (0.0 for pure SGD)
@@ -34,7 +34,7 @@ num_clients: 12                   # Total number of physical clients participati
 min_clients: 12                   # Minimum connected clients before server starts the round
 
 # --- Server & FL Training Hyperparameters ---
-# Supported strategies: 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold', 'fedbns', 'proposed', 'scr', 'fedsld', 'fedsol', 'fedswitch'
+# Supported strategies: 'fedavg', 'fedprox', 'fedbn', 'scaffold', 'fedbns', 'proposed', 'fedsld', 'fedsol', 'fedswitch'
 strategy: fedbns
 rounds: 40                        # Total federated communication rounds
 fl_rounds: 40                     # Alias for rounds
@@ -67,8 +67,6 @@ early_stop_metric: accuracy       # Target metric to monitor: 'accuracy' or 'los
 
 # --- Algorithm-Specific Hyperparameters ---
 proximal_mu: 0.01                 # FedProx proximal coefficient (0.0 = FedAvg)
-scr_gamma: 1.0                    # SCR support smoothing, kappa_c = gamma * n_c / K
-scr_head_lambda: 0.01             # SCR classifier-row anchor strength
 fedsld_epsilon: 1.0e-6            # FedSLD label skew smoothing epsilon
 fedsld_reduction: mean            # FedSLD loss reduction mode ('mean' or 'sum')
 
@@ -116,7 +114,7 @@ active_clients: null
 # ──────────────────────────────────────────────────────────────────────────────
 centralized:
   dataset: pathmnist              # Options: 'bloodmnist', 'pathmnist', 'organamnist', 'dermamnist'
-  model: baseline_bn                 # Options: 'baseline' (FedSLD classic CNN), 'baseline_bn' (Baseline with BN), or 'cnn' (Modern)
+  model: baseline_bn                 # Options: 'baseline' (FedSLD classic CNN) or 'baseline_bn' (Baseline with BN)
   optimizer: sgd                  # Options: 'sgd', 'adam', or 'adamw'
   momentum: 0.9
   weight_decay: 1e-4

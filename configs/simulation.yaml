@@ -30,11 +30,9 @@ partitions:
 # Available options:
 #   - 'fedavg'   : Vanilla Federated Averaging (McMahan et al., 2017)
 #   - 'fedprox'  : Proximal regularization for system heterogeneity (Li et al., 2020)
-#   - 'fednova'  : Normalized averaging for step heterogeneity (Wang et al., 2020)
 #   - 'fedbn'    : Local Batch Normalization for domain/feature shift (Li et al., 2021)
 #   - 'scaffold' : Control variates for client drift (Karimireddy et al., 2020)
 #   - 'fedbns'   : FedBN + SCAFFOLD (Dual-Heterogeneity, alias: 'proposed')
-#   - 'scr'      : Support-Calibrated Risk (training-count weights + head anchor)
 #   - 'fedsld'   : Shared Label Distribution with dynamic batch reweighting (Luo & Wu, IEEE ISBI 2022)
 #   - 'fedsol'   : Self-Centered Optimization with ExpSAM & reference model (Lee et al., NeurIPS 2024)
 #   - 'fedswitch': Stage-Switching Federated Learning with DP Histogram Estimation (MICCAI 2024)
@@ -46,10 +44,10 @@ rounds: 80                        # Total federated communication rounds
 local_epochs: 5                   # Local training epochs on each client per round
 batch_size: 256                   # Client training mini-batch size
 learning_rate: 0.01               # Base initial learning rate
-model: baseline                        # Architecture: 'cnn' (Modern ~20K params with BatchNorm), 'baseline' (~570K params without BN), or 'baseline_bn' (~571K params with BN)
+model: baseline                        # Architecture: 'baseline' (~570K params without BN) or 'baseline_bn' (~570K params with BN)
 optimizer: sgd                   # Optimizer: 'adam', 'sgd', or 'adamw'
 momentum: 0.9                     # SGD momentum (0.0 for pure SGD)
-weight_decay: 0                   # No weight decay for matched FedSLD/SCR comparisons
+weight_decay: 0                   # No weight decay for matched FedSLD comparisons
 seed: 42                          # Random seed for partition and initialization reproducibility
 
 # --- Data Augmentation (Training split only) ---
@@ -76,8 +74,6 @@ server_lr_min: 0.00001            # Minimum learning rate lower bound for server
 
 # --- Algorithm-Specific Hyperparameters ---
 proximal_mu: 0.01                 # FedProx proximal coefficient (0.0 = FedAvg)
-scr_gamma: 1.0                    # SCR support smoothing, kappa_c = gamma * n_c / K
-scr_head_lambda: 0.01             # SCR classifier-row anchor strength
 
 # FedSOL
 fedsol_rho: 2.0                   # SAM perturbation radius rho (paper Table 4/5 default = 2.0)

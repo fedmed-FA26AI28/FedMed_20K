@@ -16,13 +16,11 @@ STRATEGIES = [
     "fedbn",
     "scaffold",
     "fedprox",
-    "scr",
     "fedsld",
     "fedsol",
     "fedswitch",
-    "fednova",
 ]
-MODELS = ["baseline_bn", "baseline", "cnn"]
+MODELS = ["baseline_bn", "baseline"]
 LR_MODES = ["fixed", "client_loss", "server_decay"]
 OPTIMIZERS = ["sgd", "adam", "adamw"]
 PARTITION_MODES = ["practical", "dirichlet_0.1", "dirichlet_0.3", "pathological"]

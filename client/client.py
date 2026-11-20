@@ -50,7 +50,6 @@ from models import (
     set_parameters_fedbn,
     is_bn_key,
 )
-from algorithms.scr import classifier_head, client_support_parameters, head_penalty
 from datasets.medmnist_code import get_medmnist_datasets
 from datasets.partition import load_partition, get_client_dataloader, get_partition_path
 from utils.path_utils import sanitize_run_name
@@ -181,10 +180,6 @@ def _local_train(
     is_scaffold: bool = False,
     min_lr: float = 1e-6,
     early_stop_patience: int = 5,
-    scr_sample_weights: "torch.Tensor | None" = None,
-    scr_anchor: "torch.Tensor | None" = None,
-    scr_reference: "tuple[torch.Tensor, torch.Tensor] | None" = None,
-    scr_head_lambda: float = 0.0,
     is_fedsld: bool = False,
     fedsld_prior: "torch.Tensor | None" = None,
     fedsld_epsilon: float = 1e-6,
@@ -206,10 +201,6 @@ def _local_train(
         global_params: Global model parameters (list of tensors) for proximal term.
         scaffold_drift: List of tensor drift terms (c - c_i) for trainable parameters in SCAFFOLD.
         is_scaffold: Whether SCAFFOLD is active to track uncorrupted loss gradients (Option 2).
-        scr_sample_weights: Fixed per-class training-sample weights for SCR.
-        scr_anchor: Support-dependent classifier row anchor for SCR.
-        scr_reference: Received global classifier weight and bias at round start.
-        scr_head_lambda: SCR head anchor penalty strength.
         is_fedsld: Whether FedSLD batch reweighting is active.
         fedsld_prior: Global prior label distribution P~(y) tensor of shape (C,).
         fedsld_epsilon: Smoothing epsilon to prevent zero division in FedSLD.
@@ -224,13 +215,6 @@ def _local_train(
         clip_grad_norm: Maximum L2 gradient norm for clipping (None or <= 0 disables).
     """
     criterion = nn.CrossEntropyLoss()
-    use_scr = scr_sample_weights is not None
-    if use_scr:
-        if scr_anchor is None or scr_reference is None:
-            raise ValueError("SCR requires sample weights, anchor and global head reference")
-        scr_sample_weights = scr_sample_weights.to(device)
-        scr_anchor = scr_anchor.to(device)
-        scr_reference = tuple(value.to(device) for value in scr_reference)
 
     if is_fedsld and fedsld_prior is not None:
         fedsld_prior = fedsld_prior.to(device)
@@ -351,11 +335,6 @@ def _local_train(
                     loss = (weights * ce).sum()
                 else:
                     loss = (weights * ce).mean()
-            elif use_scr:
-                ce = F.cross_entropy(outputs, labels, reduction="none")
-                loss = (scr_sample_weights[labels] * ce).mean()
-                loss = loss + head_penalty(
-                    model, scr_reference, scr_anchor, scr_head_lambda)
             else:
                 loss = criterion(outputs, labels)
 
@@ -459,23 +438,6 @@ def _local_train(
 # Flower NumPyClient
 # ──────────────────────────────────────────────────────────────
 
-def _training_class_counts(train_loader, num_classes: int) -> np.ndarray:
-    """Count only local training labels, without loading augmented images."""
-    subset = train_loader.dataset
-    source = getattr(subset, "dataset", None)
-    indices = getattr(subset, "indices", None)
-    if source is not None and indices is not None and hasattr(source, "labels"):
-        labels = np.asarray(source.labels).reshape(-1)[np.asarray(indices, dtype=int)]
-    elif hasattr(subset, "labels"):
-        labels = np.asarray(subset.labels).reshape(-1)
-    else:
-        labels = np.concatenate([
-            batch_labels.reshape(-1).cpu().numpy() for _, batch_labels in train_loader
-        ])
-    if len(labels) != len(subset) or np.any(labels < 0) or np.any(labels >= num_classes):
-        raise ValueError("SCR local training labels do not match the model classes")
-    return np.bincount(labels.astype(np.int64), minlength=num_classes)
-
 
 class FedMedAIClient(fl.client.NumPyClient):
     """Flower client for FedMedAI federated learning."""
@@ -498,7 +460,7 @@ class FedMedAIClient(fl.client.NumPyClient):
         strategy: str = None,
         partition_path: Optional[str] = None,
         client_dir: Optional[Union[str, Path]] = None,
-        model_name: str = "cnn",
+        model_name: str = "baseline_bn",
         optimizer_name: str = "adam",
         momentum: float = 0.0,
         weight_decay: float = 0.0,
@@ -764,40 +726,6 @@ class FedMedAIClient(fl.client.NumPyClient):
                 p.clone().detach() for p in self.model.parameters()
             ]
 
-        # Prepare SCR parameters
-        scr_sample_weights = None
-        scr_anchor = None
-        scr_reference = None
-        scr_head_lambda = 0.0
-
-        if strategy == "scr":
-            required = ("scr_global_counts", "scr_coverage_sum", "scr_total_samples",
-                        "scr_num_clients", "scr_gamma", "scr_head_lambda")
-            missing = [key for key in required if key not in config]
-            if missing:
-                raise ValueError(f"SCR server configuration missing: {missing}")
-            if not hasattr(self, "_scr_class_counts"):
-                self._scr_class_counts = _training_class_counts(
-                    self.train_loader, self.num_classes)
-            local_counts = self._scr_class_counts
-            global_counts = np.asarray(json.loads(config["scr_global_counts"]), dtype=np.float64)
-            coverage_sum = np.asarray(json.loads(config["scr_coverage_sum"]), dtype=np.float64)
-            scr_gamma = float(config["scr_gamma"])
-            scr_head_lambda = float(config["scr_head_lambda"])
-            if not np.isfinite(scr_head_lambda) or scr_head_lambda < 0:
-                raise ValueError("SCR head lambda must be finite and nonnegative")
-            weights, anchor = client_support_parameters(
-                local_counts, global_counts, coverage_sum,
-                int(config["scr_total_samples"]), int(config["scr_num_clients"]),
-                scr_gamma,
-            )
-            scr_sample_weights = torch.as_tensor(weights, dtype=torch.float32, device=self.device)
-            scr_anchor = torch.as_tensor(anchor, dtype=torch.float32, device=self.device)
-            head = classifier_head(self.model)
-            scr_reference = (head.weight.detach().clone(), head.bias.detach().clone())
-            print(f"[Client {self.client_id}] SCR: gamma={scr_gamma:g} "
-                  f"head_lambda={scr_head_lambda:g} counts={local_counts.tolist()}")
-
         # Prepare FedSLD parameters
         fedsld_prior_tensor = None
         is_fedsld = strategy in ("fedsld", "fed_sld")
@@ -856,10 +784,6 @@ class FedMedAIClient(fl.client.NumPyClient):
             global_params=global_params,
             scaffold_drift=scaffold_drift,
             is_scaffold=is_scaffold,
-            scr_sample_weights=scr_sample_weights,
-            scr_anchor=scr_anchor,
-            scr_reference=scr_reference,
-            scr_head_lambda=scr_head_lambda,
             is_fedsld=is_fedsld,
             fedsld_prior=fedsld_prior_tensor,
             fedsld_epsilon=fedsld_epsilon,
@@ -954,10 +878,6 @@ class FedMedAIClient(fl.client.NumPyClient):
             metrics["fedsol_rho"] = fedsol_rho
             metrics["fedsol_target"] = fedsol_target
             metrics["fedsol_loss_type"] = fedsol_loss_type
-        if strategy == "scr":
-            metrics["scr_active"] = True
-            metrics["scr_gamma"] = float(config["scr_gamma"])
-            metrics["scr_head_lambda"] = scr_head_lambda
         if is_fedsld:
             metrics["fedsld_active"] = True
             metrics["fedsld_epsilon"] = fedsld_epsilon
@@ -1018,10 +938,6 @@ class FedMedAIClient(fl.client.NumPyClient):
         if is_fedsol:
             return_metrics["fedsol_active"] = True
             return_metrics["fedsol_rho"] = fedsol_rho
-        if strategy == "scr":
-            return_metrics["scr_active"] = True
-            return_metrics["scr_gamma"] = float(config.get("scr_gamma", 1.0))
-            return_metrics["scr_head_lambda"] = scr_head_lambda
         if is_fedsld:
             return_metrics["fedsld_active"] = True
             return_metrics["fedsld_epsilon"] = fedsld_epsilon
@@ -1467,13 +1383,11 @@ def main():
         choices=[
             "fedavg",
             "fedprox",
-            "fednova",
             "fedbn",
             "scaffold",
             "fedbns",
             "proposed",
             "fedbn_scaffold",
-            "scr",
             "fedsld",
             "fed_sld",
             "fedsol",
@@ -1505,9 +1419,9 @@ def main():
     parser.add_argument(
         "--model",
         type=str,
-        default=yaml_cfg.get("model", "cnn"),
-        choices=["cnn", "baseline", "paper", "classic_cnn", "baseline_bn", "baselinecnn_bn", "classic_bn"],
-        help=f"Model architecture (default: {yaml_cfg.get('model', 'cnn')})",
+        default=yaml_cfg.get("model", "baseline_bn"),
+        choices=["baseline", "paper", "classic_cnn", "baseline_bn", "baselinecnn_bn", "classic_bn"],
+        help=f"Model architecture (default: {yaml_cfg.get('model', 'baseline_bn')})",
     )
     parser.add_argument(
         "--optimizer",

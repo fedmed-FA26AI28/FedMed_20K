@@ -4,9 +4,7 @@ import torch
 import torch.nn as nn
 from typing import Tuple
 
-from models.cnn import (
-    CNN,
-    SimpleCNN,
+from models.utils import (
     get_parameters,
     set_parameters,
     count_parameters,
@@ -32,7 +30,7 @@ def set_seed(seed: int = 42) -> None:
 
 
 def get_model(
-    model_name: str = "cnn",
+    model_name: str = "baseline_bn",
     num_classes: int = 8,
     in_channels: int = 3,
     input_size: Tuple[int, int] = (28, 28),
@@ -40,8 +38,8 @@ def get_model(
     """Factory function to instantiate models by name.
     
     Supported options:
-      - 'cnn' (default): Modern lightweight CNN with BatchNorm and Global Average Pooling (~20K parameters).
-      - 'baseline' / 'paper' / 'classic_cnn': Classic 4-layer CNN from FedSLD paper (Luo & Wu 2022) without BatchNorm (~1.62M parameters).
+      - 'baseline_bn' (default): Classic 4-layer CNN with BatchNorm (~570K parameters).
+      - 'baseline' / 'paper' / 'classic_cnn': Classic 4-layer CNN from FedSLD paper (Luo & Wu 2022) without BatchNorm (~570K parameters).
     """
     key = str(model_name).lower().strip().replace("-", "_")
     if key in ("baseline_bn", "baselinecnn_bn", "baseline_cnn_bn", "classic_bn", "paper_bn"):
@@ -56,9 +54,7 @@ def get_model(
             in_channels=in_channels,
             input_size=input_size,
         )
-    elif key in ("cnn", "simple_cnn", "modern_cnn", "fedmedai"):
-        return CNN(num_classes=num_classes)
     else:
         raise ValueError(
-            f"Unknown model name '{model_name}'. Available options: 'cnn', 'baseline', 'baseline_bn'."
+            f"Unknown model name '{model_name}'. Available options: 'baseline_bn', 'baseline'."
         )

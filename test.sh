@@ -12,7 +12,7 @@
 #      e.g.: ./test.sh fedavg baseline organamnist dirichlet_0.3
 #      e.g.: ./test.sh fedavg baseline organamnist "practical dirichlet_0.3"
 #      e.g.: ./test.sh "fedavg fedprox" baseline "organamnist pathmnist" dirichlet
-#      e.g.: ./test.sh fedbns cnn organamnist,pathmnist practical
+#      e.g.: ./test.sh fedbns baseline_bn organamnist,pathmnist practical
 # 3. Or pass via environment variables:
 #      PARTITION=dirichlet ./test.sh
 #      PARTITIONS="practical dirichlet_0.3" STRATEGIES="fedavg fedprox" ./test.sh
@@ -37,7 +37,7 @@ fi
 
 TOTAL_STRATEGIES=${#STRATEGIES[@]}
 
-MODEL="${2:-${MODEL:-baseline}}"            # baseline | cnn | baseline_bn
+MODEL="${2:-${MODEL:-baseline}}"            # baseline | baseline_bn
 
 # Datasets: edit DEFAULT_DATASETS below or pass via CLI $3 / env DATASETS / env DATASET.
 # Supports space-separated ("organamnist pathmnist") or comma-separated ("organamnist,pathmnist"):
@@ -117,8 +117,6 @@ MOMENTUM="${MOMENTUM:-0.9}"
 OPTIMIZER="${OPTIMIZER:-sgd}"
 LR_MODE="${LR_MODE:-fixed}"
 TIMEOUT="${TIMEOUT:-0}"
-SCR_GAMMA="${SCR_GAMMA:-}"
-SCR_HEAD_LAMBDA="${SCR_HEAD_LAMBDA:-}"
 PROXIMAL_MU="${PROXIMAL_MU:-}"
 
 # List of random seeds for the sequential runs (default: 5 runs per config)
@@ -221,8 +219,6 @@ for d_idx in "${!DATASETS[@]}"; do
                 echo ">>> [Overall: $GLOBAL_RUN_COUNTER/$TOTAL_ALL_RUNS | $CURRENT_DATASET | $CURRENT_PARTITION | $CURRENT_STRATEGY: Run $RUN_NUM/$RUNS_PER_CONFIG] (Seed: $SEED, Name: $RUN_NAME) <<<"
 
                 EXTRA_ARGS=()
-                [ -n "$SCR_GAMMA" ] && EXTRA_ARGS+=(--scr_gamma "$SCR_GAMMA")
-                [ -n "$SCR_HEAD_LAMBDA" ] && EXTRA_ARGS+=(--scr_head_lambda "$SCR_HEAD_LAMBDA")
                 [ -n "$PROXIMAL_MU" ] && EXTRA_ARGS+=(--proximal_mu "$PROXIMAL_MU")
 
                 python -u -m experiments.run_simulation \

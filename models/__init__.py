@@ -1,6 +1,4 @@
-from models.cnn import (
-    CNN,
-    SimpleCNN,
+from models.utils import (
     get_parameters,
     set_parameters,
     count_parameters,
@@ -15,8 +13,6 @@ from models.baseline_bn import BaselineBN, BaselineCNN_BN, ClassicBN, PaperBN
 from models.factory import get_model, set_seed
 
 __all__ = [
-    "CNN",
-    "SimpleCNN",
     "BaselineCNN",
     "ClassicCNN",
     "PaperCNN",

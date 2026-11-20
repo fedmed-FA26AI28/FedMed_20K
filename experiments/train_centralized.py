@@ -196,7 +196,7 @@ def plot_summary_card(
     y = draw_section_header(ax, y, 'MODEL METRICS & SPECS (Test Set)', color_model)
     rows = []
     if model_info:
-        m_name = str(model_info.get("model_name", "CNN")).upper()
+        m_name = str(model_info.get("model_name", "BASELINE_BN")).upper()
         t_params = model_info.get("total_parameters")
         p_str = f"{t_params:,} params" if t_params is not None else "N/A"
         w_kb = model_info.get("weight_size_kb")
@@ -300,7 +300,7 @@ def run_centralized(
     early_stop_patience: int = 8,
     early_stop_metric: str = "accuracy",
     config_source: str = "configs/experiment.yaml",
-    model_name: str = "cnn",
+    model_name: str = "baseline_bn",
     seed: int = 42,
     optimizer_name: str = "adam",
     momentum: float = 0.0,
@@ -555,7 +555,7 @@ def parse_args():
     default_min_lr = cen_cfg.get("min_lr", yaml_cfg.get("centralized_min_lr", 1e-6))
     default_early_stop = cen_cfg.get("early_stop_patience", yaml_cfg.get("centralized_early_stop_patience", 8))
     default_early_stop_metric = cen_cfg.get("early_stop_metric", yaml_cfg.get("centralized_early_stop_metric", yaml_cfg.get("early_stop_metric", "accuracy")))
-    default_model = cen_cfg.get("model", yaml_cfg.get("model", "cnn"))
+    default_model = cen_cfg.get("model", yaml_cfg.get("model", "baseline_bn"))
     default_optimizer = cen_cfg.get("optimizer", yaml_cfg.get("optimizer", "adam"))
     default_momentum = cen_cfg.get("momentum", yaml_cfg.get("momentum", 0.0))
     default_weight_decay = cen_cfg.get("weight_decay", yaml_cfg.get("centralized_weight_decay", yaml_cfg.get("weight_decay", 1e-4)))
@@ -576,7 +576,7 @@ def parse_args():
                         help="Explicit directory path to save centralized artifacts (overrides default results/centralized/<name>).")
     parser.add_argument("--dataset", type=str, default=default_dataset,
                         help=f"Dataset name (e.g. 'bloodmnist', 'pathmnist', 'organamnist', 'dermamnist') (default: {default_dataset}).")
-    parser.add_argument("--model", type=str, default=default_model, choices=["cnn", "baseline", "paper", "classic_cnn", "baseline_bn", "baselinecnn_bn", "classic_bn"],
+    parser.add_argument("--model", type=str, default=default_model, choices=["baseline", "paper", "classic_cnn", "baseline_bn", "baselinecnn_bn", "classic_bn"],
                         help=f"Model architecture (default: {default_model}).")
     parser.add_argument("--optimizer", type=str, default=default_optimizer, choices=["adam", "sgd", "adamw"],
                         help=f"Optimizer type: 'adam', 'sgd', or 'adamw' (default: {default_optimizer}).")

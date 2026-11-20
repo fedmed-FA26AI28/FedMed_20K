@@ -152,7 +152,7 @@ class ServerTab(ctk.CTkFrame):
         self._min_clients_row = self.fields["min_clients"].master
         self.field_rows["min_clients"] = self._min_clients_row
 
-        # 6B. Partition Mode (important in both Standalone and Simulation modes for SCR/FedSLD/FedSwitch & recorder)
+        # 6B. Partition Mode (important in both Standalone and Simulation modes for FedSLD/FedSwitch & recorder)
         self.fields["partition_mode"] = add_field(
             "Partition Mode:",
             ctk.CTkComboBox,
@@ -466,9 +466,6 @@ class ServerTab(ctk.CTkFrame):
             cmd.extend(["--fedswitch_coverage", str(adv.get("fedswitch_coverage", "0.9"))])
             cmd.extend(["--fedswitch_epsilon", str(adv.get("fedswitch_epsilon", "1.0"))])
             cmd.extend(["--fedswitch_c_bound", str(adv.get("fedswitch_c_bound", "50"))])
-        if include_all_strats or "scr" in strat_lower:
-            cmd.extend(["--scr_gamma", str(adv.get("scr_gamma", "1.0"))])
-            cmd.extend(["--scr_head_lambda", str(adv.get("scr_head_lambda", "0.01"))])
         if include_all_strats or "sld" in strat_lower:
             cmd.extend(["--fedsld_epsilon", str(adv.get("fedsld_epsilon", "1e-6"))])
             cmd.extend(["--fedsld_reduction", str(adv.get("fedsld_reduction", "mean"))])
@@ -558,9 +555,6 @@ class ServerTab(ctk.CTkFrame):
             cmd.extend(["--fedswitch_coverage", str(adv.get("fedswitch_coverage", "0.9"))])
             cmd.extend(["--fedswitch_epsilon", str(adv.get("fedswitch_epsilon", "1.0"))])
             cmd.extend(["--fedswitch_c_bound", str(adv.get("fedswitch_c_bound", "50"))])
-        elif "scr" in strat:
-            cmd.extend(["--scr_gamma", str(adv.get("scr_gamma", "1.0"))])
-            cmd.extend(["--scr_head_lambda", str(adv.get("scr_head_lambda", "0.01"))])
         elif "sld" in strat:
             cmd.extend(["--fedsld_epsilon", str(adv.get("fedsld_epsilon", "1e-6"))])
             cmd.extend(["--fedsld_reduction", str(adv.get("fedsld_reduction", "mean"))])

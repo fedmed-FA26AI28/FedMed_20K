@@ -10,7 +10,7 @@ tackling two orthogonal dimensions of heterogeneity in federated medical imaging
    subtract gradient drift during local training for non-BatchNorm trainable layers
    via Zero-Drift Masking.
 
-Does NOT use FedNova step normalization (aggregates non-BN layers via sample-weighted FedAvg).
+Aggregates non-BN layers via standard sample-weighted FedAvg.
 
 References:
     - Li et al., "FedBN: Federated Learning on Non-IID Features via Local Batch Normalization",
@@ -40,7 +40,7 @@ from algorithms.base import (
     _format_device_details,
     _weighted_average_metrics,
 )
-from models.cnn import (
+from models.utils import (
     get_bn_mask,
     get_buffer_mask,
     get_parameters,

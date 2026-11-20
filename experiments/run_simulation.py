@@ -351,7 +351,7 @@ def run_single_experiment(
     client_cpu_threads: int = 0,
     python_exe: str = sys.executable,
     local_test: bool = False,
-    model: str = "cnn",
+    model: str = "baseline_bn",
     seed: int = 42,
     optimizer: str = "adam",
     momentum: float = 0.0,
@@ -360,8 +360,6 @@ def run_single_experiment(
     random_crop: bool = True,
     random_flip: bool = True,
     client_module: str = "experiments.simulation_client",
-    scr_gamma: float = 1.0,
-    scr_head_lambda: float = 0.01,
     fedsol_rho: float = 2.0,
     fedsol_target: str = "head",
     fedsol_loss_type: str = "kl",
@@ -414,8 +412,6 @@ def run_single_experiment(
         "--lr_decay_gamma", str(lr_decay_gamma),
         "--server_lr_min", str(server_lr_min),
         "--proximal_mu", str(proximal_mu),
-        "--scr_gamma", str(scr_gamma),
-        "--scr_head_lambda", str(scr_head_lambda),
         "--fedsld_epsilon", str(fedsld_epsilon),
         "--fedsld_reduction", str(fedsld_reduction),
         "--fedsol_rho", str(fedsol_rho),
@@ -881,7 +877,6 @@ def run_single_experiment(
 STRATEGY_COLORS = {
     "fedavg": "#2563eb",
     "fedprox": "#16a34a",
-    "fednova": "#ea580c",
     "fedbn": "#9333ea",
     "scaffold": "#dc2626",
     "fedbns": "#0891b2",
@@ -889,7 +884,6 @@ STRATEGY_COLORS = {
     "bn_scaffold": "#0891b2",
     "scaffold_fedbn": "#0891b2",
     "proposed": "#0891b2",
-    "scr": "#eab308",
     "fedsld": "#d97706",
     "fed_sld": "#d97706",
 }
@@ -897,7 +891,6 @@ STRATEGY_COLORS = {
 STRATEGY_MARKERS = {
     "fedavg": "o",
     "fedprox": "s",
-    "fednova": "^",
     "fedbn": "D",
     "scaffold": "v",
     "fedbns": "P",
@@ -905,7 +898,6 @@ STRATEGY_MARKERS = {
     "bn_scaffold": "P",
     "scaffold_fedbn": "P",
     "proposed": "P",
-    "scr": "*",
     "fedsld": "d",
     "fed_sld": "d",
 }
@@ -1097,7 +1089,7 @@ def generate_markdown_report(
         "",
         f"**Generated At:** {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}  ",
         (f"**Run Name:** `{sim_config['name']}` | " if sim_config.get("name") else "") +
-        f"**Model:** `{sim_config.get('model', 'cnn')}` | **Seed:** `{sim_config.get('seed', 42)}` | "
+        f"**Model:** `{sim_config.get('model', 'baseline_bn')}` | **Seed:** `{sim_config.get('seed', 42)}` | "
         f"**Rounds:** {sim_config.get('rounds')} | **Clients:** {sim_config.get('num_clients')} | "
         f"**Local Epochs:** {sim_config.get('local_epochs')} | **LR Mode:** `{sim_config.get('lr_mode')}` | "
         f"**Local Test:** `{'Enabled' if sim_config.get('local_test') else 'Disabled'}`  ",
@@ -1215,7 +1207,7 @@ def main():
     parser.add_argument("--client_cpu_threads", type=int, default=None)
     parser.add_argument("--server_eval", dest="server_eval", action=argparse.BooleanOptionalAction, default=None)
     parser.add_argument("--local_test", dest="local_test", action=argparse.BooleanOptionalAction, default=None, help="Partition test set across clients and track BMCTA/BTA")
-    parser.add_argument("--model", type=str, default=None, choices=["cnn", "baseline", "paper", "classic_cnn", "baseline_bn", "baselinecnn_bn", "classic_bn"], help="Model architecture ('cnn', 'baseline', or 'baseline_bn')")
+    parser.add_argument("--model", type=str, default=None, choices=["baseline", "paper", "classic_cnn", "baseline_bn", "baselinecnn_bn", "classic_bn"], help="Model architecture ('baseline_bn' or 'baseline')")
     parser.add_argument("--optimizer", type=str, default=None, choices=["adam", "sgd", "adamw"], help="Optimizer type ('adam', 'sgd', or 'adamw')")
     parser.add_argument("--momentum", type=float, default=None, help="Momentum for SGD optimizer")
     parser.add_argument("--weight_decay", type=float, default=None, help="Weight decay penalty")
@@ -1233,8 +1225,6 @@ def main():
     parser.add_argument("--client_lr_factor", type=float, default=None, help="Factor for reducing client LR on plateau")
     parser.add_argument("--client_lr_min", type=float, default=None, help="Minimum client learning rate bound")
     parser.add_argument("--proximal_mu", type=float, default=None, help="Proximal coefficient for FedProx")
-    parser.add_argument("--scr_gamma", type=float, default=None, help="SCR support smoothing gamma")
-    parser.add_argument("--scr_head_lambda", type=float, default=None, help="SCR head anchor strength")
     parser.add_argument("--fedsol_rho", type=float, default=None, help="FedSOL perturbation radius rho")
     parser.add_argument("--fedsol_target", type=str, choices=["head", "all"], default=None, help="FedSOL perturbation target layers ('head' or 'all')")
     parser.add_argument("--fedsol_loss_type", type=str, choices=["kl", "l2"], default=None, help="FedSOL discrepancy loss ('kl' or 'l2')")
@@ -1266,7 +1256,7 @@ def main():
     else:
         partitions = list(raw_partitions)
 
-    raw_strategies = args.strategies if args.strategies is not None else cfg.get("strategies", cfg.get("strategy", ["fedavg", "fedprox", "fednova", "fedbn", "scaffold"]))
+    raw_strategies = args.strategies if args.strategies is not None else cfg.get("strategies", cfg.get("strategy", ["fedavg", "fedprox", "fedbn", "scaffold"]))
     if isinstance(raw_strategies, str):
         strategies = [raw_strategies]
     else:
@@ -1287,8 +1277,6 @@ def main():
     lr_decay_gamma = args.lr_decay_gamma if args.lr_decay_gamma is not None else cfg.get("lr_decay_gamma", 0.5)
     server_lr_min = args.server_lr_min if args.server_lr_min is not None else cfg.get("server_lr_min", cfg.get("lr_decay_min", 1e-5))
     proximal_mu = args.proximal_mu if args.proximal_mu is not None else cfg.get("proximal_mu", 0.01)
-    scr_gamma = args.scr_gamma if args.scr_gamma is not None else cfg.get("scr_gamma", 1.0)
-    scr_head_lambda = args.scr_head_lambda if args.scr_head_lambda is not None else cfg.get("scr_head_lambda", 0.01)
     fedsol_rho = args.fedsol_rho if args.fedsol_rho is not None else cfg.get("fedsol_rho", 2.0)
     fedsol_target = args.fedsol_target if args.fedsol_target is not None else cfg.get("fedsol_target", "head")
     fedsol_loss_type = args.fedsol_loss_type if args.fedsol_loss_type is not None else cfg.get("fedsol_loss_type", "kl")
@@ -1423,8 +1411,6 @@ def main():
                     lr_decay_gamma=lr_decay_gamma,
                     server_lr_min=server_lr_min,
                     proximal_mu=proximal_mu,
-                    scr_gamma=scr_gamma,
-                    scr_head_lambda=scr_head_lambda,
                     fedsol_rho=fedsol_rho,
                     fedsol_target=fedsol_target,
                     fedsol_loss_type=fedsol_loss_type,

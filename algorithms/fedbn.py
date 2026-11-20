@@ -30,7 +30,7 @@ from algorithms.base import (
     _format_device_details,
     _weighted_average_metrics,
 )
-from models.cnn import get_bn_mask
+from models.utils import get_bn_mask
 from monitoring.metrics import FLMetricsRecorder
 
 

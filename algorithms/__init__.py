@@ -5,19 +5,15 @@ Usage:
 
     strategy = get_strategy("fedavg")       # default
     strategy = get_strategy("fedprox", proximal_mu=0.1)
-    strategy = get_strategy("fednova")
     strategy = get_strategy("fedbn")
     strategy = get_strategy("scaffold")
     strategy = get_strategy("fedbns")       # FedBN + SCAFFOLD (alias: "proposed")
-    strategy = get_strategy("scr", model=model, partition_path=partition_path,
-                            num_total_clients=12)  # Support-calibrated risk
     strategy = get_strategy("fedsld", partition_path=partition_path)  # FedSLD (ISBI 2022)
 """
 
 from algorithms.base import FedStrategyBase
 from algorithms.fedavg import FedAvgStrategy
 from algorithms.fedprox import FedProxStrategy
-from algorithms.fednova import FedNovaStrategy
 from algorithms.fedbn import FedBNStrategy
 from algorithms.scaffold import SCAFFOLDStrategy
 from algorithms.fedbns import (
@@ -27,7 +23,6 @@ from algorithms.fedbns import (
     FedBNScaffoldStrategy,
     ScaffoldFedBNStrategy,
 )
-from algorithms.scr import SCRStrategy
 from algorithms.fedsld import FedSLDStrategy
 from algorithms.fedsol import FedSOLStrategy
 from algorithms.fedswitch import FedSwitchStrategy
@@ -37,7 +32,6 @@ STRATEGY_REGISTRY = {
     # Core Baselines
     "fedavg": FedAvgStrategy,
     "fedprox": FedProxStrategy,
-    "fednova": FedNovaStrategy,
     "fedbn": FedBNStrategy,
     "scaffold": SCAFFOLDStrategy,
     # FedBNS (Proposed FedBN + SCAFFOLD) & Aliases
@@ -46,8 +40,6 @@ STRATEGY_REGISTRY = {
     "fedbn_scaffold": FedBNScaffoldStrategy,
     "bn_scaffold": FedBNScaffoldStrategy,
     "scaffold_fedbn": ScaffoldFedBNStrategy,
-    # Support-calibrated risk
-    "scr": SCRStrategy,
     # FedSLD (Shared Label Distribution)
     "fedsld": FedSLDStrategy,
     "fed_sld": FedSLDStrategy,
@@ -62,7 +54,7 @@ def get_strategy(name: str = "fedavg", **kwargs):
     """Factory function to create a strategy by name.
 
     Args:
-        name: One of 'fedavg', 'fedprox', 'fednova', 'fedbn', 'scaffold', 'fedbns', 'proposed', 'scr', 'fedsld', 'fedsol', 'fedswitch'.
+        name: One of 'fedavg', 'fedprox', 'fedbn', 'scaffold', 'fedbns', 'proposed', 'fedsld', 'fedsol', 'fedswitch'.
         **kwargs: Forwarded to the strategy constructor.
 
     Returns:
@@ -84,7 +76,6 @@ __all__ = [
     "FedStrategyBase",
     "FedAvgStrategy",
     "FedProxStrategy",
-    "FedNovaStrategy",
     "FedBNStrategy",
     "SCAFFOLDStrategy",
     "FedBNSStrategy",
@@ -92,7 +83,6 @@ __all__ = [
     "ProposedStrategy",
     "FedBNScaffoldStrategy",
     "ScaffoldFedBNStrategy",
-    "SCRStrategy",
     "FedSLDStrategy",
     "FedSOLStrategy",
     "FedSwitchStrategy",

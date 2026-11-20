@@ -21,10 +21,6 @@ Activate the project Python virtual environment:
   ```
 
 Verify neural network architectures:
-- **Modern CNN** (~20K parameters with BatchNorm and AdaptiveAvgPool):
-  ```bash
-  python -m models.cnn
-  ```
 - **Baseline CNN** (~570K parameters, classic 4-layer CNN without BatchNorm matching FedSLD ISBI 2022):
   ```bash
   python -m models.baseline
@@ -48,7 +44,7 @@ Centralized training optimizes the model on the full training set without partit
   ```
 - **Custom Hyperparameters** (e.g. 50 epochs on PathMNIST with AdamW optimizer):
   ```bash
-  python -m experiments.train_centralized --dataset pathmnist --model cnn --optimizer adamw --epochs 50 --batch_size 64 --lr 0.001
+  python -m experiments.train_centralized --dataset pathmnist --model baseline_bn --optimizer adamw --epochs 50 --batch_size 64 --lr 0.001
   ```
 - **Linux Background Execution (`nohup`)**:
   ```bash
@@ -74,7 +70,7 @@ Artifacts are automatically saved to `results/centralized/<timestamp>/` (or `res
 | `--name`, `-n` | `str` | `None` | Designated run identifier for the output folder name (`results/centralized/<name>/`). |
 | `--output_dir`, `--save_dir` | `str` | `None` | Custom output directory to store centralized training artifacts. |
 | `--dataset` | `str` | `pathmnist` | Dataset name: `bloodmnist`, `pathmnist`, `organamnist`, `dermamnist`. |
-| `--model` | `str` | `cnn` | Architecture: `cnn` (Modern CNN with BatchNorm) or `baseline` (FedSLD classic CNN). |
+| `--model` | `str` | `baseline_bn` | Architecture: `baseline_bn` (Classic CNN with BatchNorm) or `baseline` (FedSLD classic CNN). |
 | `--optimizer` | `str` | `adam` | Optimizer type: `adam`, `sgd`, or `adamw`. |
 | `--momentum` | `float` | `0.0` | Momentum factor when using `--optimizer sgd`. |
 | `--epochs` | `int` | `100` | Maximum training epochs (early stopping automatically halts when validation loss plateaus). |
@@ -148,7 +144,7 @@ Partition artifacts are saved to `data/partitions/`:
    Or override parameters directly via CLI:
    ```bash
    # Launch Proposed Strategy (FedBN + SCAFFOLD) for 12 clients over 40 rounds:
-   python -m server.server --strategy proposed --model cnn --rounds 40 --min_clients 12 --local_test --host 0.0.0.0 --port 8080
+   python -m server.server --strategy proposed --model baseline_bn --rounds 40 --min_clients 12 --local_test --host 0.0.0.0 --port 8080
 
    # Launch FedSOL Server (Self-Centered Optimization, rho=0.05, loss_type=kl):
    python -m server.server --strategy fedsol --model baseline_bn --fedsol_rho 0.05 --fedsol_loss_type kl --fedsol_temperature 3.0 --rounds 40 --min_clients 12 --local_test
@@ -180,9 +176,9 @@ Run client instances on each physical machine pointing to the server address:
 | Option | Type | Default | Description |
 | :--- | :---: | :---: | :--- |
 | `--config` | `str` | `configs/experiment.yaml` | Path to YAML experiment configuration file. |
-| `--strategy` | `str` | `fedbns` | Aggregation strategy: `fedavg`, `fedprox`, `fednova`, `fedbn`, `scaffold`, `fedbns`, `proposed`, `scr`, `fedsld`, `fedsol`, `fedswitch`. |
+| `--strategy` | `str` | `fedbns` | Aggregation strategy: `fedavg`, `fedprox`, `fedbn`, `scaffold`, `fedbns`, `proposed`, `fedsld`, `fedsol`, `fedswitch`. |
 | `--dataset` | `str` | `pathmnist` | Dataset name: `bloodmnist`, `pathmnist`, `organamnist`, `dermamnist`. |
-| `--model` | `str` | `baseline_bn` | Model architecture: `baseline_bn` (with BN), `baseline` (without BN), or `cnn`. |
+| `--model` | `str` | `baseline_bn` | Model architecture: `baseline_bn` (with BN) or `baseline` (without BN). |
 | `--partition_mode` | `str` | `practical` | Partition mode (`practical`, `pathological`, `dirichlet_0.3`, etc.). |
 | `--partition_path` | `str` | `None` | Path to training partition JSON. If omitted, auto-resolved from dataset and partition mode. |
 | `--rounds` | `int` | `40` | Total communication rounds. |
@@ -193,8 +189,6 @@ Run client instances on each physical machine pointing to the server address:
 | `--local_test` | `bool` | `True` | Track BMCTA and BTA on client-specific local test sets (required for FedBN and FedBNS). |
 | `--server_eval` | `bool` | `True` | Evaluate aggregated model on server global test set each round. |
 | `--proximal_mu` | `float` | `0.01` | FedProx proximal penalty coefficient. |
-| `--scr_gamma` | `float` | `1.0` | SCR class-client support smoothing parameter gamma. |
-| `--scr_head_lambda` | `float` | `0.01` | SCR support-dependent classifier head anchor strength. |
 | `--fedsld_epsilon` | `float` | `1e-6` | FedSLD smoothing epsilon for batch loss reweighting. |
 | `--fedsld_reduction` | `str` | `mean` | FedSLD batch loss reduction mode (`mean` or `sum`). |
 | `--fedsol_rho` | `float` | `0.05` | FedSOL SAM perturbation radius $\rho$. |
@@ -217,11 +211,11 @@ Run client instances on each physical machine pointing to the server address:
 | `--server_address` | `str` | `127.0.0.1:8080` | Server LAN address in `<IP>:<PORT>` format (inherited from `server_address` in YAML). |
 | `--config` | `str` | `configs/experiment.yaml` | Path to YAML experiment configuration file. |
 | `--dataset` | `str` | `pathmnist` | Dataset name: `bloodmnist`, `pathmnist`, `organamnist`, `dermamnist`. |
-| `--model` | `str` | `baseline_bn` | Model architecture: `baseline_bn`, `baseline`, or `cnn`. |
+| `--model` | `str` | `baseline_bn` | Model architecture: `baseline_bn` or `baseline`. |
 | `--partition_mode` | `str` | `practical` | Partition mode (`practical`, `pathological`, `dirichlet_0.3`, etc.). |
 | `--partition_path` | `str` | `None` | Path to partition JSON. If omitted, auto-detected from `data/partitions/`. |
 | `--num_clients` | `int` | `12` | Total number of clients in partition split. |
-| `--strategy` | `str` | `fedbns` | Client FL strategy (`fedavg`, `fedprox`, `fednova`, `fedbn`, `scaffold`, `fedbns`, `scr`, `fedsld`, `fedsol`, `fedswitch`). |
+| `--strategy` | `str` | `fedbns` | Client FL strategy (`fedavg`, `fedprox`, `fedbn`, `scaffold`, `fedbns`, `fedsld`, `fedsol`, `fedswitch`). |
 | `--optimizer` | `str` | `sgd` | Client local optimizer: `adam`, `sgd`, or `adamw`. |
 | `--fedsol_rho` | `float` | `0.05` | FedSOL SAM perturbation radius $\rho$. |
 | `--fedsol_loss_type` | `str` | `kl` | FedSOL proximal discrepancy loss metric (`kl` or `l2`). |
@@ -303,11 +297,9 @@ The simulation harness ([`experiments/run_simulation.py`](file:///D:/FPT/KLTN/FE
 | :--- | :---: | :---: | :--- |
 | `fedavg` | No | No | Baseline without heterogeneity compensation. |
 | `fedprox` | No | No | Proximal regularization restricts client drift. |
-| `fednova` | No | No | Normalized averaging resolves local step-count heterogeneity. |
 | `fedbn` | Yes | No | Local Batch Normalization mitigates feature/domain shift. |
 | `scaffold` | No | Yes | Control variates correct client drift from label non-IID. |
 | `fedbns` (`proposed`) | Yes | Yes | **Proposed Strategy**: Synergistic integration of FedBN and SCAFFOLD. |
-| `scr` | No | No | **Support-Calibrated Risk (SCR)**: Support statistics client risk weighting + support-dependent classifier head anchoring. |
 | `fedsld` | No | No | **Shared Label Distribution (FedSLD)**: Global marginal prior P~(y) estimation + dynamic mini-batch cross-entropy reweighting. |
 | `fedsol` | No | No | **Self-Centered Optimization (FedSOL)**: ExpSAM adversarial proximal perturbation against frozen round-start global reference model. |
 | `fedswitch` | No | No | **Stage-Switching FL (FedSwitch)**: Two-phase framework switching from balanced aggregation with DP Laplace noise to standard aggregation at round $R^*$. |
@@ -340,7 +332,7 @@ The simulation harness ([`experiments/run_simulation.py`](file:///D:/FPT/KLTN/FE
   ```
 - **Full Benchmark Suite on DermaMNIST**:
   ```bash
-  python -m experiments.run_simulation --datasets dermamnist --partitions practical pathological --strategies fedavg fedprox fednova fedbn scaffold proposed --model cnn --rounds 40 --num_clients 12 --local_test
+  python -m experiments.run_simulation --datasets dermamnist --partitions practical pathological --strategies fedavg fedprox fedbn scaffold proposed --model baseline_bn --rounds 40 --num_clients 12 --local_test
   ```
 
 ### 4.3. Simulation Output Structure
@@ -364,12 +356,12 @@ Simulation outputs are compiled in `results/simulation/<name_or_timestamp>/`:
 | `--name`, `-n` | `name` | `None` | Custom output directory name (`results/simulation/<name>/`). |
 | `--datasets` | `datasets` | `[pathmnist]` | List of datasets: `bloodmnist`, `pathmnist`, `organamnist`, `dermamnist`. |
 | `--partitions` | `partitions` | `[practical]` | List of partitions: `practical`, `pathological`, `dirichlet_0.3`, `dirichlet_0.1`, `dirichlet_1.0`. |
-| `--strategies` | `strategies` | `[proposed]` | List of strategies: `fedavg`, `fedprox`, `fednova`, `fedbn`, `scaffold`, `proposed`. |
+| `--strategies` | `strategies` | `[proposed]` | List of strategies: `fedavg`, `fedprox`, `fedbn`, `scaffold`, `proposed`, `fedsld`, `fedsol`, `fedswitch`. |
 | `--num_clients` | `num_clients` | `12` | Number of simulated clients participating in the federation. |
 | `--rounds` | `rounds` | `40` | Total communication rounds per run. |
 | `--local_epochs` | `local_epochs` | `5` | Local epochs per client per round. |
 | `--batch_size` | `batch_size` | `256` | DataLoader mini-batch size. |
-| `--model` | `model` | `cnn` | Architecture: `cnn` or `baseline`. |
+| `--model` | `model` | `baseline_bn` | Architecture: `baseline_bn` or `baseline`. |
 | `--optimizer` | `optimizer` | `adam` | Optimizer type: `adam` or `sgd`. |
 | `--learning_rate`, `--lr` | `learning_rate` | `0.01` | Base initial learning rate. |
 | `--lr_mode` | `lr_mode` | `fixed` | LR scheduling mode: `fixed`, `client_loss`, `server_decay`. |

@@ -32,8 +32,6 @@ DEFAULT_SERVER_ADVANCED: Dict[str, Any] = {
     "fedswitch_coverage": "0.9",
     "fedswitch_epsilon": "1.0",
     "fedswitch_c_bound": "50",
-    "scr_gamma": "1.0",
-    "scr_head_lambda": "0.01",
     "fedsld_epsilon": "1e-6",
     "fedsld_reduction": "mean",
     # 2. Optimization Policies & Learning Rates
@@ -445,7 +443,6 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
         is_prox = "prox" in strat
         is_sol = "sol" in strat
         is_sw = "switch" in strat
-        is_scr = "scr" in strat
         is_sld = "sld" in strat
 
         # Sub-header note
@@ -503,14 +500,6 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
             )
             self._add_entry_row(
                 body, "fedswitch_c_bound", "FedSwitch Clipping Bound C:", "50"
-            )
-
-            # SCR
-            self._add_entry_row(
-                body, "scr_gamma", "SCR Class Support γ:", "1.0", is_highlight=is_scr
-            )
-            self._add_entry_row(
-                body, "scr_head_lambda", "SCR Head Anchor λ:", "0.01"
             )
 
             # FedSLD
@@ -799,8 +788,6 @@ class AdvancedConfigDialog(ctk.CTkToplevel):
                     "fedsol_temperature",
                     "fedswitch_coverage",
                     "fedswitch_epsilon",
-                    "scr_gamma",
-                    "scr_head_lambda",
                     "fedsld_epsilon",
                     "server_lr_decay_gamma",
                     "server_lr_min",

@@ -31,7 +31,7 @@ from algorithms.base import (
     _format_device_details,
     _weighted_average_metrics,
 )
-from models.cnn import get_parameters
+from models.utils import get_parameters
 from monitoring.metrics import FLMetricsRecorder
 
 

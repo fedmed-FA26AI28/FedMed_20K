@@ -9,16 +9,16 @@
 #      ./test_centralized.sh [model] [dataset] [custom_base_name]
 #      e.g.: ./test_centralized.sh baseline_bn pathmnist
 #      e.g.: ./test_centralized.sh pathmnist baseline_bn
-#      e.g.: ./test_centralized.sh cnn
+#      e.g.: ./test_centralized.sh baseline
 #      e.g.: ./test_centralized.sh organamnist
-#      e.g.: ./test_centralized.sh "baseline_bn cnn" "pathmnist organamnist"
+#      e.g.: ./test_centralized.sh "baseline_bn baseline" "pathmnist organamnist"
 # 3. Or pass as named CLI flags:
-#      ./test_centralized.sh --model cnn --dataset bloodmnist
+#      ./test_centralized.sh --model baseline --dataset bloodmnist
 #      ./test_centralized.sh -m baseline_bn -d pathmnist
 #      ./test_centralized.sh --dataset organamnist --epochs 400
 # 4. Or pass via environment variables:
-#      MODEL=cnn DATASET=bloodmnist ./test_centralized.sh
-#      MODELS="baseline_bn cnn" DATASETS="pathmnist bloodmnist" ./test_centralized.sh
+#      MODEL=baseline DATASET=bloodmnist ./test_centralized.sh
+#      MODELS="baseline_bn baseline" DATASETS="pathmnist bloodmnist" ./test_centralized.sh
 #      EPOCHS=400 BATCH_SIZE=256 OPTIMIZER=sgd ./test_centralized.sh
 # ==============================================================================
 
@@ -43,7 +43,7 @@ is_dataset_like() {
 is_model_like() {
     local val
     val="$(echo "$1" | tr '[:upper:]' '[:lower:]')"
-    [[ "$val" =~ baseline|cnn|paper|classic ]]
+    [[ "$val" =~ baseline|paper|classic ]]
 }
 
 # Parse named CLI flags and collect positional arguments
@@ -89,7 +89,7 @@ while [[ $# -gt 0 ]]; do
             echo "Usage: ./test_centralized.sh [options] [model] [dataset] [custom_base_name]"
             echo ""
             echo "Options:"
-            echo "  -m, --model <name>       Model architecture (baseline_bn, baseline, cnn)"
+            echo "  -m, --model <name>       Model architecture (baseline_bn, baseline)"
             echo "  -d, --dataset <name>     Dataset name (pathmnist, bloodmnist, organamnist, dermamnist)"
             echo "  -e, --epochs <int>       Number of training epochs (default: 400)"
             echo "  -b, --batch_size <int>   Batch size (default: 256)"
@@ -102,16 +102,16 @@ while [[ $# -gt 0 ]]; do
             echo "Positional Usage Examples:"
             echo "  ./test_centralized.sh baseline_bn pathmnist"
             echo "  ./test_centralized.sh pathmnist baseline_bn"
-            echo "  ./test_centralized.sh cnn"
+            echo "  ./test_centralized.sh baseline"
             echo "  ./test_centralized.sh organamnist"
-            echo "  ./test_centralized.sh \"baseline_bn cnn\" \"pathmnist bloodmnist\""
+            echo "  ./test_centralized.sh \"baseline_bn baseline\" \"pathmnist bloodmnist\""
             echo ""
             echo "Named Flags Examples:"
-            echo "  ./test_centralized.sh --model cnn --dataset bloodmnist"
+            echo "  ./test_centralized.sh --model baseline --dataset bloodmnist"
             echo "  ./test_centralized.sh -m baseline_bn -d organamnist -e 400"
             echo ""
             echo "Environment Variable Examples:"
-            echo "  MODEL=cnn DATASET=organamnist ./test_centralized.sh"
+            echo "  MODEL=baseline DATASET=organamnist ./test_centralized.sh"
             echo "  EPOCHS=400 BATCH_SIZE=256 ./test_centralized.sh"
             echo "=================================================================="
             exit 0
