@@ -1043,6 +1043,7 @@ class FedMedAIClient(fl.client.NumPyClient):
         server_round: int,
         strategy: str,
         config: Optional[dict] = None,
+        phase: str = "fit",
     ) -> None:
         """Initialize session once on first server message, resuming if reconnecting mid-run."""
         if self._session_initialized:
@@ -1050,7 +1051,8 @@ class FedMedAIClient(fl.client.NumPyClient):
         self._session_initialized = True
 
         rnd = int(server_round)
-        if self.auto_resume and rnd > 1:
+        should_try_resume = self.auto_resume and (rnd > 1 or (phase == "evaluate" and rnd >= 1))
+        if should_try_resume:
             resumed = self._try_resume_from_disk(rnd, strategy, config)
             if not resumed:
                 print(
@@ -1058,7 +1060,7 @@ class FedMedAIClient(fl.client.NumPyClient):
                     flush=True,
                 )
         else:
-            if rnd <= 1 and self.save_local_metrics:
+            if ((phase == "fit" and rnd <= 1) or rnd <= 0) and self.save_local_metrics:
                 for stale_name in ("latest_state.pt", "latest_model.pth"):
                     stale_path = self.client_dir / stale_name
                     if stale_path.exists():
@@ -1079,7 +1081,7 @@ class FedMedAIClient(fl.client.NumPyClient):
         """Receive global model, train locally, return updated weights + metrics."""
         strategy = str(config.get("strategy", self.strategy or "fedavg")).lower()
         server_round = int(config.get("server_round", len(self.round_history) + 1))
-        self._ensure_session_initialized(server_round=server_round, strategy=strategy, config=config)
+        self._ensure_session_initialized(server_round=server_round, strategy=strategy, config=config, phase="fit")
 
         num_model_layers = len(get_parameters(self.model))
         fedbn_strategies = (
@@ -1674,7 +1676,7 @@ class FedMedAIClient(fl.client.NumPyClient):
         eval_round = config.get("server_round")
         strategy = str(config.get("strategy", self.strategy or "fedavg")).lower()
         eval_round_int = int(eval_round) if eval_round is not None else 0
-        self._ensure_session_initialized(server_round=eval_round_int, strategy=strategy, config=config)
+        self._ensure_session_initialized(server_round=eval_round_int, strategy=strategy, config=config, phase="evaluate")
 
         eval_ping_ms = None
         if eval_round is not None:

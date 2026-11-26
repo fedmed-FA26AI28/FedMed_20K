@@ -45,12 +45,14 @@ import numpy as np
 import torch
 import flwr as fl
 from flwr.common import (
+    EvaluateIns,
     ndarrays_to_parameters,
     parameters_to_ndarrays,
     Scalar,
     Parameters,
 )
 from flwr.common.logger import log
+from flwr.server.server import evaluate_clients
 
 from models import get_model, set_seed, get_parameters, set_parameters
 from algorithms import get_strategy
@@ -107,7 +109,189 @@ class InterruptibleClientManager(fl.server.SimpleClientManager):
 # ──────────────────────────────────────────────────────────────
 
 class FedMedAIServer(fl.server.Server):
-    """Custom Flower Server subclass with active early stopping support and weights preservation."""
+    """Custom Flower Server subclass with active early stopping support, eval reconnect retry, and weights preservation."""
+
+    def __init__(
+        self,
+        *,
+        client_manager,
+        strategy=None,
+        eval_reconnect_grace_seconds: float = 30.0,
+        max_eval_retries: int = 5,
+    ):
+        super().__init__(client_manager=client_manager, strategy=strategy)
+        self.eval_reconnect_grace_seconds = float(eval_reconnect_grace_seconds)
+        self.max_eval_retries = int(max_eval_retries)
+        self._last_fit_client_count: int = 0
+
+    def _wait_for_new_eval_clients(
+        self,
+        exclude_cids: set,
+        needed: int,
+        wait_timeout: float,
+    ) -> List[Any]:
+        """Poll ClientManager until `needed` new client proxies register or `wait_timeout` expires."""
+        end_time = time.time() + max(0.0, float(wait_timeout))
+        cv = getattr(self._client_manager, "_cv", None)
+        while True:
+            all_clients = list(self._client_manager.all().values())
+            new_proxies = [p for p in all_clients if p.cid not in exclude_cids]
+            if len(new_proxies) >= needed or time.time() >= end_time:
+                return new_proxies
+            remaining = end_time - time.time()
+            step = min(0.25, max(0.01, remaining))
+            if cv is not None:
+                with cv:
+                    all_clients = list(self._client_manager.all().values())
+                    new_proxies = [p for p in all_clients if p.cid not in exclude_cids]
+                    if len(new_proxies) >= needed:
+                        return new_proxies
+                    cv.wait(timeout=step)
+            else:
+                time.sleep(step)
+
+    def evaluate_round(
+        self,
+        server_round: int,
+        timeout: Optional[float],
+    ):
+        """Evaluate current global model on clients, retrying evaluation for disconnected/reconnected clients."""
+        min_eval_clients = max(1, int(getattr(self.strategy, "min_evaluate_clients", 1)))
+        expected_eval_clients = max(min_eval_clients, int(getattr(self, "_last_fit_client_count", 0)))
+
+        # Wait briefly if a client that just completed fit disconnected right before evaluate
+        if min_eval_clients <= self._client_manager.num_available() < expected_eval_clients:
+            log(
+                WARNING,
+                "[Server] Round %d evaluate: %d/%d fit clients available; waiting up to %.1fs for reconnecting client(s)...",
+                server_round,
+                self._client_manager.num_available(),
+                expected_eval_clients,
+                self.eval_reconnect_grace_seconds,
+            )
+            grace_end = time.time() + max(0.0, self.eval_reconnect_grace_seconds)
+            cv = getattr(self._client_manager, "_cv", None)
+            while time.time() < grace_end:
+                if self._client_manager.num_available() >= expected_eval_clients:
+                    break
+                remaining = grace_end - time.time()
+                step = min(0.25, max(0.01, remaining))
+                if cv is not None:
+                    with cv:
+                        if self._client_manager.num_available() >= expected_eval_clients:
+                            break
+                        cv.wait(timeout=step)
+                else:
+                    time.sleep(step)
+
+        client_instructions = self.strategy.configure_evaluate(
+            server_round=server_round,
+            parameters=self.parameters,
+            client_manager=self._client_manager,
+        )
+        if not client_instructions:
+            log(INFO, "configure_evaluate: no clients selected, skipping evaluation")
+            return None
+
+        log(
+            INFO,
+            "configure_evaluate: strategy sampled %s clients (out of %s)",
+            len(client_instructions),
+            self._client_manager.num_available(),
+        )
+
+        template_ins = client_instructions[0][1]
+        target_eval_clients = max(min_eval_clients, len(client_instructions))
+
+        batch_results, batch_failures = evaluate_clients(
+            client_instructions,
+            max_workers=self.max_workers,
+            timeout=timeout,
+            group_id=server_round,
+        )
+
+        succeeded_results = list(batch_results)
+        done_proxy_cids = {p.cid for p, _ in succeeded_results}
+        failed_proxy_cids: set = set()
+        last_failures = list(batch_failures)
+
+        for proxy, _ in client_instructions:
+            if proxy.cid not in done_proxy_cids:
+                failed_proxy_cids.add(proxy.cid)
+                try:
+                    self._client_manager.unregister(proxy)
+                except Exception:
+                    pass
+
+        retry_attempt = 0
+        while last_failures and len(succeeded_results) < target_eval_clients and retry_attempt < self.max_eval_retries:
+            retry_attempt += 1
+            need_quorum = len(succeeded_results) < min_eval_clients
+            missing = (min_eval_clients if need_quorum else target_eval_clients) - len(succeeded_results)
+            wait_timeout = (
+                (float(timeout) if timeout is not None else 86400.0)
+                if need_quorum
+                else float(self.eval_reconnect_grace_seconds)
+            )
+            log(
+                WARNING,
+                "[Server] Round %d evaluate: %d failure(s) (%d/%d completed). Waiting up to %.1fs for reconnected client(s) (attempt %d/%d)...",
+                server_round,
+                len(last_failures),
+                len(succeeded_results),
+                target_eval_clients,
+                wait_timeout,
+                retry_attempt,
+                self.max_eval_retries,
+            )
+            new_proxies = self._wait_for_new_eval_clients(
+                done_proxy_cids | failed_proxy_cids,
+                needed=missing,
+                wait_timeout=wait_timeout,
+            )
+            if not new_proxies:
+                break
+
+            retry_proxies = new_proxies[: max(1, target_eval_clients - len(succeeded_results))]
+            retry_instructions = [
+                (
+                    p,
+                    EvaluateIns(
+                        parameters=template_ins.parameters,
+                        config=dict(template_ins.config or {}),
+                    ),
+                )
+                for p in retry_proxies
+            ]
+            r_results, r_failures = evaluate_clients(
+                retry_instructions,
+                max_workers=self.max_workers,
+                timeout=timeout,
+                group_id=server_round,
+            )
+            succeeded_results.extend(r_results)
+            done_proxy_cids.update(p.cid for p, _ in r_results)
+            for proxy, _ in retry_instructions:
+                if proxy.cid not in done_proxy_cids:
+                    failed_proxy_cids.add(proxy.cid)
+                    try:
+                        self._client_manager.unregister(proxy)
+                    except Exception:
+                        pass
+            last_failures = list(r_failures)
+
+        log(
+            INFO,
+            "aggregate_evaluate: received %s results and %s failures",
+            len(succeeded_results),
+            len(last_failures),
+        )
+
+        aggregated_result = self.strategy.aggregate_evaluate(
+            server_round, succeeded_results, last_failures
+        )
+        loss_aggregated, metrics_aggregated = aggregated_result
+        return loss_aggregated, metrics_aggregated, (succeeded_results, last_failures)
 
     def fit(self, num_rounds: int, timeout: Optional[float] = None) -> Tuple[fl.server.history.History, float]:
         """Run federated averaging with immediate early stopping detection and graceful exit."""
@@ -151,7 +335,9 @@ class FedMedAIServer(fl.server.Server):
                 timeout=timeout,
             )
             if res_fit is not None:
-                parameters_prime, fit_metrics, _ = res_fit
+                parameters_prime, fit_metrics, fit_res_tuple = res_fit
+                if isinstance(fit_res_tuple, (tuple, list)) and len(fit_res_tuple) >= 1:
+                    self._last_fit_client_count = len(fit_res_tuple[0])
                 if parameters_prime:
                     self.parameters = parameters_prime
                 history.add_metrics_distributed_fit(
