@@ -435,6 +435,100 @@ def _local_train(
 
 
 # ──────────────────────────────────────────────────────────────
+# Checkpoint & Resume Helpers
+# ──────────────────────────────────────────────────────────────
+
+def _canonical_strategy_name(name: Optional[str]) -> str:
+    """Normalize strategy aliases to a canonical lowercase identifier."""
+    s = str(name or "").lower().strip()
+    if s in ("proposed", "fedbns", "fedbn_scaffold", "bn_scaffold", "scaffold_fedbn"):
+        return "fedbns"
+    if s in ("fedsld", "fed_sld"):
+        return "fedsld"
+    if s in ("fedsol", "fed_sol"):
+        return "fedsol"
+    if s in ("fedswitch", "fed_switch"):
+        return "fedswitch"
+    return s
+
+
+def _clone_value_to_cpu(val: Any) -> Any:
+    """Recursively detach and clone tensor values to CPU for device-agnostic checkpoints."""
+    if isinstance(val, torch.Tensor):
+        return val.detach().cpu().clone()
+    if isinstance(val, dict):
+        return {k: _clone_value_to_cpu(v) for k, v in val.items()}
+    if isinstance(val, list):
+        return [_clone_value_to_cpu(v) for v in val]
+    if isinstance(val, tuple):
+        return tuple(_clone_value_to_cpu(v) for v in val)
+    return val
+
+
+def _clone_optimizer_state_to_cpu(optimizer: torch.optim.Optimizer) -> Dict[str, Any]:
+    """Return a CPU-cloned copy of an optimizer's state_dict."""
+    return _clone_value_to_cpu(optimizer.state_dict())
+
+
+def _move_value_to_device(val: Any, device: torch.device) -> Any:
+    """Recursively move tensor values to the target device."""
+    if isinstance(val, torch.Tensor):
+        return val.to(device)
+    if isinstance(val, dict):
+        return {k: _move_value_to_device(v, device) for k, v in val.items()}
+    if isinstance(val, list):
+        return [_move_value_to_device(v, device) for v in val]
+    if isinstance(val, tuple):
+        return tuple(_move_value_to_device(v, device) for v in val)
+    return val
+
+
+def _move_optimizer_state_to_device(optimizer: torch.optim.Optimizer, device: torch.device) -> None:
+    """Move all tensor buffers inside optimizer.state to `device`."""
+    for state in optimizer.state.values():
+        if isinstance(state, dict):
+            for k, v in list(state.items()):
+                state[k] = _move_value_to_device(v, device)
+
+
+def _build_optimizer(
+    optimizer_name: str,
+    model_params,
+    lr: float,
+    momentum: float,
+    weight_decay: float,
+) -> torch.optim.Optimizer:
+    """Instantiate the configured local PyTorch optimizer."""
+    opt_key = str(optimizer_name).lower().strip()
+    if opt_key == "sgd":
+        return optim.SGD(
+            model_params,
+            lr=lr,
+            momentum=momentum,
+            weight_decay=weight_decay,
+        )
+    if opt_key == "adamw":
+        return optim.AdamW(
+            model_params,
+            lr=lr,
+            weight_decay=weight_decay,
+        )
+    return optim.Adam(
+        model_params,
+        lr=lr,
+        weight_decay=weight_decay,
+    )
+
+
+def _atomic_torch_save(payload: Any, path: Path) -> None:
+    """Write a torch checkpoint atomically via a sibling temporary file."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    tmp_path = path.with_name(f"{path.name}.tmp")
+    torch.save(payload, tmp_path)
+    os.replace(tmp_path, path)
+
+
+# ──────────────────────────────────────────────────────────────
 # Flower NumPyClient
 # ──────────────────────────────────────────────────────────────
 
@@ -471,6 +565,7 @@ class FedMedAIClient(fl.client.NumPyClient):
         fedsol_temperature: float = 3.0,
         fedsol_adaptive: bool = False,
         clip_grad_norm: Optional[float] = None,
+        auto_resume: bool = True,
     ):
         self.client_id = client_id
         self.model_name = model_name
@@ -513,6 +608,9 @@ class FedMedAIClient(fl.client.NumPyClient):
         self.best_eval_accuracy: float = -1.0
         self.best_eval_round: Optional[int] = None
         self.best_model_state: Optional[Dict[str, Any]] = None
+        self.auto_resume: bool = bool(auto_resume)
+        self._session_initialized: bool = False
+        self._resumed_from_checkpoint: bool = False
 
         # Client ping logger
         if client_dir is not None:
@@ -536,25 +634,13 @@ class FedMedAIClient(fl.client.NumPyClient):
         )
         self.model = get_model(model_name, num_classes=num_classes).to(self.device)
 
-        if self.optimizer_name == "sgd":
-            self.optimizer = optim.SGD(
-                self.model.parameters(),
-                lr=self.learning_rate,
-                momentum=self.momentum,
-                weight_decay=self.weight_decay,
-            )
-        elif self.optimizer_name == "adamw":
-            self.optimizer = optim.AdamW(
-                self.model.parameters(),
-                lr=self.learning_rate,
-                weight_decay=self.weight_decay,
-            )
-        else:
-            self.optimizer = optim.Adam(
-                self.model.parameters(),
-                lr=self.learning_rate,
-                weight_decay=self.weight_decay,
-            )
+        self.optimizer = _build_optimizer(
+            self.optimizer_name,
+            self.model.parameters(),
+            self.learning_rate,
+            self.momentum,
+            self.weight_decay,
+        )
 
         self.scheduler = ReduceLROnPlateau(
             self.optimizer,
@@ -572,6 +658,419 @@ class FedMedAIClient(fl.client.NumPyClient):
             f"Optimizer: {self.optimizer_name.upper()} | LR Mode: {self.lr_mode} (Initial LR: {self.learning_rate})"
         )
 
+    def _upsert_round_history(self, entry: Dict[str, Any]) -> None:
+        """Insert or replace a round_history record keyed by server_round, sorted ascending."""
+        r_num = int(entry.get("server_round", 0))
+        by_round = {int(item.get("server_round", 0)): item for item in self.round_history}
+        by_round[r_num] = entry
+        self.round_history = [by_round[r] for r in sorted(by_round.keys())]
+
+    def _upsert_eval_history(self, entry: Dict[str, Any]) -> None:
+        """Insert or replace an eval_history record keyed by server_round, sorted ascending."""
+        r_num = int(entry.get("server_round", 0))
+        by_round = {int(item.get("server_round", 0)): item for item in self.eval_history}
+        by_round[r_num] = entry
+        self.eval_history = [by_round[r] for r in sorted(by_round.keys())]
+
+    def _replace_round_epoch_history(self, server_round: int, entries: List[Dict[str, Any]]) -> None:
+        """Replace epoch_history rows for `server_round` without duplicating prior rounds."""
+        target_round = int(server_round)
+        kept = [row for row in self.epoch_history if int(row.get("round", -1)) != target_round]
+        kept.extend(entries)
+        self.epoch_history = kept
+
+    def _emit_resume_history(self, resumed_round: int, source_label: str) -> None:
+        """Emit structured resume history marker so the dashboard restores prior curves."""
+        compact_rounds = []
+        for r in self.round_history:
+            if r.get("server_round") is None:
+                continue
+            item: Dict[str, Any] = {
+                "server_round": int(r["server_round"]),
+            }
+            if r.get("train_loss") is not None:
+                item["train_loss"] = float(r["train_loss"])
+            if r.get("train_accuracy") is not None:
+                item["train_accuracy"] = float(r["train_accuracy"])
+            rt = r.get("round_time", r.get("training_time"))
+            if rt is not None:
+                item["round_time"] = float(rt)
+            if r.get("ping_ms") is not None:
+                item["ping_ms"] = float(r["ping_ms"])
+            if r.get("num_samples") is not None:
+                item["num_samples"] = int(r["num_samples"])
+            compact_rounds.append(item)
+
+        compact_evals = []
+        for e in self.eval_history:
+            if e.get("server_round") is None:
+                continue
+            ev_item: Dict[str, Any] = {
+                "server_round": int(e["server_round"]),
+            }
+            if e.get("eval_loss") is not None:
+                ev_item["eval_loss"] = float(e["eval_loss"])
+            if e.get("eval_accuracy") is not None:
+                ev_item["eval_accuracy"] = float(e["eval_accuracy"])
+            compact_evals.append(ev_item)
+
+        pkg = {
+            "client_id": int(self.client_id),
+            "resumed_round": int(resumed_round),
+            "source": str(source_label),
+            "round_history": compact_rounds,
+            "eval_history": compact_evals,
+        }
+        print(f"[CLIENT_RESUME_HISTORY] {json.dumps(pkg)}", flush=True)
+
+    def _load_csv_histories_fallback(self, incoming_round: int) -> tuple[List[Dict[str, Any]], List[Dict[str, Any]]]:
+        """Load prior round and eval histories from local CSVs up to `incoming_round`."""
+        import csv
+
+        loaded_rounds: Dict[int, Dict[str, Any]] = {}
+        r_path = self.client_dir / f"client_{self.client_id}_round_metrics.csv"
+        if r_path.exists():
+            try:
+                with open(r_path, "r", encoding="utf-8") as f:
+                    for row in csv.DictReader(f):
+                        try:
+                            sr = int(float(row["server_round"]))
+                        except (KeyError, TypeError, ValueError):
+                            continue
+                        if not (0 < sr <= incoming_round):
+                            continue
+                        parsed: Dict[str, Any] = {"server_round": sr, "client_id": int(self.client_id)}
+                        if row.get("device_type"):
+                            parsed["device_type"] = row["device_type"]
+                        for int_key in ("num_samples", "local_epochs"):
+                            if row.get(int_key) not in (None, ""):
+                                try:
+                                    parsed[int_key] = int(float(row[int_key]))
+                                except ValueError:
+                                    pass
+                        for flt_key in (
+                            "learning_rate", "training_time", "epoch_time_avg", "epoch_time_min",
+                            "epoch_time_max", "train_loss", "train_accuracy", "ping_ms",
+                            "weight_size_kb", "cpu_percent", "ram_percent", "ram_used_mb", "gpu_memory_mb",
+                        ):
+                            if row.get(flt_key) not in (None, ""):
+                                try:
+                                    parsed[flt_key] = float(row[flt_key])
+                                except ValueError:
+                                    pass
+                        loaded_rounds[sr] = parsed
+            except Exception as exc:
+                print(f"[Client {self.client_id}] Warning: Could not read {r_path.name} for resume: {exc}")
+
+        loaded_evals: Dict[int, Dict[str, Any]] = {}
+        ev_path = self.client_dir / f"client_{self.client_id}_eval_metrics.csv"
+        if ev_path.exists():
+            try:
+                with open(ev_path, "r", encoding="utf-8") as f:
+                    for row in csv.DictReader(f):
+                        try:
+                            sr = int(float(row["server_round"]))
+                        except (KeyError, TypeError, ValueError):
+                            continue
+                        if not (0 < sr <= incoming_round):
+                            continue
+                        parsed_ev: Dict[str, Any] = {"server_round": sr}
+                        for flt_key in ("eval_loss", "eval_accuracy"):
+                            if row.get(flt_key) not in (None, ""):
+                                try:
+                                    parsed_ev[flt_key] = float(row[flt_key])
+                                except ValueError:
+                                    pass
+                        if "eval_loss" in parsed_ev or "eval_accuracy" in parsed_ev:
+                            loaded_evals[sr] = parsed_ev
+            except Exception as exc:
+                print(f"[Client {self.client_id}] Warning: Could not read {ev_path.name} for resume: {exc}")
+
+        return (
+            [loaded_rounds[r] for r in sorted(loaded_rounds.keys())],
+            [loaded_evals[r] for r in sorted(loaded_evals.keys())],
+        )
+
+    def _save_latest_state(self, server_round: int, strategy: Optional[str] = None) -> Optional[Path]:
+        """Persist latest local model weights (including BN layers) and full resume state atomically."""
+        if not self.save_local_metrics:
+            return None
+        try:
+            self.client_dir.mkdir(parents=True, exist_ok=True)
+            model_sd = {k: v.detach().cpu().clone() for k, v in self.model.state_dict().items()}
+            state_payload = {
+                "schema_version": 1,
+                "client_id": int(self.client_id),
+                "model_name": str(self.model_name),
+                "num_classes": int(self.num_classes),
+                "strategy": _canonical_strategy_name(strategy or self.strategy),
+                "optimizer_name": str(self.optimizer_name),
+                "momentum": float(self.momentum),
+                "weight_decay": float(self.weight_decay),
+                "server_address": str(self.server_address),
+                "partition_path": str(self.partition_path or ""),
+                "last_server_round": int(server_round),
+                "model_state_dict": model_sd,
+                "optimizer_state_dict": _clone_optimizer_state_to_cpu(self.optimizer),
+                "scheduler_state_dict": self.scheduler.state_dict() if self.scheduler is not None else None,
+                "learning_rate": float(self.optimizer.param_groups[0]["lr"]),
+                "lr_initialized": bool(self._lr_initialized),
+                "lr_patience": int(self.lr_patience),
+                "lr_factor": float(self.lr_factor),
+                "lr_min": float(self.lr_min),
+                "client_control_variate": (
+                    [np.array(arr, copy=True) for arr in self.client_control_variate]
+                    if self.client_control_variate is not None
+                    else None
+                ),
+                "best_eval_accuracy": float(self.best_eval_accuracy),
+                "best_eval_round": self.best_eval_round,
+                "round_history": list(self.round_history),
+                "epoch_history": list(self.epoch_history),
+                "eval_history": list(self.eval_history),
+            }
+            state_path = self.client_dir / "latest_state.pt"
+            latest_model_path = self.client_dir / "latest_model.pth"
+            _atomic_torch_save(state_payload, state_path)
+            _atomic_torch_save(model_sd, latest_model_path)
+            return state_path
+        except Exception as exc:
+            print(f"[Client {self.client_id}] Warning: Could not save latest_state.pt: {exc}")
+            return None
+
+    def _try_resume_from_disk(
+        self,
+        incoming_round: int,
+        incoming_strategy: str,
+        config: Optional[dict] = None,
+    ) -> bool:
+        """Attempt to restore local model (with BN layers), optimizer, variates, and history from disk."""
+        state_path = self.client_dir / "latest_state.pt"
+        canon_incoming = _canonical_strategy_name(incoming_strategy or self.strategy)
+
+        if state_path.exists():
+            try:
+                ckpt = torch.load(state_path, map_location="cpu", weights_only=False)
+                ckpt_cid = int(ckpt.get("client_id", -1))
+                ckpt_model = str(ckpt.get("model_name", ""))
+                ckpt_classes = int(ckpt.get("num_classes", -1))
+                ckpt_strategy = _canonical_strategy_name(ckpt.get("strategy"))
+                ckpt_part = str(ckpt.get("partition_path", "") or "")
+                ckpt_round = int(ckpt.get("last_server_round", 0))
+
+                if ckpt_cid != int(self.client_id):
+                    print(f"[Client {self.client_id}] Resume skipped: client_id mismatch ({ckpt_cid} != {self.client_id}).")
+                    return False
+                if ckpt_model != str(self.model_name) or ckpt_classes != int(self.num_classes):
+                    print(
+                        f"[Client {self.client_id}] Resume skipped: model mismatch "
+                        f"({ckpt_model}/{ckpt_classes} != {self.model_name}/{self.num_classes})."
+                    )
+                    return False
+                if ckpt_strategy and canon_incoming and ckpt_strategy != canon_incoming:
+                    print(
+                        f"[Client {self.client_id}] Resume skipped: strategy mismatch "
+                        f"({ckpt_strategy} != {canon_incoming})."
+                    )
+                    return False
+                if ckpt_part and self.partition_path and Path(ckpt_part).name != Path(self.partition_path).name:
+                    print(
+                        f"[Client {self.client_id}] Resume skipped: partition mismatch "
+                        f"({Path(ckpt_part).name} != {Path(self.partition_path).name})."
+                    )
+                    return False
+                if not (0 < ckpt_round <= int(incoming_round)):
+                    print(
+                        f"[Client {self.client_id}] Resume skipped: checkpoint round {ckpt_round} "
+                        f"incompatible with incoming round {incoming_round}."
+                    )
+                    return False
+
+                model_sd = ckpt.get("model_state_dict")
+                if not isinstance(model_sd, dict):
+                    print(f"[Client {self.client_id}] Resume skipped: missing model_state_dict in {state_path.name}.")
+                    return False
+
+                self.model.load_state_dict(model_sd, strict=True)
+                self.model.to(self.device)
+
+                # Restore SCAFFOLD client control variate if shapes match
+                ckpt_cv = ckpt.get("client_control_variate")
+                if ckpt_cv is not None:
+                    expected_shapes = [p.shape for p in get_parameters(self.model)]
+                    if len(ckpt_cv) == len(expected_shapes) and all(
+                        np.asarray(a).shape == s for a, s in zip(ckpt_cv, expected_shapes)
+                    ):
+                        self.client_control_variate = [np.array(a, copy=True) for a in ckpt_cv]
+
+                # Restore LR / scheduler settings and optimizer state
+                if ckpt.get("lr_patience") is not None:
+                    self.lr_patience = int(ckpt["lr_patience"])
+                if ckpt.get("lr_factor") is not None:
+                    self.lr_factor = float(ckpt["lr_factor"])
+                if ckpt.get("lr_min") is not None:
+                    self.lr_min = float(ckpt["lr_min"])
+                if ckpt.get("learning_rate") is not None:
+                    self.learning_rate = float(ckpt["learning_rate"])
+                if ckpt.get("lr_initialized") is not None:
+                    self._lr_initialized = bool(ckpt["lr_initialized"])
+
+                if config and "optimizer" in config:
+                    srv_opt = str(config["optimizer"]).lower().strip()
+                    if srv_opt != self.optimizer_name:
+                        self.optimizer_name = srv_opt
+                        if "momentum" in config:
+                            self.momentum = float(config["momentum"])
+                        self.optimizer = _build_optimizer(
+                            self.optimizer_name,
+                            self.model.parameters(),
+                            self.learning_rate,
+                            self.momentum,
+                            self.weight_decay,
+                        )
+
+                ckpt_opt_name = str(ckpt.get("optimizer_name", "")).lower().strip()
+                ckpt_opt_sd = ckpt.get("optimizer_state_dict")
+                if ckpt_opt_name == self.optimizer_name and isinstance(ckpt_opt_sd, dict):
+                    try:
+                        self.optimizer.load_state_dict(ckpt_opt_sd)
+                        _move_optimizer_state_to_device(self.optimizer, self.device)
+                        self.learning_rate = float(self.optimizer.param_groups[0]["lr"])
+                    except Exception as opt_exc:
+                        print(f"[Client {self.client_id}] Warning: Could not restore optimizer state: {opt_exc}")
+
+                self.scheduler = ReduceLROnPlateau(
+                    self.optimizer,
+                    mode="min",
+                    factor=self.lr_factor,
+                    patience=self.lr_patience,
+                    min_lr=self.lr_min,
+                )
+                ckpt_sched_sd = ckpt.get("scheduler_state_dict")
+                if isinstance(ckpt_sched_sd, dict):
+                    try:
+                        self.scheduler.load_state_dict(ckpt_sched_sd)
+                    except Exception as sched_exc:
+                        print(f"[Client {self.client_id}] Warning: Could not restore scheduler state: {sched_exc}")
+
+                # Restore best metric tracking & best_model_state
+                if ckpt.get("best_eval_accuracy") is not None:
+                    self.best_eval_accuracy = float(ckpt["best_eval_accuracy"])
+                self.best_eval_round = ckpt.get("best_eval_round")
+                best_pth = self.client_dir / "best_model.pth"
+                if best_pth.exists():
+                    try:
+                        best_sd = torch.load(best_pth, map_location="cpu", weights_only=False)
+                        if isinstance(best_sd, dict):
+                            self.best_model_state = best_sd
+                    except Exception:
+                        pass
+
+                # Restore histories up to incoming_round
+                self.round_history = [
+                    r for r in (ckpt.get("round_history") or [])
+                    if int(r.get("server_round", 0)) <= int(incoming_round)
+                ]
+                self.epoch_history = [
+                    ep for ep in (ckpt.get("epoch_history") or [])
+                    if int(ep.get("round", 0)) <= int(incoming_round)
+                ]
+                self.eval_history = [
+                    ev for ev in (ckpt.get("eval_history") or [])
+                    if int(ev.get("server_round", 0)) <= int(incoming_round)
+                ]
+
+                self._resumed_from_checkpoint = True
+                print(
+                    f"[Client {self.client_id}] Resumed latest local state from {state_path.name} "
+                    f"(Round {ckpt_round}, best_acc={max(0.0, self.best_eval_accuracy) * 100:.2f}% @ "
+                    f"R{self.best_eval_round or '-'}, rounds={len(self.round_history)}, evals={len(self.eval_history)})"
+                )
+                self._emit_resume_history(resumed_round=ckpt_round, source_label="latest_state.pt")
+                return True
+            except Exception as exc:
+                print(f"[Client {self.client_id}] Warning: Failed to load {state_path.name} for resume: {exc}")
+                return False
+
+        # Fallback path when latest_state.pt does not exist: legacy model .pth + local CSVs
+        csv_rounds, csv_evals = self._load_csv_histories_fallback(int(incoming_round))
+        max_csv_round = max(
+            [int(r["server_round"]) for r in csv_rounds]
+            + [int(e["server_round"]) for e in csv_evals]
+            + [0]
+        )
+        if not (0 < max_csv_round <= int(incoming_round)):
+            return False
+
+        for fname in ("latest_model.pth", "final_model.pth", "best_model.pth"):
+            cand_path = self.client_dir / fname
+            if not cand_path.exists():
+                continue
+            try:
+                sd = torch.load(cand_path, map_location="cpu", weights_only=False)
+                if not isinstance(sd, dict):
+                    continue
+                self.model.load_state_dict(sd, strict=True)
+                self.model.to(self.device)
+                self.round_history = csv_rounds
+                self.eval_history = csv_evals
+                for ev in csv_evals:
+                    acc_val = ev.get("eval_accuracy")
+                    if acc_val is not None and float(acc_val) > self.best_eval_accuracy:
+                        self.best_eval_accuracy = float(acc_val)
+                        self.best_eval_round = int(ev["server_round"])
+                best_pth = self.client_dir / "best_model.pth"
+                if best_pth.exists():
+                    try:
+                        best_sd = torch.load(best_pth, map_location="cpu", weights_only=False)
+                        if isinstance(best_sd, dict):
+                            self.best_model_state = best_sd
+                    except Exception:
+                        pass
+                self._resumed_from_checkpoint = True
+                print(
+                    f"[Client {self.client_id}] Resumed fallback local weights from {fname} + CSVs "
+                    f"(Round {max_csv_round}, rounds={len(self.round_history)}, evals={len(self.eval_history)})"
+                )
+                self._emit_resume_history(resumed_round=max_csv_round, source_label=fname)
+                return True
+            except Exception as exc:
+                print(f"[Client {self.client_id}] Warning: Fallback resume from {fname} failed: {exc}")
+        return False
+
+    def _ensure_session_initialized(
+        self,
+        server_round: int,
+        strategy: str,
+        config: Optional[dict] = None,
+    ) -> None:
+        """Initialize session once on first server message, resuming if reconnecting mid-run."""
+        if self._session_initialized:
+            return
+        self._session_initialized = True
+
+        rnd = int(server_round)
+        if self.auto_resume and rnd > 1:
+            resumed = self._try_resume_from_disk(rnd, strategy, config)
+            if not resumed:
+                print(
+                    f"[CLIENT_SESSION_START] {json.dumps({'client_id': int(self.client_id), 'server_round': rnd, 'resumed': False})}",
+                    flush=True,
+                )
+        else:
+            if rnd <= 1 and self.save_local_metrics:
+                for stale_name in ("latest_state.pt", "latest_model.pth"):
+                    stale_path = self.client_dir / stale_name
+                    if stale_path.exists():
+                        try:
+                            stale_path.unlink()
+                        except Exception:
+                            pass
+            print(
+                f"[CLIENT_SESSION_START] {json.dumps({'client_id': int(self.client_id), 'server_round': rnd, 'resumed': False})}",
+                flush=True,
+            )
+
     def get_parameters(self, config) -> NDArrays:
         """Return model parameters as numpy arrays."""
         return get_parameters(self.model)
@@ -579,6 +1078,9 @@ class FedMedAIClient(fl.client.NumPyClient):
     def fit(self, parameters: NDArrays, config: dict):
         """Receive global model, train locally, return updated weights + metrics."""
         strategy = str(config.get("strategy", self.strategy or "fedavg")).lower()
+        server_round = int(config.get("server_round", len(self.round_history) + 1))
+        self._ensure_session_initialized(server_round=server_round, strategy=strategy, config=config)
+
         num_model_layers = len(get_parameters(self.model))
         fedbn_strategies = (
             "fedbn", "proposed", "fedbns", "fedbn_scaffold", "bn_scaffold", "scaffold_fedbn",
@@ -625,7 +1127,6 @@ class FedMedAIClient(fl.client.NumPyClient):
             set_parameters(self.model, parameters)
 
         # Read config from server
-        server_round = int(config.get("server_round", len(self.round_history) + 1))
         local_epochs = int(config.get("local_epochs", self.local_epochs))
         proximal_mu = float(config.get("proximal_mu", 0.0))
         lr_mode = str(config.get("lr_mode", self.lr_mode)).lower().strip()
@@ -636,25 +1137,13 @@ class FedMedAIClient(fl.client.NumPyClient):
                 self.optimizer_name = srv_opt
                 if "momentum" in config:
                     self.momentum = float(config["momentum"])
-                if self.optimizer_name == "sgd":
-                    self.optimizer = optim.SGD(
-                        self.model.parameters(),
-                        lr=self.learning_rate,
-                        momentum=self.momentum,
-                        weight_decay=self.weight_decay,
-                    )
-                elif self.optimizer_name == "adamw":
-                    self.optimizer = optim.AdamW(
-                        self.model.parameters(),
-                        lr=self.learning_rate,
-                        weight_decay=self.weight_decay,
-                    )
-                else:
-                    self.optimizer = optim.Adam(
-                        self.model.parameters(),
-                        lr=self.learning_rate,
-                        weight_decay=self.weight_decay,
-                    )
+                self.optimizer = _build_optimizer(
+                    self.optimizer_name,
+                    self.model.parameters(),
+                    self.learning_rate,
+                    self.momentum,
+                    self.weight_decay,
+                )
                 print(f"[Client {self.client_id}] Switched local optimizer to {self.optimizer_name.upper()} based on server config")
 
         active_scheduler = None
@@ -883,12 +1372,13 @@ class FedMedAIClient(fl.client.NumPyClient):
             metrics["fedsld_epsilon"] = fedsld_epsilon
             metrics["fedsld_reduction"] = fedsld_reduction
 
-        # Track history locally
-        self.round_history.append(metrics)
+        # Track history locally (deduplicated by round)
+        self._upsert_round_history(metrics)
         cum_t = 0.0
+        round_epochs = []
         for ep_idx, ep_time in enumerate(train_metrics["epoch_times"]):
             cum_t += ep_time
-            self.epoch_history.append({
+            round_epochs.append({
                 "round": server_round,
                 "client_id": self.client_id,
                 "device_type": self.device_type,
@@ -900,10 +1390,12 @@ class FedMedAIClient(fl.client.NumPyClient):
                 "train_accuracy": round(train_metrics["epoch_accuracies"][ep_idx], 6),
                 "learning_rate": train_metrics["epoch_lrs"][ep_idx],
             })
+        self._replace_round_epoch_history(server_round, round_epochs)
 
         if self.save_local_metrics:
             self._save_client_csvs()
             self._save_client_plots()
+            self._save_latest_state(server_round=server_round, strategy=strategy)
 
         print(
             f"[Client {self.client_id}] fit done | Round {server_round} | IPv4: {self.device_ipv4} | "
@@ -1132,6 +1624,12 @@ class FedMedAIClient(fl.client.NumPyClient):
         """Export all client artifacts: models, CSV metrics, and training curves plot."""
         if not self.save_local_metrics:
             return
+        if not self.round_history and not self.eval_history:
+            print(
+                f"[Client {self.client_id}] No rounds completed in this session; "
+                f"preserving existing local artifacts."
+            )
+            return
         print(f"\n{'='*55}")
         print(f"[Client {self.client_id}] Finalizing and saving local client artifacts...")
         print(f"{'='*55}")
@@ -1154,6 +1652,15 @@ class FedMedAIClient(fl.client.NumPyClient):
         # 4. Generate and save dual-panel round training curves (no epoch plot on disk)
         self._save_client_plots()
 
+        # 5. Persist latest recoverable state
+        last_rnd = 0
+        if self.round_history:
+            last_rnd = max(last_rnd, int(self.round_history[-1].get("server_round", 0)))
+        if self.eval_history:
+            last_rnd = max(last_rnd, int(self.eval_history[-1].get("server_round", 0)))
+        if last_rnd > 0:
+            self._save_latest_state(server_round=last_rnd, strategy=self.strategy)
+
         plot_path = self.client_dir / f"client_{self.client_id}_round_curves.png"
         print(f"  Client Dir : {self.client_dir}")
         print(f"  Best Model : {self.client_dir / 'best_model.pth'}")
@@ -1165,12 +1672,15 @@ class FedMedAIClient(fl.client.NumPyClient):
     def evaluate(self, parameters: NDArrays, config: dict):
         """Evaluate the global model on the local test set."""
         eval_round = config.get("server_round")
+        strategy = str(config.get("strategy", self.strategy or "fedavg")).lower()
+        eval_round_int = int(eval_round) if eval_round is not None else 0
+        self._ensure_session_initialized(server_round=eval_round_int, strategy=strategy, config=config)
+
         eval_ping_ms = None
         if eval_round is not None:
             eval_ping_res = self.ping_logger.log_ping(server_round=int(eval_round), event="evaluate")
             eval_ping_ms = eval_ping_res.get("ping_ms")
 
-        strategy = str(config.get("strategy", self.strategy or "fedavg")).lower()
         fedbn_eval_strats = (
             "fedbn", "proposed", "fedbns", "fedbn_scaffold", "bn_scaffold", "scaffold_fedbn",
         )
@@ -1212,11 +1722,11 @@ class FedMedAIClient(fl.client.NumPyClient):
         avg_loss = total_loss / total
         accuracy = correct / total
 
-        # Track evaluation metrics history
+        # Track evaluation metrics history (deduplicated by round)
         resolved_round = int(eval_round) if eval_round is not None else (
             self.round_history[-1]["server_round"] if self.round_history else (len(self.eval_history) + 1)
         )
-        self.eval_history.append({
+        self._upsert_eval_history({
             "server_round": resolved_round,
             "eval_loss": float(avg_loss),
             "eval_accuracy": float(accuracy),
@@ -1235,6 +1745,7 @@ class FedMedAIClient(fl.client.NumPyClient):
         if self.save_local_metrics:
             self._save_client_csvs()
             self._save_client_plots()
+            self._save_latest_state(server_round=resolved_round, strategy=strategy)
 
         ping_str = f" | ping={eval_ping_ms:.2f}ms" if eval_ping_ms is not None and eval_ping_ms >= 0 else ""
         print(
@@ -1510,6 +2021,12 @@ def main():
         dest="save_metrics",
         help="Disable saving local client metrics to CSV",
     )
+    parser.add_argument(
+        "--auto_resume",
+        action=argparse.BooleanOptionalAction,
+        default=yaml_cfg.get("auto_resume", True),
+        help="Automatically resume latest local model/BN/optimizer/history when reconnecting at Round > 1 (default: True)",
+    )
     parser.set_defaults(save_metrics=True)
     args = parser.parse_args()
 
@@ -1641,6 +2158,7 @@ def main():
         fedsol_temperature=args.fedsol_temperature,
         fedsol_adaptive=args.fedsol_adaptive,
         clip_grad_norm=args.clip_grad_norm,
+        auto_resume=args.auto_resume,
     )
 
     print(f"[Client {args.client_id}] Connecting to {args.server_address}...")

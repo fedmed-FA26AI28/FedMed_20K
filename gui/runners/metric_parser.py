@@ -154,6 +154,33 @@ class MetricStreamParser:
                 self.on_metric_callback("server", payload)
 
     def _parse_client_line(self, line: str):
+        # 0. Structured lifecycle & resume markers emitted on client reconnect
+        if "[CLIENT_RESUME_HISTORY]" in line:
+            try:
+                import json
+                idx = line.find("[CLIENT_RESUME_HISTORY]") + len("[CLIENT_RESUME_HISTORY]")
+                payload = json.loads(line[idx:].strip())
+                if self.on_metric_callback:
+                    self.on_metric_callback("client_resume_history", payload)
+                return
+            except Exception:
+                pass
+
+        if "[CLIENT_SESSION_START]" in line:
+            try:
+                import json
+                idx = line.find("[CLIENT_SESSION_START]") + len("[CLIENT_SESSION_START]")
+                payload = json.loads(line[idx:].strip())
+                if self.on_metric_callback:
+                    self.on_metric_callback("client_session_start", payload)
+                return
+            except Exception:
+                pass
+
+        # Ignore checkpoint / best-model status lines so they never emit roundless client_eval events
+        if "New Best Local Test" in line or "Checkpoint Saved:" in line:
+            return
+
         # 1. Check for client fit completion per round
         m_fit = self.re_client_fit_done.search(line)
         if m_fit:
@@ -206,6 +233,9 @@ class MetricStreamParser:
         m_eval = self.re_client_local_test.search(line)
         if m_eval:
             metrics = {}
+            m_rnd = re.search(r'\bRound\s+(\d+)', line, re.IGNORECASE)
+            if m_rnd:
+                metrics["round"] = int(m_rnd.group(1))
             if m_eval.group(1):
                 metrics["test_loss"] = float(m_eval.group(1))
             if m_eval.group(2):

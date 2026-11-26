@@ -32,6 +32,7 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         self.client_round_data = {
             "rounds": [],
             "losses": [],
+            "eval_losses": [],
             "train_accs": [],
             "tas": [],
             "btas": [],
@@ -254,6 +255,7 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         if self.client_view_mode == "round":
             badges = [
                 ("● Train Loss", T.WARNING),
+                ("● Test Loss", T.ERROR),
                 ("● Train Acc", T.BLUE),
                 ("● Test TA", T.PRIMARY),
                 ("● Best TA", T.SUCCESS),
@@ -655,6 +657,7 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         self.client_round_data = {
             "rounds": sorted_rounds,
             "losses": [self._client_round_map[r]["loss"] for r in sorted_rounds if self._client_round_map[r]["loss"] is not None],
+            "eval_losses": [self._client_round_map[r]["eval_loss"] for r in sorted_rounds if self._client_round_map[r].get("eval_loss") is not None],
             "train_accs": [self._client_round_map[r]["train_acc"] for r in sorted_rounds if self._client_round_map[r]["train_acc"] is not None],
             "tas": [self._client_round_map[r]["ta"] for r in sorted_rounds if self._client_round_map[r]["ta"] is not None],
             "btas": [self._client_round_map[r]["bta"] for r in sorted_rounds if self._client_round_map[r]["bta"] is not None],
@@ -698,13 +701,24 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         if self.mode == "client" and self.client_view_mode == "epoch":
             self._refresh_plots()
 
+    def _recompute_client_btas(self):
+        """Recompute monotonic running Best TA across all sorted client rounds."""
+        best_ta: Optional[float] = None
+        for r_num in sorted(self._client_round_map.keys()):
+            entry = self._client_round_map[r_num]
+            ta_val = entry.get("ta")
+            if ta_val is not None:
+                f_ta = float(ta_val)
+                best_ta = f_ta if best_ta is None else max(best_ta, f_ta)
+                entry["bta"] = best_ta
+
     def update_client_round(self, r: int, train_loss: Optional[float] = None, train_acc: Optional[float] = None,
                             ta: Optional[float] = None, bta: Optional[float] = None,
                             eval_loss: Optional[float] = None):
         """Merge and plot client round metrics keyed by round across 1..R."""
         r_num = int(r)
         entry = self._client_round_map.setdefault(
-            r_num, {"loss": None, "train_acc": None, "ta": None, "bta": None, "eval_loss": None}
+            r_num, {"loss": None, "train_loss": None, "train_acc": None, "ta": None, "bta": None, "eval_loss": None}
         )
         if train_loss is not None:
             entry["loss"] = float(train_loss)
@@ -720,13 +734,57 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         if bta is not None:
             entry["bta"] = float(bta)
         elif ta is not None:
-            prev_btas = [
-                float(v["bta"])
-                for rk, v in self._client_round_map.items()
-                if rk <= r_num and v.get("bta") is not None
-            ]
-            entry["bta"] = max([float(ta)] + prev_btas)
+            self._recompute_client_btas()
 
+        self._sync_client_round_arrays()
+
+        if self.mode == "client" and self.client_view_mode == "round":
+            self._refresh_plots()
+
+    def load_client_history(
+        self,
+        round_history: Optional[List[Dict[str, Any]]],
+        eval_history: Optional[List[Dict[str, Any]]],
+        clear_first: bool = False,
+    ):
+        """Bulk-merge resumed client fit and evaluation histories and refresh the client round plot."""
+        if clear_first:
+            self._client_round_map.clear()
+
+        for item in round_history or []:
+            if not isinstance(item, dict):
+                continue
+            r_raw = item.get("server_round", item.get("round"))
+            if r_raw is None:
+                continue
+            r_num = int(r_raw)
+            entry = self._client_round_map.setdefault(
+                r_num, {"loss": None, "train_acc": None, "ta": None, "bta": None, "eval_loss": None}
+            )
+            if item.get("train_loss") is not None:
+                entry["loss"] = float(item["train_loss"])
+                entry["train_loss"] = float(item["train_loss"])
+            if item.get("train_accuracy") is not None:
+                entry["train_acc"] = float(item["train_accuracy"])
+
+        for item in eval_history or []:
+            if not isinstance(item, dict):
+                continue
+            r_raw = item.get("server_round", item.get("round"))
+            if r_raw is None:
+                continue
+            r_num = int(r_raw)
+            entry = self._client_round_map.setdefault(
+                r_num, {"loss": None, "train_acc": None, "ta": None, "bta": None, "eval_loss": None}
+            )
+            if item.get("eval_loss") is not None:
+                entry["eval_loss"] = float(item["eval_loss"])
+                if entry.get("train_loss") is None and entry["loss"] is None:
+                    entry["loss"] = float(item["eval_loss"])
+            if item.get("eval_accuracy") is not None:
+                entry["ta"] = float(item["eval_accuracy"])
+
+        self._recompute_client_btas()
         self._sync_client_round_arrays()
 
         if self.mode == "client" and self.client_view_mode == "round":
@@ -982,11 +1040,42 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
         self.ax_acc.xaxis.set_major_locator(MaxNLocator(integer=True))
 
         sorted_rounds = sorted(self._client_round_map.keys())
-        loss_pts = [(r, self._client_round_map[r]["loss"]) for r in sorted_rounds if self._client_round_map[r]["loss"] is not None]
-        if loss_pts:
-            xs, ys = zip(*loss_pts)
-            self.ax_loss.plot(xs, ys, color=T.resolve(T.WARNING), lw=2, marker="o", markersize=4)
-            self._set_axis_limits(self.ax_loss, list(xs), list(ys))
+        train_loss_pts = [
+            (r, self._client_round_map[r].get("train_loss"))
+            for r in sorted_rounds
+            if self._client_round_map[r].get("train_loss") is not None
+        ]
+        eval_loss_pts = [
+            (r, self._client_round_map[r].get("eval_loss"))
+            for r in sorted_rounds
+            if self._client_round_map[r].get("eval_loss") is not None
+        ]
+        all_loss_rounds = []
+        all_loss_vals = []
+        if train_loss_pts:
+            xs_tr, ys_tr = zip(*train_loss_pts)
+            self.ax_loss.plot(
+                xs_tr, ys_tr, color=T.resolve(T.WARNING), lw=2.0, marker="o", markersize=4, label="Train Loss"
+            )
+            all_loss_rounds.extend(xs_tr)
+            all_loss_vals.extend(ys_tr)
+        if eval_loss_pts:
+            xs_ev, ys_ev = zip(*eval_loss_pts)
+            self.ax_loss.plot(
+                xs_ev, ys_ev, color=T.resolve(T.ERROR), lw=2.0, marker="s", markersize=4, label="Test Loss"
+            )
+            all_loss_rounds.extend(xs_ev)
+            all_loss_vals.extend(ys_ev)
+        if all_loss_vals and all_loss_rounds:
+            self._set_axis_limits(self.ax_loss, sorted(set(all_loss_rounds)), all_loss_vals)
+            self.ax_loss.legend(
+                facecolor=T.resolve(T.PANEL),
+                edgecolor=T.resolve(T.BORDER),
+                labelcolor=T.resolve(T.TEXT),
+                fontsize=8.5,
+                loc="upper right",
+                framealpha=0.9,
+            )
 
         all_accs = []
         acc_specs = [
@@ -1159,12 +1248,13 @@ class DualMetricPlotCanvas(ctk.CTkFrame):
                 with open(filepath, "w", newline="", encoding="utf-8-sig") as f:
                     writer = csv.writer(f)
                     if self.client_view_mode == "round":
-                        writer.writerow(["round", "train_loss", "train_acc", "ta", "bta"])
+                        writer.writerow(["round", "train_loss", "test_loss", "train_acc", "ta", "bta"])
                         for r in sorted(self._client_round_map.keys()):
                             rec = self._client_round_map[r]
                             writer.writerow([
                                 r,
-                                rec["loss"] if rec["loss"] is not None else "",
+                                rec["train_loss"] if rec.get("train_loss") is not None else "",
+                                rec["eval_loss"] if rec.get("eval_loss") is not None else "",
                                 rec["train_acc"] if rec["train_acc"] is not None else "",
                                 rec["ta"] if rec["ta"] is not None else "",
                                 rec["bta"] if rec["bta"] is not None else "",
